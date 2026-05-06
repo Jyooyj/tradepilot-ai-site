@@ -423,7 +423,9 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
             <h2 className="text-2xl font-black">第二步：填写产品信息</h2>
             <p className="mt-2 text-sm text-slate-400">字段越完整，AI判断越可靠。带价格和MOQ才能测算利润与压货风险。</p>
           </div>
-          <div className="rounded-2xl bg-white/[0.06] px-4 py-3 text-sm font-bold text-slate-300">信息完整度：{result.scores[5][1]}/100</div>
+<div className="rounded-2xl bg-white/[0.06] px-4 py-3 text-sm font-bold text-slate-300">
+  识别状态：{result?.profile?.type || result?.profile?.kind || "待识别"}
+</div>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           <Input label="产品名称" value={product.name} onChange={(v) => update("name", v)} placeholder="如：蝴蝶结珍珠耳夹" />
