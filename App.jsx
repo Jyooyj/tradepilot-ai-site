@@ -186,6 +186,8 @@ function App() {
   const [image, setImage] = useState(null);
   const [analyzed, setAnalyzed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiInsight, setAiInsight] = useState(null);
 
   const result = useMemo(() => analyzeProduct(product, Boolean(image)), [product, image]);
 
@@ -199,6 +201,57 @@ function App() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   }
+  async function analyzeImageWithAI() {
+  if (!image) {
+    alert("请先上传产品图片");
+    return;
+  }
+
+  try {
+    setAiLoading(true);
+
+    const response = await fetch("/api/analyze-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image,
+        hint: `${product.name} ${product.category} ${product.material} ${product.keywords}`,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(data);
+      alert(data.error || "图片识别失败，请检查接口配置");
+      return;
+    }
+
+    setAiInsight(data);
+
+    setProduct((old) => ({
+      ...old,
+      name: data.product?.name || old.name,
+      category: data.product?.category || old.category,
+      material: data.product?.material || old.material,
+      channel: data.product?.channel || old.channel,
+      price: data.product?.price || old.price,
+      audience: data.product?.audience || old.audience,
+      competitorPrice: data.product?.competitorPrice || old.competitorPrice,
+      keywords: data.product?.keywords || old.keywords,
+      note: data.product?.note || old.note,
+    }));
+
+    alert("AI识别完成，已自动回填产品信息");
+  } catch (error) {
+    console.error(error);
+    alert("识别失败，请稍后重试");
+  } finally {
+    setAiLoading(false);
+  }
+}
 
   if (page === "cover") {
     return (
