@@ -594,14 +594,15 @@ function App() {
             AI Procurement Workspace · 进货决策与爆款测款智能体
           </div>
 
-          <h1 className="max-w-5xl text-5xl font-black leading-tight tracking-tight md:text-7xl">
-            TradePilot AI
-            <span className="block text-emerald-300">别让第一次进货，变成第一次压货。</span>
-          </h1>
+          <h1 className="mt-6 max-w-6xl text-5xl font-black leading-[0.98] tracking-tight md:text-7xl xl:text-8xl">
+  <span className="block text-white">TradePilot AI</span>
+  <span className="block text-emerald-300">别让第一次进货</span>
+  <span className="block text-emerald-300">变成第一次压货</span>
+</h1>
 
-          <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-300">
-            面向小商品、饰品、文创、家居、校园零售和内容电商进货场景，帮助创业者完成产品识别、利润测算、风险判断、内容测款、产品库沉淀和候选产品PK。
-          </p>
+        <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-300">
+  面向小商品、饰品、文创、家居、校园零售和内容电商进货场景，帮助创业者完成产品识别、利润测算、风险判断、内容测款和复盘决策。
+</p>
 
           <div className="mt-8 grid gap-3 md:grid-cols-6">
             {flowSteps.map(([title, desc], index) => (
