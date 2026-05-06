@@ -464,7 +464,7 @@ aiLoading={aiLoading}
         )}
 
         {mode === "result" && (
-         <ResultView
+<ResultView
   product={product}
   image={image}
   result={result}
@@ -472,7 +472,7 @@ aiLoading={aiLoading}
   setMode={setMode}
   copyReport={copyReport}
   copied={copied}
-  saveCurrentReport={saveCurrentReport}
+  aiInsight={aiInsight}
 />
         )}
         {mode === "history" && (
@@ -633,6 +633,7 @@ function ResultView({
   copyReport,
   copied,
   saveCurrentReport,
+  aiInsight,
 }) {
     const profile = result?.profile || {};
   const score = result?.totalScore ?? result?.total ?? 0;
