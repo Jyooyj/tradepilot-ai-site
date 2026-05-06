@@ -319,6 +319,8 @@ async function deleteHistoryRecord(id) {
   loadHistoryRecords();
 }
   async function analyzeImageWithAI() {
+  alert("按钮已点击：开始调用AI识图");
+
   if (!image) {
     alert("请先上传产品图片");
     return;
@@ -327,6 +329,8 @@ async function deleteHistoryRecord(id) {
   try {
     setAiLoading(true);
 
+    alert("准备请求 /api/analyze-image");
+
     const response = await fetch("/api/analyze-image", {
       method: "POST",
       headers: {
@@ -334,18 +338,56 @@ async function deleteHistoryRecord(id) {
       },
       body: JSON.stringify({
         image,
-        hint: `${product.name} ${product.category} ${product.material} ${product.keywords}`,
+        hint: `${product.name || ""} ${product.category || ""} ${product.material || ""} ${product.keywords || ""}`,
       }),
     });
 
-    const data = await response.json();
+    alert("接口已返回，状态码：" + response.status);
 
-    if (!response.ok) {
-      console.error(data);
-      alert(data.error || "图片识别失败，请检查接口配置");
+    const text = await response.text();
+
+    alert("接口返回内容前100字：" + text.slice(0, 100));
+
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      alert("接口返回不是JSON，说明后端返回格式异常");
+      console.error("接口返回原文：", text);
       return;
     }
 
+    if (!response.ok) {
+      alert("AI识图失败：" + (data.error || data.message || "未知错误"));
+      return;
+    }
+
+    const aiProduct = data?.product || {};
+
+    setAiInsight(data);
+
+    setProduct((old) => ({
+      ...old,
+      name: aiProduct.name || old.name,
+      category: aiProduct.category || old.category,
+      material: aiProduct.material || old.material,
+      channel: aiProduct.channel || old.channel,
+      price: aiProduct.price || old.price,
+      audience: aiProduct.audience || old.audience,
+      competitorPrice: aiProduct.competitorPrice || old.competitorPrice,
+      keywords: aiProduct.keywords || old.keywords,
+      note: aiProduct.note || old.note,
+    }));
+
+    alert("AI识别完成，已自动回填产品信息");
+  } catch (error) {
+    alert("前端调用失败：" + error.message);
+    console.error(error);
+  } finally {
+    setAiLoading(false);
+  }
+}
     setAiInsight(data);
 
     setProduct((old) => ({
