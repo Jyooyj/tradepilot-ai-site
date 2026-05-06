@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { supabase } from "./supabaseClient";
 
 const initialProduct = {
   name: "蝴蝶结珍珠耳夹",
@@ -188,6 +189,9 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState(null);
+  const [historyRecords, setHistoryRecords] = useState([]);
+const [historyLoading, setHistoryLoading] = useState(false);
+const [historyMessage, setHistoryMessage] = useState("");
 
   const result = useMemo(() => analyzeProduct(product, Boolean(image)), [product, image]);
 
@@ -201,6 +205,119 @@ function App() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   }
+  async function saveCurrentReport() {
+  try {
+    setHistoryMessage("");
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      alert("请先登录后再保存历史记录。");
+      return;
+    }
+
+    const payload = {
+      user_id: user.id,
+      product_name:
+        product.name ||
+        result?.profile?.type ||
+        result?.profile?.kind ||
+        "未命名产品",
+      category:
+        product.category ||
+        result?.profile?.category ||
+        "未分类",
+      score:
+        result?.totalScore ??
+        result?.total ??
+        null,
+      advice:
+        result?.level ||
+        result?.advice ||
+        "",
+      price:
+        product.price ||
+        result?.profile?.price ||
+        result?.profile?.suggestedPrice ||
+        "",
+      competitor_price:
+        product.competitorPrice ||
+        result?.profile?.competitor ||
+        result?.profile?.competitorPrice ||
+        "",
+      product,
+      result: {
+        profile: result?.profile || null,
+        scores: result?.scores || [],
+        risks: result?.risks || [],
+        contentPlan: result?.contentPlan || null,
+        totalScore: result?.totalScore ?? result?.total ?? null,
+        level: result?.level || result?.advice || "",
+      },
+      report: result?.report || "",
+    };
+
+    const { error } = await supabase.from("product_history").insert(payload);
+
+    if (error) {
+      console.error(error);
+      alert("保存失败：" + error.message);
+      return;
+    }
+
+    alert("已保存到历史记录。");
+    loadHistoryRecords();
+  } catch (error) {
+    console.error(error);
+    alert("保存失败，请稍后重试。");
+  }
+}
+
+async function loadHistoryRecords() {
+  try {
+    setHistoryLoading(true);
+    setHistoryMessage("");
+
+    const { data, error } = await supabase
+      .from("product_history")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (error) {
+      console.error(error);
+      setHistoryMessage("读取历史记录失败：" + error.message);
+      return;
+    }
+
+    setHistoryRecords(data || []);
+  } catch (error) {
+    console.error(error);
+    setHistoryMessage("读取历史记录失败。");
+  } finally {
+    setHistoryLoading(false);
+  }
+}
+
+async function deleteHistoryRecord(id) {
+  const ok = window.confirm("确定删除这条历史记录吗？");
+  if (!ok) return;
+
+  const { error } = await supabase
+    .from("product_history")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert("删除失败：" + error.message);
+    return;
+  }
+
+  loadHistoryRecords();
+}
   async function analyzeImageWithAI() {
   if (!image) {
     alert("请先上传产品图片");
@@ -295,6 +412,15 @@ function App() {
             <Tab active={mode === "intro"} onClick={() => setMode("intro")}>介绍示例</Tab>
             <Tab active={mode === "operate"} onClick={() => setMode("operate")}>用户操作</Tab>
             <Tab active={mode === "result"} onClick={() => setMode("result")}>识别报告</Tab>
+            <Tab
+  active={mode === "history"}
+  onClick={() => {
+    setMode("history");
+    loadHistoryRecords();
+  }}
+>
+  历史记录
+</Tab>
           </nav>
         </div>
       </header>
@@ -320,16 +446,32 @@ aiLoading={aiLoading}
         )}
 
         {mode === "result" && (
-          <ResultView
-            product={product}
-            image={image}
-            result={result}
-            analyzed={analyzed}
-            setMode={setMode}
-            copyReport={copyReport}
-            copied={copied}
-          />
+         <ResultView
+  product={product}
+  image={image}
+  result={result}
+  analyzed={analyzed}
+  setMode={setMode}
+  copyReport={copyReport}
+  copied={copied}
+  saveCurrentReport={saveCurrentReport}
+/>
         )}
+        {mode === "history" && (
+  <HistoryView
+    historyRecords={historyRecords}
+    historyLoading={historyLoading}
+    historyMessage={historyMessage}
+    deleteHistoryRecord={deleteHistoryRecord}
+    restoreHistoryRecord={(record) => {
+      if (record.product) {
+        setProduct(record.product);
+      }
+      setAnalyzed(true);
+      setMode("result");
+    }}
+  />
+)}
       </main>
     </div>
   );
@@ -464,7 +606,16 @@ function OperateView({
   );
 }
 
-function ResultView({ product, image, result, analyzed, setMode, copyReport, copied }) {
+function ResultView({
+  product,
+  image,
+  result,
+  analyzed,
+  setMode,
+  copyReport,
+  copied,
+  saveCurrentReport,
+}) {
   return (
     <div className="space-y-6">
       {!analyzed && <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">你还没有点击“AI识别判断”。当前展示的是实时预览结果，建议返回用户操作入口生成正式报告。</div>}
@@ -561,6 +712,12 @@ function ResultView({ product, image, result, analyzed, setMode, copyReport, cop
           </div>
           <div className="flex gap-3">
             <button onClick={() => setMode("operate")} className="rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-bold text-white">返回修改</button>
+            <button
+  onClick={saveCurrentReport}
+  className="rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black"
+>
+  保存到历史
+</button>
             <button onClick={copyReport} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">{copied ? "已复制" : "复制报告"}</button>
           </div>
         </div>
@@ -587,4 +744,100 @@ function Score({ label, value }) {
   return <div><div className="mb-2 flex items-center justify-between text-sm"><span className="font-bold text-slate-300">{label}</span><span className="font-black text-emerald-300">{value}</span></div><div className="h-3 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-300" style={{ width: `${value}%` }} /></div></div>;
 }
 
+function HistoryView({
+  historyRecords,
+  historyLoading,
+  historyMessage,
+  deleteHistoryRecord,
+  restoreHistoryRecord,
+}) {
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+      <div className="mb-6">
+        <p className="text-sm text-emerald-300">Product History</p>
+        <h2 className="text-3xl font-black text-white">历史记录</h2>
+        <p className="mt-2 text-sm leading-7 text-slate-400">
+          这里会保存当前账号判断过的产品、评分、建议和完整报告。每个用户只能看到自己的记录。
+        </p>
+      </div>
+
+      {historyLoading && (
+        <div className="rounded-3xl bg-black/25 p-6 text-slate-300">
+          正在读取历史记录...
+        </div>
+      )}
+
+      {historyMessage && (
+        <div className="mb-4 rounded-3xl bg-amber-300/10 p-5 text-amber-100">
+          {historyMessage}
+        </div>
+      )}
+
+      {!historyLoading && historyRecords.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center text-slate-400">
+          暂无历史记录。生成报告后，点击“保存到历史”即可保存。
+        </div>
+      )}
+
+      <div className="grid gap-4">
+        {historyRecords.map((record) => (
+          <article
+            key={record.id}
+            className="rounded-3xl border border-white/10 bg-black/30 p-5"
+          >
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h3 className="text-xl font-black text-white">
+                  {record.product_name || "未命名产品"}
+                </h3>
+                <p className="mt-2 text-sm text-slate-400">
+                  {record.category || "未分类"} ·{" "}
+                  {new Date(record.created_at).toLocaleString()}
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                  <span className="rounded-full bg-emerald-300/10 px-3 py-1 font-bold text-emerald-200">
+                    评分：{record.score ?? "暂无"}
+                  </span>
+                  <span className="rounded-full bg-cyan-300/10 px-3 py-1 font-bold text-cyan-200">
+                    售价：{record.price || "待补充"}
+                  </span>
+                  <span className="rounded-full bg-white/[0.06] px-3 py-1 font-bold text-slate-300">
+                    {record.advice || "暂无建议"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => restoreHistoryRecord(record)}
+                  className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black"
+                >
+                  查看
+                </button>
+                <button
+                  onClick={() => deleteHistoryRecord(record.id)}
+                  className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-white"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+
+            {record.report && (
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm font-bold text-emerald-300">
+                  展开报告
+                </summary>
+                <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl bg-white/[0.06] p-4 text-xs leading-6 text-slate-300">
+                  {record.report}
+                </pre>
+              </details>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
 export default App;
