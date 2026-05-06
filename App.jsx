@@ -616,6 +616,41 @@ function ResultView({
   copied,
   saveCurrentReport,
 }) {
+    const profile = result?.profile || {};
+  const score = result?.totalScore ?? result?.total ?? 0;
+  const advice = result?.level || result?.advice || "暂无建议";
+  const report = result?.report || "暂无报告";
+  const links = result?.searchLinks || result?.links || [];
+  const scores = result?.scores || [];
+  const risks = result?.risks || [];
+
+  const xhsCover =
+    result?.contentPlan?.xhs?.cover ||
+    profile.cover ||
+    "这个产品值不值得拿货？";
+
+  const xhsTitles =
+    result?.contentPlan?.xhs?.titles ||
+    profile.xhs ||
+    [];
+
+  const xhsStructure =
+    result?.contentPlan?.xhs?.noteStructure ||
+    [
+      "封面提出痛点或结果",
+      "展示产品图/佩戴图/使用图",
+      "讲价格结构：拿货价、建议售价、预计利润",
+      "讲适合人群和真实使用场景",
+      "讲风险点：同质化、材质、包装、补货周期",
+      "给出是否建议拿样/测款的结论",
+      "发起互动投票",
+      "引导收藏或评论，收集反馈"
+    ];
+
+  const douyinScript =
+    result?.contentPlan?.douyin ||
+    profile.douyin ||
+    [];
   return (
     <div className="space-y-6">
       {!analyzed && <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">你还没有点击“AI识别判断”。当前展示的是实时预览结果，建议返回用户操作入口生成正式报告。</div>}
@@ -624,8 +659,8 @@ function ResultView({
           <p className="text-sm text-slate-400">当前产品</p>
           <h2 className="mt-2 text-3xl font-black text-emerald-300">{product.name || "未命名产品"}</h2>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <Card label="综合评分" value={`${result.totalScore}/100`} />
-            <Card label="AI建议" value={result.level} />
+            <Card label="综合评分" value={`${score}/100`} />
+            <Card label="AI建议" value={advice} />
             <Card label="单件利润" value={`¥${money(result.profit)}`} />
             <Card label="毛利率" value={`${Math.round(result.margin * 100)}%`} />
             <Card label="单件成本" value={`¥${money(result.unitCost)}`} />
@@ -721,7 +756,7 @@ function ResultView({
             <button onClick={copyReport} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">{copied ? "已复制" : "复制报告"}</button>
           </div>
         </div>
-        <pre className="mt-5 whitespace-pre-wrap rounded-3xl bg-white/[0.06] p-5 text-sm leading-8 text-slate-200">{result.report}</pre>
+        <pre className="mt-5 whitespace-pre-wrap rounded-3xl bg-white/[0.06] p-5 text-sm leading-8 text-slate-200">{report}</pre>
       </section>
     </div>
   );
