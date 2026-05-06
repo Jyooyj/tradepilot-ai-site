@@ -357,7 +357,7 @@ function getRecordStatus(record) {
 function App() {
   const [page, setPage] = useState("cover");
   const [mode, setMode] = useState("intro");
-  const [product, setProduct] = useState(initialProduct);
+  const [product, setProduct] = useState(blankProduct);
   const [image, setImage] = useState(null);
   const [analyzed, setAnalyzed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -502,82 +502,99 @@ function App() {
   }
 
   async function analyzeImageWithAI() {
-  if (!image) {
-    alert("请先上传产品图片");
-    return;
-  }
+    if (!image) {
+      alert("请先上传产品图片");
+      return;
+    }
 
-  setAiLoading(true);
+    setAiLoading(true);
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => {
-    controller.abort();
-  }, 30000);
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, 55000);
 
-  try {
-    const response = await fetch("/api/analyze-image", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        image,
-        hint: `${product.name || ""} ${product.category || ""} ${product.material || ""} ${product.keywords || ""}`,
-      }),
-    });
+    const pickText = (...values) => {
+      const found = values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
+      return found ? String(found).trim() : "";
+    };
 
-    clearTimeout(timer);
+    const pickNumber = (...values) => {
+      const raw = pickText(...values);
+      const match = String(raw).match(/\d+(\.\d+)?/);
+      return match ? match[0] : "";
+    };
 
-    const text = await response.text();
-
-    let data;
     try {
-      data = JSON.parse(text);
+      const response = await fetch("/api/analyze-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          image,
+          hint:
+            "请只根据上传图片识别产品。不要沿用页面旧字段。先判断这是项链/耳饰/发饰/其他，若看到一整圈珍珠串、扣头、延长链或包装盒内圆形珠链，优先判断为珍珠项链/锁骨链，不要判断为耳夹。",
+        }),
+      });
+
+      clearTimeout(timer);
+
+      const text = await response.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        console.error("接口返回不是 JSON：", text);
+        alert("AI识别失败：接口返回格式异常。请稍后重试，或先手动填写产品信息生成报告。");
+        return;
+      }
+
+      if (!response.ok) {
+        console.error("AI识别接口错误：", data);
+        alert(data.error || data.message || "AI识别失败，请检查模型权限或稍后重试。");
+        return;
+      }
+
+      const aiProduct = data?.product || {};
+
+      setAiInsight(data);
+
+      setProduct((old) => ({
+        ...old,
+        name: pickText(aiProduct.name, aiProduct.productName, old.name),
+        category: pickText(aiProduct.category, aiProduct.type, old.category),
+        material: pickText(aiProduct.material, old.material),
+        cost: pickNumber(aiProduct.cost, aiProduct.purchasePrice, aiProduct.sourcePrice, aiProduct.wholesalePrice, old.cost),
+        price: pickText(aiProduct.price, aiProduct.suggestedPrice, aiProduct.sellingPrice, old.price),
+        moq: pickNumber(aiProduct.moq, aiProduct.MOQ, aiProduct.minimumOrderQuantity, old.moq),
+        audience: pickText(aiProduct.audience, aiProduct.targetAudience, old.audience),
+        channel: pickText(aiProduct.channel, aiProduct.salesChannel, old.channel),
+        supplier: pickText(aiProduct.supplier, aiProduct.supplierInfo, old.supplier),
+        competitorPrice: pickText(aiProduct.competitorPrice, aiProduct.competitor_price, old.competitorPrice),
+        logistics: pickText(aiProduct.logistics, aiProduct.packageRisk, old.logistics),
+        keywords: pickText(aiProduct.keywords, aiProduct.tags, old.keywords),
+        note: pickText(aiProduct.note, aiProduct.description, old.note),
+      }));
+
+      setAnalyzed(false);
+      alert("AI识别完成，已自动回填产品信息");
     } catch (error) {
-      console.error("接口返回不是 JSON：", text);
-      alert("AI识别失败：接口返回格式异常。请稍后重试，或先手动填写产品信息生成报告。");
-      return;
+      clearTimeout(timer);
+
+      if (error.name === "AbortError") {
+        alert("AI识别超时：模型响应较慢。你可以换一张更清晰的图片，或先手动填写信息生成报告。");
+      } else {
+        console.error(error);
+        alert("AI识别失败：" + error.message);
+      }
+    } finally {
+      clearTimeout(timer);
+      setAiLoading(false);
     }
-
-    if (!response.ok) {
-      console.error("AI识别接口错误：", data);
-      alert(data.error || data.message || "AI识别失败，请检查模型权限或稍后重试。");
-      return;
-    }
-
-    const aiProduct = data?.product || {};
-
-    setAiInsight(data);
-
-    setProduct((old) => ({
-      ...old,
-      name: aiProduct.name || old.name,
-      category: aiProduct.category || old.category,
-      material: aiProduct.material || old.material,
-      channel: aiProduct.channel || old.channel,
-      price: aiProduct.price || old.price,
-      audience: aiProduct.audience || old.audience,
-      competitorPrice: aiProduct.competitorPrice || old.competitorPrice,
-      keywords: aiProduct.keywords || old.keywords,
-      note: aiProduct.note || old.note,
-    }));
-
-    alert("AI识别完成，已自动回填产品信息");
-  } catch (error) {
-    clearTimeout(timer);
-
-    if (error.name === "AbortError") {
-      alert("AI识别超时：图片可能较大或模型响应较慢。你可以换一张更小的图片，或先手动填写信息生成报告。");
-    } else {
-      console.error(error);
-      alert("AI识别失败：" + error.message);
-    }
-  } finally {
-    clearTimeout(timer);
-    setAiLoading(false);
   }
-}
 
   function restoreRecord(record) {
     if (record.product) {
@@ -806,7 +823,7 @@ function Info({ title, items }) {
 }
 
 function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode, analyzeImageWithAI, aiLoading }) {
-  function handleImage(e) {
+function handleImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -816,7 +833,7 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
       const img = new Image();
 
       img.onload = () => {
-        const maxSize = 900;
+        const maxSize = 1000;
         let width = img.width;
         let height = img.height;
 
@@ -835,8 +852,10 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
 
-        const compressedImage = canvas.toDataURL("image/jpeg", 0.65);
+        const compressedImage = canvas.toDataURL("image/jpeg", 0.72);
         setImage(compressedImage);
+        setProduct(blankProduct);
+        setAnalyzed(false);
       };
 
       img.onerror = () => {
@@ -847,11 +866,6 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
     };
 
     reader.readAsDataURL(file);
-  }
-
-  function analyze() {
-    setAnalyzed(true);
-    setMode("result");
   }
 
   function analyze() {
