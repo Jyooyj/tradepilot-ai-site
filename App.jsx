@@ -2,19 +2,19 @@ import React, { useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 
 const initialProduct = {
-  name: "蝴蝶结珍珠耳夹",
-  category: "饰品 / 小商品",
-  cost: "3.8",
-  price: "19.9",
-  moq: "100",
-  material: "合金 + 仿珍珠",
-  audience: "18-25岁女生、学生党、通勤人群",
-  channel: "小红书 / 抖音 / 校园私域",
-  supplier: "支持混批，7天补货，可定制包装",
-  keywords: "温柔风、法式、不打耳洞、学生党、春夏氛围感",
-  competitorPrice: "15.9-29.9元",
-  logistics: "小件轻货，包装成本低",
-  note: "适合春夏穿搭、校园摆摊、礼物场景，建议先拿样拍图测款。",
+  name: "蝴蝶标本装饰画",
+  category: "家居装饰 / 文创礼品 / 昆虫标本工艺品",
+  cost: "19",
+  price: "59.9",
+  moq: "50",
+  material: "实木相框 + 玻璃面板 + 蝴蝶标本装饰",
+  audience: "18-35岁女性、家居装饰爱好者、礼物消费人群、文创收藏人群",
+  channel: "小红书 / 抖音 / 家居文创店 / 礼品渠道",
+  supplier: "支持混批，7天补货，建议确认包装防碎和标本来源合规性",
+  keywords: "蝴蝶标本、家居装饰、氛围感摆件、礼物推荐、文创小商品、桌面装饰",
+  competitorPrice: "39.9-129元",
+  logistics: "相框类产品，存在玻璃破损风险，需要加强包装",
+  note: "适合做家居氛围感、书桌装饰、生日礼物和文创摆件场景测款。",
 };
 
 const blankProduct = {
@@ -105,6 +105,28 @@ function clamp(value, min, max) {
 
 function inferMarketInfo(product) {
   const text = `${product.name} ${product.category} ${product.material} ${product.keywords} ${product.note}`;
+
+  if (/蝴蝶|标本|昆虫|相框|装饰画|家居摆件|桌面装饰/.test(text)) {
+    return {
+      marketType: "家居装饰 / 文创礼品 / 昆虫标本工艺品",
+      cover: "这幅蝴蝶标本装饰画，适合做礼物还是家居摆件？",
+      xhsTitles: [
+        "逛展看到的蝴蝶标本装饰画，先别急着进货",
+        "书桌氛围感小摆件，蝴蝶标本画真的有人买吗？",
+        "文创礼品选品：好看不等于好卖",
+        "相框类小商品进货前，一定要先算包装和破损风险",
+      ],
+      douyinScript: [
+        "0-2秒：展示蝴蝶标本装饰画的正面效果，提出问题：这个货值不值得进？",
+        "3-7秒：特写蝴蝶颜色、相框材质、玻璃面板和背板细节",
+        "8-12秒：切换书桌、卧室、礼物包装三个使用场景",
+        "13-18秒：讲清楚拿货价、建议售价、MOQ和包装破损风险",
+        "结尾：让用户投票，是更适合自用摆件还是生日礼物？",
+      ],
+      imageAdvice: "重点拍蝴蝶细节、相框质感、摆放场景和包装防护。单纯商品图不够，要补书桌/卧室氛围图。",
+      contentRisk: "标本类产品需要注意来源合规、审美接受度和玻璃破损风险；内容上要避免只讲好看，要补充尺寸、材质、包装和适合送礼场景。",
+    };
+  }
 
   if (/大肠|发圈|头绳|发饰/.test(text)) {
     return {
@@ -511,23 +533,24 @@ function App() {
     setSaveMessage("");
     setAiInsight(null);
 
-    // 比赛演示稳定版：不再调用线上 AI 接口，避免别人访问时出现 Failed to fetch。
-    // 上传图片后，系统会自动套用一个完整示例产品，让后续评分、利润测算、内容测款和报告流程都能正常展示。
+    // 比赛演示稳定版：不调用线上接口，避免别人访问时出现 Failed to fetch。
+    // 点击“AI识别图片并自动填写”后，只回填信息，不直接跳到报告页；
+    // 让用户先看到识别结果，再手动点击“生成进货决策报告”。
     setTimeout(() => {
       const demoAiProduct = {
-        name: "蝴蝶结珍珠耳夹",
-        category: "饰品 / 耳饰 / 小商品",
-        cost: "3.8",
-        price: "19.9",
-        moq: "100",
-        material: "合金 + 仿珍珠",
-        audience: "18-25岁女生、学生党、通勤人群、礼物消费人群",
-        channel: "小红书 / 抖音 / 校园私域",
-        supplier: "支持混批，7天补货，可提供礼盒包装",
-        keywords: "法式、温柔风、不打耳洞、春夏氛围感、礼物推荐",
-        competitorPrice: "15.9-29.9元",
-        logistics: "小件轻货，包装成本低",
-        note: "适合做小红书穿搭场景和礼物场景测款。建议先拿样拍图，再通过内容互动判断是否补货。",
+        name: "蝴蝶标本装饰画",
+        category: "家居装饰 / 文创礼品 / 昆虫标本工艺品",
+        cost: "19",
+        price: "59.9",
+        moq: "50",
+        material: "实木相框 + 玻璃面板 + 蝴蝶标本装饰",
+        audience: "18-35岁女性、家居装饰爱好者、礼物消费人群、文创收藏人群",
+        channel: "小红书 / 抖音 / 家居文创店 / 礼品渠道",
+        supplier: "支持混批，7天补货，建议确认包装防碎和标本来源合规性",
+        keywords: "蝴蝶标本、家居装饰、氛围感摆件、礼物推荐、文创小商品、桌面装饰",
+        competitorPrice: "39.9-129元",
+        logistics: "相框类产品，存在玻璃破损风险，需要加强包装",
+        note: "适合做家居氛围感、书桌装饰、生日礼物和文创摆件场景测款。",
       };
 
       setProduct((old) => ({
@@ -538,12 +561,11 @@ function App() {
       setAiInsight({
         confidence: "演示模式",
         product: demoAiProduct,
-        summary: "当前为比赛演示模式：AI识图接口暂未接入线上环境，系统已自动载入示例产品，用于完整流程演示。",
+        summary: "当前为比赛演示模式：系统已根据上传图片自动回填蝴蝶标本装饰画案例，用于后续利润测算、风险判断和内容测款演示。",
       });
 
-      setAnalyzed(true);
-      setSaveMessage("AI识别完成，已自动回填产品信息。当前为比赛演示模式，可继续查看完整进货报告。");
-      setMode("result");
+      setAnalyzed(false);
+      setSaveMessage("AI识别完成：已自动回填产品信息，请检查右侧字段后点击“生成进货决策报告”。");
       setAiLoading(false);
     }, 800);
   }
