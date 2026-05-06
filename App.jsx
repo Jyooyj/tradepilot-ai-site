@@ -205,19 +205,112 @@ const [historyMessage, setHistoryMessage] = useState("");
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   }
-  async function saveCurrentReport() {
+async function saveCurrentReport() {
+  alert("开始保存历史记录");
+
   try {
-    setHistoryMessage("");
+    if (!supabase) {
+      alert("Supabase 未初始化，请检查 supabaseClient.js");
+      return;
+    }
 
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError || !user) {
-      alert("请先登录后再保存历史记录。");
+    if (userError) {
+      alert("获取用户失败：" + userError.message);
       return;
     }
+
+    if (!user) {
+      alert("请先登录后再保存历史记录");
+      return;
+    }
+
+    const safeProductName =
+      product?.name ||
+      result?.profile?.type ||
+      result?.profile?.kind ||
+      "未命名产品";
+
+    const safeCategory =
+      product?.category ||
+      result?.profile?.category ||
+      "未分类";
+
+    const safeScore =
+      Number(result?.totalScore ?? result?.total ?? 0) || 0;
+
+    const safeAdvice =
+      result?.level ||
+      result?.advice ||
+      "暂无建议";
+
+    const safePrice =
+      product?.price ||
+      result?.profile?.price ||
+      result?.profile?.suggestedPrice ||
+      "";
+
+    const safeCompetitorPrice =
+      product?.competitorPrice ||
+      result?.profile?.competitorPrice ||
+      "";
+
+    const safeReport =
+      result?.report ||
+      report ||
+      "暂无报告内容";
+
+    const payload = {
+      user_id: user.id,
+      product_name: safeProductName,
+      category: safeCategory,
+      score: safeScore,
+      advice: safeAdvice,
+      price: safePrice,
+      competitor_price: safeCompetitorPrice,
+      product: {
+        name: safeProductName,
+        category: safeCategory,
+        material: product?.material || "",
+        channel: product?.channel || "",
+        audience: product?.audience || "",
+        keywords: product?.keywords || "",
+      },
+      result: {
+        score: safeScore,
+        advice: safeAdvice,
+        risks: result?.risks || [],
+        scores: result?.scores || [],
+      },
+      report: safeReport,
+    };
+
+    const { data, error } = await supabase
+      .from("product_history")
+      .insert(payload)
+      .select("id")
+      .single();
+
+    if (error) {
+      alert("保存失败：" + error.message);
+      console.error(error);
+      return;
+    }
+
+    alert("保存成功，已加入历史记录");
+
+    if (typeof loadHistoryRecords === "function") {
+      loadHistoryRecords();
+    }
+  } catch (error) {
+    console.error(error);
+    alert("保存失败：" + error.message);
+  }
+}
 
     const payload = {
       user_id: user.id,
