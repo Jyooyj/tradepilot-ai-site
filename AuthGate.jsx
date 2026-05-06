@@ -67,7 +67,7 @@ export default function AuthGate({ children }) {
 
   return (
     <>
-      <div className="fixed right-5 top-5 z-50 flex items-center gap-3 rounded-full border border-white/10 bg-black/60 px-4 py-2 text-sm text-white shadow-xl backdrop-blur">
+     <div className="fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-white/10 bg-black/70 px-4 py-2 text-sm text-white shadow-xl backdrop-blur">
         <span className="max-w-[180px] truncate text-slate-300">
           {session.user?.email}
         </span>
