@@ -406,6 +406,13 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
           上传图片
           <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
         </label>
+        <button
+  onClick={analyzeImageWithAI}
+  disabled={aiLoading}
+  className="mt-3 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black disabled:opacity-60"
+>
+  {aiLoading ? "AI正在识别图片..." : "AI识别图片并自动填写"}
+</button>
         <button onClick={() => { setProduct(initialProduct); setAnalyzed(false); }} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white">套用示例产品</button>
         <button onClick={() => { setProduct(blankProduct); setImage(null); setAnalyzed(false); }} className="mt-3 w-full rounded-2xl border border-white/10 bg-transparent px-5 py-3 font-bold text-slate-300">清空重填</button>
       </section>
@@ -475,6 +482,46 @@ function ResultView({ product, image, result, analyzed, setMode, copyReport, cop
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
+        {aiInsight && (
+  <section className="rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
+    <h2 className="text-2xl font-black text-cyan-200">AI图片识别结果</h2>
+    <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <Card label="识别产品" value={aiInsight.product?.name || "未识别"} />
+      <Card label="推断品类" value={aiInsight.product?.category || "未识别"} />
+      <Card label="建议售价" value={aiInsight.product?.price || "待补充"} />
+      <Card label="目标人群" value={aiInsight.product?.audience || "待补充"} />
+      <Card label="竞品价格" value={aiInsight.product?.competitorPrice || "待检索"} />
+      <Card label="置信度" value={aiInsight.confidence || "中等"} />
+    </div>
+
+    <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      <div className="rounded-3xl bg-black/25 p-5">
+        <h3 className="font-black text-white">小红书内容建议</h3>
+        <p className="mt-3 rounded-2xl bg-emerald-300 p-4 font-black text-black">
+          封面：{aiInsight.content?.xhsCover || "待生成"}
+        </p>
+        <div className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+          {(aiInsight.content?.xhsTitles || []).map((title, index) => (
+            <p key={title} className="rounded-2xl bg-white/[0.06] p-3">
+              标题{index + 1}：{title}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-3xl bg-black/25 p-5">
+        <h3 className="font-black text-white">抖音视频脚本</h3>
+        <div className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+          {(aiInsight.content?.douyinScript || []).map((shot, index) => (
+            <p key={shot} className="rounded-2xl bg-white/[0.06] p-3">
+              镜头{index + 1}：{shot}
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+)}
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
           <h2 className="text-2xl font-black">核心风险提示</h2>
           <div className="mt-4 space-y-3 text-sm leading-7 text-slate-300">
