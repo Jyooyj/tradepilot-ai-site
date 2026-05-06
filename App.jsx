@@ -806,7 +806,7 @@ function Info({ title, items }) {
 }
 
 function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode, analyzeImageWithAI, aiLoading }) {
-  function handleImage(e) {
+function handleImage(e) {
   const file = e.target.files?.[0];
   if (!file) return;
 
@@ -816,17 +816,39 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
     const img = new Image();
 
     img.onload = () => {
-      const maxSize = 900;
+      const maxSize = 1200;
       let width = img.width;
       let height = img.height;
 
       if (width > height && width > maxSize) {
         height = Math.round((height * maxSize) / width);
         width = maxSize;
-      } else if (height > maxSize) {
+      } else if (height >= width && height > maxSize) {
         width = Math.round((width * maxSize) / height);
         height = maxSize;
       }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const compressedImage = canvas.toDataURL("image/jpeg", 0.75);
+
+      setImage(compressedImage);
+    };
+
+    img.onerror = () => {
+      alert("图片读取失败，请换一张图片再试。");
+    };
+
+    img.src = String(reader.result);
+  };
+
+  reader.readAsDataURL(file);
+}
 
       const canvas = document.createElement("canvas");
       canvas.width = width;
