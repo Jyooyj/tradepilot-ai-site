@@ -507,76 +507,45 @@ function App() {
       return;
     }
 
-    try {
-      setAiLoading(true);
+    setAiLoading(true);
+    setSaveMessage("");
+    setAiInsight(null);
 
-      const response = await fetch("/api/analyze-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image,
-          hint: `${product.name || ""} ${product.category || ""} ${product.material || ""} ${product.keywords || ""}`,
-        }),
-      });
-
-      const text = await response.text();
-      let data;
-
-      try {
-        data = JSON.parse(text);
-      } catch {
-        alert("AI识图返回格式异常，请检查后端接口。");
-        return;
-      }
-
-      if (!response.ok) {
-        alert("AI识图失败：" + (data.error || data.message || "未知错误"));
-        return;
-      }
-
-      const aiProduct = data?.product || {};
-      setAiInsight(data);
+    // 比赛演示稳定版：不再调用线上 AI 接口，避免别人访问时出现 Failed to fetch。
+    // 上传图片后，系统会自动套用一个完整示例产品，让后续评分、利润测算、内容测款和报告流程都能正常展示。
+    setTimeout(() => {
+      const demoAiProduct = {
+        name: "蝴蝶结珍珠耳夹",
+        category: "饰品 / 耳饰 / 小商品",
+        cost: "3.8",
+        price: "19.9",
+        moq: "100",
+        material: "合金 + 仿珍珠",
+        audience: "18-25岁女生、学生党、通勤人群、礼物消费人群",
+        channel: "小红书 / 抖音 / 校园私域",
+        supplier: "支持混批，7天补货，可提供礼盒包装",
+        keywords: "法式、温柔风、不打耳洞、春夏氛围感、礼物推荐",
+        competitorPrice: "15.9-29.9元",
+        logistics: "小件轻货，包装成本低",
+        note: "适合做小红书穿搭场景和礼物场景测款。建议先拿样拍图，再通过内容互动判断是否补货。",
+      };
 
       setProduct((old) => ({
         ...old,
-        name: aiProduct.name || old.name,
-        category: aiProduct.category || old.category,
-        material: aiProduct.material || old.material,
-        channel: aiProduct.channel || old.channel,
-        price: aiProduct.price || old.price,
-        audience: aiProduct.audience || old.audience,
-        competitorPrice: aiProduct.competitorPrice || old.competitorPrice,
-        keywords: aiProduct.keywords || old.keywords,
-        note: aiProduct.note || old.note,
+        ...demoAiProduct,
       }));
 
-      setSaveMessage("AI识别完成，已自动回填产品信息。");
-    } catch (error) {
-      console.error("AI识图调用失败：", error);
+      setAiInsight({
+        confidence: "演示模式",
+        product: demoAiProduct,
+        summary: "当前为比赛演示模式：AI识图接口暂未接入线上环境，系统已自动载入示例产品，用于完整流程演示。",
+      });
 
-setProduct({
-  ...blankProduct,
-  name: "珍珠项链",
-  type: "饰品 / 文创 / 礼品",
-  costPrice: "3.8",
-  salePrice: "19.9",
-  moq: "100",
-  material: "合金 + 仿珍珠",
-  targetUser: "学生党、通勤人群、礼物购买人群",
-  channel: "小红书 / 抖音 / 私域",
-  supplierInfo: "支持混批，7天补货",
-  keywords: "温柔风、礼物推荐、平价饰品、学生党"
-});
-
-setAiInsight("当前为演示模式：AI识图接口暂未接入线上环境，系统已自动载入示例产品，用于完整流程演示。");
-setAnalyzed(true);
-setMode("result");
-alert("当前为演示模式：AI识图暂未接入线上环境，已自动套用示例产品。");
-    } finally {
+      setAnalyzed(true);
+      setSaveMessage("AI识别完成，已自动回填产品信息。当前为比赛演示模式，可继续查看完整进货报告。");
+      setMode("result");
       setAiLoading(false);
-    }
+    }, 800);
   }
 
   function restoreRecord(record) {
