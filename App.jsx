@@ -206,6 +206,92 @@ const [historyMessage, setHistoryMessage] = useState("");
     setTimeout(() => setCopied(false), 1200);
   }
 
+  async function saveCurrentReport() {
+    try {
+      if (!supabase) {
+        alert("Supabase 未初始化，请检查 supabaseClient.js");
+        return;
+      }
+
+      const userResult = await supabase.auth.getUser();
+      const user = userResult.data?.user;
+
+      if (userResult.error) {
+        alert("获取用户失败：" + userResult.error.message);
+        return;
+      }
+
+      if (!user) {
+        alert("请先登录后再保存历史记录");
+        return;
+      }
+
+      const payload = {
+        user_id: user.id,
+        product_name:
+          product?.name ||
+          result?.profile?.type ||
+          result?.profile?.kind ||
+          "未命名产品",
+        category:
+          product?.category ||
+          result?.profile?.category ||
+          "未分类",
+        score: Number(result?.totalScore ?? result?.total ?? 0) || 0,
+        advice: result?.level || result?.advice || "暂无建议",
+        price: product?.price || result?.profile?.price || "",
+        competitor_price:
+          product?.competitorPrice ||
+          result?.profile?.competitorPrice ||
+          "",
+        product: {
+          name: product?.name || "",
+          category: product?.category || "",
+          cost: product?.cost || "",
+          price: product?.price || "",
+          moq: product?.moq || "",
+          material: product?.material || "",
+          audience: product?.audience || "",
+          channel: product?.channel || "",
+          supplier: product?.supplier || "",
+          keywords: product?.keywords || "",
+          competitorPrice: product?.competitorPrice || "",
+          logistics: product?.logistics || "",
+          note: product?.note || "",
+        },
+        result: {
+          totalScore: result?.totalScore ?? result?.total ?? 0,
+          level: result?.level || result?.advice || "",
+          margin: result?.margin ?? 0,
+          profit: result?.profit ?? 0,
+          stockCost: result?.stockCost ?? 0,
+          risks: result?.risks || [],
+          scores: result?.scores || [],
+          actions: result?.actions || [],
+          titles: result?.titles || [],
+        },
+        report: result?.report || "暂无报告内容",
+      };
+
+      const insertResult = await supabase
+        .from("product_history")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      if (insertResult.error) {
+        alert("保存失败：" + insertResult.error.message);
+        console.error(insertResult.error);
+        return;
+      }
+
+      alert("保存成功，已加入历史记录");
+      await loadHistoryRecords();
+    } catch (error) {
+      console.error(error);
+      alert("保存失败：" + error.message);
+    }
+  }
 
 async function loadHistoryRecords() {
   try {
@@ -250,8 +336,6 @@ async function deleteHistoryRecord(id) {
   loadHistoryRecords();
 }
 async function analyzeImageWithAI() {
-  alert("按钮已点击：开始调用AI识图");
-
   if (!image) {
     alert("请先上传产品图片");
     return;
@@ -259,8 +343,6 @@ async function analyzeImageWithAI() {
 
   try {
     setAiLoading(true);
-
-    alert("准备请求 /api/analyze-image");
 
     const response = await fetch("/api/analyze-image", {
       method: "POST",
@@ -273,18 +355,14 @@ async function analyzeImageWithAI() {
       }),
     });
 
-    alert("接口已返回，状态码：" + response.status);
-
     const text = await response.text();
-    alert("接口返回内容前100字：" + text.slice(0, 100));
-
     let data;
 
     try {
       data = JSON.parse(text);
     } catch (parseError) {
       console.error("接口返回原文：", text);
-      alert("接口返回不是JSON，说明后端返回格式异常");
+      alert("AI识图接口返回格式异常，请检查后端接口。 ");
       return;
     }
 
@@ -313,7 +391,7 @@ async function analyzeImageWithAI() {
     alert("AI识别完成，已自动回填产品信息");
   } catch (error) {
     console.error(error);
-    alert("前端调用失败：" + error.message);
+    alert("AI识图调用失败：" + error.message);
   } finally {
     setAiLoading(false);
   }
@@ -370,6 +448,15 @@ async function analyzeImageWithAI() {
 >
   历史记录
 </Tab>
+            <Tab
+              active={mode === "compare"}
+              onClick={() => {
+                setMode("compare");
+                loadHistoryRecords();
+              }}
+            >
+              选品PK台
+            </Tab>
           </nav>
         </div>
       </header>
@@ -422,6 +509,21 @@ aiLoading={aiLoading}
     }}
   />
 )}
+
+        {mode === "compare" && (
+          <CompareView
+            historyRecords={historyRecords}
+            historyLoading={historyLoading}
+            refreshHistory={loadHistoryRecords}
+            openRecord={(record) => {
+              if (record.product) {
+                setProduct(record.product);
+              }
+              setAnalyzed(true);
+              setMode("result");
+            }}
+          />
+        )}
       </main>
     </div>
   );
@@ -826,4 +928,96 @@ function HistoryView({
     </section>
   );
 }
+function compareScore(record) {
+  const base = Number(record.score || record.result?.totalScore || 0);
+  const priceNum = Number(String(record.price || "").replace(/[^0-9.]/g, ""));
+  const hasReport = record.report ? 6 : 0;
+  const hasCompetitor = record.competitor_price ? 6 : 0;
+  const hasContent = record.result?.titles?.length ? 8 : 0;
+  const priceBonus = Number.isFinite(priceNum) && priceNum >= 15 ? 4 : 0;
+  return clamp(base + hasReport + hasCompetitor + hasContent + priceBonus, 0, 100);
+}
+
+function CompareView({ historyRecords, historyLoading, refreshHistory, openRecord }) {
+  const ranked = [...historyRecords]
+    .map((record) => ({ ...record, pkScore: Math.round(compareScore(record)) }))
+    .sort((a, b) => b.pkScore - a.pkScore)
+    .slice(0, 8);
+
+  const winner = ranked[0];
+
+  return (
+    <section className="space-y-6">
+      <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm text-emerald-300">Product PK Board</p>
+            <h2 className="text-3xl font-black text-white">选品PK台</h2>
+            <p className="mt-2 text-sm leading-7 text-slate-400">
+              自动读取历史记录，把多个候选产品放在一起比较，帮助判断“哪一个更值得拿样测款”。
+            </p>
+          </div>
+          <button onClick={refreshHistory} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">
+            刷新候选池
+          </button>
+        </div>
+      </div>
+
+      {historyLoading && (
+        <div className="rounded-3xl bg-black/25 p-6 text-slate-300">正在读取历史记录...</div>
+      )}
+
+      {!historyLoading && ranked.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center text-slate-400">
+          暂无候选产品。先生成报告并点击“保存到历史”，这里就会自动形成PK候选池。
+        </div>
+      )}
+
+      {winner && (
+        <div className="rounded-[2rem] border border-emerald-300/30 bg-emerald-300/10 p-6">
+          <p className="text-sm font-bold text-emerald-200">AI优先推荐</p>
+          <h3 className="mt-2 text-3xl font-black text-white">{winner.product_name || "未命名产品"}</h3>
+          <p className="mt-3 text-sm leading-7 text-slate-300">
+            推荐理由：综合评分、内容测款完整度、竞品价格信息和报告完整度更高，更适合作为下一轮拿样/发布内容测试的优先对象。
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="rounded-full bg-emerald-300 px-3 py-1 text-sm font-black text-black">PK分：{winner.pkScore}/100</span>
+            <span className="rounded-full bg-white/[0.08] px-3 py-1 text-sm font-bold text-slate-200">售价：{winner.price || "待补充"}</span>
+            <span className="rounded-full bg-white/[0.08] px-3 py-1 text-sm font-bold text-slate-200">{winner.advice || "暂无建议"}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {ranked.map((record, index) => (
+          <article key={record.id} className="rounded-3xl border border-white/10 bg-black/30 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-black text-emerald-300">TOP {index + 1}</p>
+                <h3 className="mt-1 text-xl font-black text-white">{record.product_name || "未命名产品"}</h3>
+                <p className="mt-2 text-sm text-slate-400">{record.category || "未分类"}</p>
+              </div>
+              <div className="rounded-2xl bg-emerald-300 px-4 py-2 text-lg font-black text-black">
+                {record.pkScore}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-2 text-sm md:grid-cols-2">
+              <p className="rounded-2xl bg-white/[0.06] p-3 text-slate-300">售价：{record.price || "待补充"}</p>
+              <p className="rounded-2xl bg-white/[0.06] p-3 text-slate-300">竞品：{record.competitor_price || "待补充"}</p>
+              <p className="rounded-2xl bg-white/[0.06] p-3 text-slate-300 md:col-span-2">建议：{record.advice || "暂无建议"}</p>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button onClick={() => openRecord(record)} className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black">
+                查看报告
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default App;
