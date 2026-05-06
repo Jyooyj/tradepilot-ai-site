@@ -502,62 +502,82 @@ function App() {
   }
 
   async function analyzeImageWithAI() {
-    if (!image) {
-      alert("请先上传产品图片");
+  if (!image) {
+    alert("请先上传产品图片");
+    return;
+  }
+
+  setAiLoading(true);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, 30000);
+
+  try {
+    const response = await fetch("/api/analyze-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        image,
+        hint: `${product.name || ""} ${product.category || ""} ${product.material || ""} ${product.keywords || ""}`,
+      }),
+    });
+
+    clearTimeout(timer);
+
+    const text = await response.text();
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      console.error("接口返回不是 JSON：", text);
+      alert("AI识别失败：接口返回格式异常。请稍后重试，或先手动填写产品信息生成报告。");
       return;
     }
 
-    try {
-      setAiLoading(true);
-
-      const response = await fetch("/api/analyze-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image,
-          hint: `${product.name || ""} ${product.category || ""} ${product.material || ""} ${product.keywords || ""}`,
-        }),
-      });
-
-      const text = await response.text();
-      let data;
-
-      try {
-        data = JSON.parse(text);
-      } catch {
-        alert("AI识图返回格式异常，请检查后端接口。");
-        return;
-      }
-
-      if (!response.ok) {
-        alert("AI识图失败：" + (data.error || data.message || "未知错误"));
-        return;
-      }
-
-      const aiProduct = data?.product || {};
-      setAiInsight(data);
-
-      setProduct((old) => ({
-        ...old,
-        name: aiProduct.name || old.name,
-        category: aiProduct.category || old.category,
-        material: aiProduct.material || old.material,
-        channel: aiProduct.channel || old.channel,
-        price: aiProduct.price || old.price,
-        audience: aiProduct.audience || old.audience,
-        competitorPrice: aiProduct.competitorPrice || old.competitorPrice,
-        keywords: aiProduct.keywords || old.keywords,
-        note: aiProduct.note || old.note,
-      }));
-
-      setSaveMessage("AI识别完成，已自动回填产品信息。");
-    } catch (error) {
-      alert("AI识图调用失败：" + error.message);
-    } finally {
-      setAiLoading(false);
+    if (!response.ok) {
+      console.error("AI识别接口错误：", data);
+      alert(data.error || data.message || "AI识别失败，请检查模型权限或稍后重试。");
+      return;
     }
+
+    const aiProduct = data?.product || {};
+
+    setAiInsight(data);
+
+    setProduct((old) => ({
+      ...old,
+      name: aiProduct.name || old.name,
+      category: aiProduct.category || old.category,
+      material: aiProduct.material || old.material,
+      channel: aiProduct.channel || old.channel,
+      price: aiProduct.price || old.price,
+      audience: aiProduct.audience || old.audience,
+      competitorPrice: aiProduct.competitorPrice || old.competitorPrice,
+      keywords: aiProduct.keywords || old.keywords,
+      note: aiProduct.note || old.note,
+    }));
+
+    alert("AI识别完成，已自动回填产品信息");
+  } catch (error) {
+    clearTimeout(timer);
+
+    if (error.name === "AbortError") {
+      alert("AI识别超时：图片可能较大或模型响应较慢。你可以换一张更小的图片，或先手动填写信息生成报告。");
+    } else {
+      console.error(error);
+      alert("AI识别失败：" + error.message);
+    }
+  } finally {
+    clearTimeout(timer);
+    setAiLoading(false);
+  }
+}
   }
 
   function restoreRecord(record) {
@@ -787,14 +807,44 @@ function Info({ title, items }) {
 }
 
 function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode, analyzeImageWithAI, aiLoading }) {
-  function handleImage(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  function handleImage(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => setImage(String(reader.result));
-    reader.readAsDataURL(file);
-  }
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    const img = new Image();
+
+    img.onload = () => {
+      const maxSize = 900;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height && width > maxSize) {
+        height = Math.round((height * maxSize) / width);
+        width = maxSize;
+      } else if (height > maxSize) {
+        width = Math.round((width * maxSize) / height);
+        height = maxSize;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const compressed = canvas.toDataURL("image/jpeg", 0.72);
+      setImage(compressed);
+    };
+
+    img.src = String(reader.result);
+  };
+
+  reader.readAsDataURL(file);
+}
 
   function analyze() {
     setAnalyzed(true);
