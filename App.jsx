@@ -816,7 +816,7 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
       const img = new Image();
 
       img.onload = () => {
-        const maxSize = 1200;
+        const maxSize = 900;
         let width = img.width;
         let height = img.height;
 
@@ -835,7 +835,7 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
 
-        const compressedImage = canvas.toDataURL("image/jpeg", 0.75);
+        const compressedImage = canvas.toDataURL("image/jpeg", 0.65);
         setImage(compressedImage);
       };
 
