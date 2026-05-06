@@ -10,8 +10,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "缺少图片，请先上传产品图。" });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ error: "服务器未配置 OPENAI_API_KEY。" });
+    if (!process.env.DASHSCOPE_API_KEY) {
+      return res.status(500).json({
+        error: "服务器未配置 DASHSCOPE_API_KEY，请在 Vercel 环境变量中添加阿里云百炼 API Key。",
+      });
     }
 
     const prompt = `
@@ -37,7 +39,7 @@ export default async function handler(req, res) {
 - 不要编造具体平台真实销量。
 - 价格只能给“区间推断”，不能说绝对准确。
 - 输出必须是严格 JSON，不要 Markdown，不要解释。
-- JSON 格式如下：
+- JSON 格式必须如下：
 
 {
   "product": {
@@ -62,46 +64,48 @@ export default async function handler(req, res) {
 }
 `;
 
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        input: [
-          {
-            role: "user",
-            content: [
-              { type: "input_text", text: prompt },
-              {
-                type: "input_image",
-                image_url: image,
-                detail: "high",
-              },
-            ],
-          },
-        ],
-      }),
-    });
+    const response = await fetch(
+      "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.DASHSCOPE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: process.env.QWEN_VL_MODEL || "qwen3.6-plus",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: image,
+                  },
+                },
+                {
+                  type: "text",
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          temperature: 0.3,
+        }),
+      }
+    );
 
     const data = await response.json();
 
     if (!response.ok) {
       return res.status(response.status).json({
-        error: "OpenAI API 调用失败",
+        error: data?.error?.message || "阿里云百炼视觉模型调用失败",
         detail: data,
       });
     }
 
-    const rawText =
-      data.output_text ||
-      data.output
-        ?.flatMap((item) => item.content || [])
-        ?.map((content) => content.text || "")
-        ?.join("\n") ||
-      "";
+    const rawText = data.choices?.[0]?.message?.content || "";
 
     const cleaned = rawText
       .replace(/```json/g, "")
@@ -113,7 +117,7 @@ export default async function handler(req, res) {
       parsed = JSON.parse(cleaned);
     } catch (err) {
       return res.status(500).json({
-        error: "AI返回内容不是合法JSON",
+        error: "模型返回内容不是合法 JSON",
         raw: rawText,
       });
     }
