@@ -472,6 +472,7 @@ aiLoading={aiLoading}
   setMode={setMode}
   copyReport={copyReport}
   copied={copied}
+  saveCurrentReport={saveCurrentReport}
   aiInsight={aiInsight}
 />
         )}
