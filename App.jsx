@@ -578,7 +578,6 @@ function App() {
     setAiLoading(false);
   }
 }
-  }
 
   function restoreRecord(record) {
     if (record.product) {
