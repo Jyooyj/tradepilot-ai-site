@@ -104,9 +104,14 @@ function clamp(value, min, max) {
 }
 
 function inferMarketInfo(product) {
-  const text = `${product.name} ${product.category} ${product.material} ${product.keywords} ${product.note}`;
+  const text = `${product.name} ${product.category} ${product.material} ${product.keywords} ${product.note} ${product.logistics}`;
 
-  if (/蝴蝶|标本|昆虫|相框|装饰画|家居摆件|桌面装饰/.test(text)) {
+  const isSpecimenDecor = /标本|昆虫|相框|装饰画|家居摆件|桌面装饰|墙饰|摆件|挂画|博物/.test(text) && !/耳夹|耳饰|耳钉|耳环|耳坠|项链|锁骨链|发圈|头绳/.test(text);
+  const isEarring = /耳夹|耳饰|耳钉|耳环|耳坠|不打耳洞|蝴蝶结耳|珍珠耳/.test(text);
+  const isNecklace = /项链|锁骨链|珍珠链|吊坠/.test(text);
+  const isHairAccessory = /大肠|发圈|头绳|发饰|发夹|抓夹/.test(text);
+
+  if (isSpecimenDecor) {
     return {
       marketType: "家居装饰 / 文创礼品 / 昆虫标本工艺品",
       cover: "这幅蝴蝶标本装饰画，适合做礼物还是家居摆件？",
@@ -128,7 +133,29 @@ function inferMarketInfo(product) {
     };
   }
 
-  if (/大肠|发圈|头绳|发饰/.test(text)) {
+  if (isEarring) {
+    return {
+      marketType: "饰品 / 耳饰 / 小商品",
+      cover: "不打耳洞也能戴的氛围感耳饰，真的值得进吗？",
+      xhsTitles: [
+        "不打耳洞女生也能戴的温柔风耳夹",
+        "低预算法式配饰，春夏穿搭一下变精致",
+        "蝴蝶结珍珠耳夹怎么拍才不像廉价货？",
+        "饰品进货前，先看材质、佩戴痛感和掉色风险",
+      ],
+      douyinScript: [
+        "0-2秒：展示佩戴前后对比，突出不打耳洞也能戴",
+        "3-7秒：特写珍珠、蝴蝶结、夹扣和金属质感",
+        "8-12秒：展示通勤、约会、校园穿搭三个场景",
+        "13-18秒：说明拿货价、建议售价、MOQ和退换风险",
+        "结尾：让用户投票，珍珠款还是蝴蝶结款更想买？",
+      ],
+      imageAdvice: "必须补充佩戴图、夹扣细节和近距离材质图。单纯静物图容易显普通，佩戴效果更影响转化。",
+      contentRisk: "耳夹类产品容易出现夹痛、掉色、过敏和实物质感不符的问题，需要在内容里说明材质、佩戴感和售后。",
+    };
+  }
+
+  if (isHairAccessory) {
     return {
       marketType: "发饰 / 女生日用小商品",
       cover: "低成本提升精致感的发圈，真的有用吗？",
@@ -150,22 +177,22 @@ function inferMarketInfo(product) {
     };
   }
 
-  if (/珍珠|项链|锁骨链/.test(text)) {
+  if (isNecklace) {
     return {
       marketType: "饰品 / 项链 / 轻熟风小商品",
-      cover: "普通穿搭变精致，只差一条珍珠项链",
+      cover: "普通穿搭变精致，只差一条项链",
       xhsTitles: [
-        "一条珍珠项链，让普通白衬衫直接变贵",
+        "一条项链，让普通白衬衫直接变贵",
         "低预算轻熟风配饰，通勤女生真的能戴",
         "珍珠项链怎么选不显老：长度、珠径、扣头都要看",
         "约会/面试/通勤都能用的万能项链",
       ],
       douyinScript: [
-        "0-2秒：白T/衬衫无配饰 vs 戴上珍珠项链对比",
+        "0-2秒：白T/衬衫无配饰 vs 戴上项链对比",
         "3-7秒：特写珠光、扣头、延长链和包装",
         "8-12秒：展示通勤、约会、拍照三个场景",
-        "13-18秒：讲清楚珠径和长度怎么选",
-        "结尾：问用户觉得珍珠项链显贵还是显成熟？",
+        "13-18秒：讲清楚珠径、长度和材质怎么选",
+        "结尾：问用户觉得这类项链显贵还是显成熟？",
       ],
       imageAdvice: "图片要突出珠光、扣头细节、包装盒和佩戴效果。单纯平铺容易显普通，最好补一张上身图。",
       contentRisk: "珍珠类容易被质感和珠光影响信任感，图像质感、包装和售后说明很重要。",
@@ -214,14 +241,17 @@ function inferMarketInfo(product) {
   };
 }
 
-function analyzeProduct(product, hasImage) {
+function analyzeProduct(product, hasImage, aiInsight) {
   const market = inferMarketInfo(product);
   const cost = n(product.cost);
   const price = n(product.price);
   const moq = n(product.moq);
 
-  const packaging = /项链|礼盒/.test(`${product.category} ${product.note}`) ? 1.5 : /杯|易碎/.test(`${product.category} ${product.logistics}`) ? 3.5 : 0.8;
-  const logisticsCost = /杯|易碎/.test(`${product.category} ${product.logistics}`) ? 5.5 : /发簪/.test(`${product.category}`) ? 2 : 1.2;
+  const fragileText = `${product.category} ${product.material} ${product.logistics} ${product.note}`;
+  const isFragile = /杯|易碎|玻璃|相框|陶瓷|破损|压坏/.test(fragileText);
+  const isSmallJewelry = /项链|耳夹|耳饰|耳钉|耳环|戒指|手链|礼盒/.test(fragileText);
+  const packaging = isFragile ? 3.5 : isSmallJewelry ? 1.5 : 0.8;
+  const logisticsCost = isFragile ? 5.5 : /发簪/.test(`${product.category}`) ? 2 : 1.2;
   const platformFee = price * 0.05;
   const unitCost = cost + packaging + logisticsCost + platformFee;
   const profit = price - unitCost;
@@ -229,7 +259,7 @@ function analyzeProduct(product, hasImage) {
   const stockCost = cost * moq;
 
   const text = `${product.name} ${product.category} ${product.material} ${product.audience} ${product.channel} ${product.keywords} ${product.note}`;
-  const hotWords = ["小红书", "抖音", "学生", "礼物", "拍照", "出片", "法式", "温柔", "春夏", "不打耳洞", "通勤", "新中式", "文创", "治愈", "盲袋", "校园"];
+  const hotWords = ["小红书", "抖音", "学生", "礼物", "拍照", "出片", "法式", "温柔", "春夏", "不打耳洞", "通勤", "新中式", "文创", "治愈", "盲袋", "校园", "家居", "摆件", "桌面", "装饰", "氛围感", "收纳", "标本", "昆虫"];
   const hotScore = hotWords.filter((word) => text.includes(word)).length * 4;
 
   const profitScore = clamp(margin * 145, 30, 96);
@@ -313,6 +343,7 @@ MOQ：${product.moq || "未填写"} 件
 销售渠道：${product.channel || "未填写"}
 竞品价格：${product.competitorPrice || "未填写"}
 供应商信息：${product.supplier || "未填写"}
+图片识别摘要：${hasImage ? (aiInsight?.summary || "已上传图片，系统结合图片识别结果和右侧字段进行判断。") : "未上传图片"}
 
 二、AI综合判断
 综合评分：${totalScore}/100
@@ -372,6 +403,46 @@ ${actions.map((action, index) => `${index + 1}. ${action}`).join(String.fromChar
   };
 }
 
+
+function pickAiValue(source, keys) {
+  if (!source || typeof source !== "object") return "";
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  return "";
+}
+
+function normalizeAiProduct(rawProduct = {}) {
+  return {
+    name: pickAiValue(rawProduct, ["name", "productName", "product_name", "title", "产品名称", "商品名称"]),
+    category: pickAiValue(rawProduct, ["category", "type", "productType", "product_type", "产品类型", "品类", "类别"]),
+    cost: pickAiValue(rawProduct, ["cost", "costPrice", "purchasePrice", "purchase_price", "拿货价", "成本价"]),
+    price: pickAiValue(rawProduct, ["price", "salePrice", "suggestedPrice", "suggested_price", "建议售价", "售价"]),
+    moq: pickAiValue(rawProduct, ["moq", "MOQ", "minimumOrderQuantity", "minimum_order_quantity", "最小起订量", "起订量"]),
+    material: pickAiValue(rawProduct, ["material", "materials", "材质"]),
+    audience: pickAiValue(rawProduct, ["audience", "targetUser", "targetAudience", "target_user", "目标人群", "适合人群"]),
+    channel: pickAiValue(rawProduct, ["channel", "salesChannel", "sales_channel", "销售渠道", "渠道"]),
+    supplier: pickAiValue(rawProduct, ["supplier", "supplierInfo", "supplier_info", "供应商信息", "供应商"]),
+    keywords: pickAiValue(rawProduct, ["keywords", "contentKeywords", "content_keywords", "tags", "内容关键词", "关键词"]),
+    competitorPrice: pickAiValue(rawProduct, ["competitorPrice", "competitor_price", "marketPrice", "market_price", "竞品价格", "同类价格"]),
+    logistics: pickAiValue(rawProduct, ["logistics", "packaging", "logisticsRisk", "logistics_risk", "物流包装风险", "物流/包装风险"]),
+    note: pickAiValue(rawProduct, ["note", "notes", "remark", "remarks", "summary", "补充备注", "备注"]),
+  };
+}
+
+function mergeAiProduct(oldProduct, aiProduct) {
+  const next = { ...oldProduct };
+  Object.entries(aiProduct).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      next[key] = String(value).trim();
+    }
+  });
+  return next;
+}
+
 function getRecordStatus(record) {
   return record?.result?.status || record?.result?.level || record?.advice || (record?.score >= 85 ? "准备拿样" : record?.score >= 70 ? "正在测款" : "暂不考虑");
 }
@@ -399,7 +470,7 @@ function App() {
     cost: "",
   });
 
-  const result = useMemo(() => analyzeProduct(product, Boolean(image)), [product, image]);
+  const result = useMemo(() => analyzeProduct(product, Boolean(image), aiInsight), [product, image, aiInsight]);
 
   function update(key, value) {
     setProduct((old) => ({ ...old, [key]: value }));
@@ -529,45 +600,60 @@ function App() {
       return;
     }
 
-    setAiLoading(true);
-    setSaveMessage("");
-    setAiInsight(null);
+    try {
+      setAiLoading(true);
+      setSaveMessage("AI正在识别图片，请稍等...");
+      setAiInsight(null);
+      setAnalyzed(false);
+      setMode("operate");
 
-    // 比赛演示稳定版：不调用线上接口，避免别人访问时出现 Failed to fetch。
-    // 点击“AI识别图片并自动填写”后，只回填信息，不直接跳到报告页；
-    // 让用户先看到识别结果，再手动点击“生成进货决策报告”。
-    setTimeout(() => {
-      const demoAiProduct = {
-        name: "蝴蝶标本装饰画",
-        category: "家居装饰 / 文创礼品 / 昆虫标本工艺品",
-        cost: "19",
-        price: "59.9",
-        moq: "50",
-        material: "实木相框 + 玻璃面板 + 蝴蝶标本装饰",
-        audience: "18-35岁女性、家居装饰爱好者、礼物消费人群、文创收藏人群",
-        channel: "小红书 / 抖音 / 家居文创店 / 礼品渠道",
-        supplier: "支持混批，7天补货，建议确认包装防碎和标本来源合规性",
-        keywords: "蝴蝶标本、家居装饰、氛围感摆件、礼物推荐、文创小商品、桌面装饰",
-        competitorPrice: "39.9-129元",
-        logistics: "相框类产品，存在玻璃破损风险，需要加强包装",
-        note: "适合做家居氛围感、书桌装饰、生日礼物和文创摆件场景测款。",
-      };
-
-      setProduct((old) => ({
-        ...old,
-        ...demoAiProduct,
-      }));
-
-      setAiInsight({
-        confidence: "演示模式",
-        product: demoAiProduct,
-        summary: "当前为比赛演示模式：系统已根据上传图片自动回填蝴蝶标本装饰画案例，用于后续利润测算、风险判断和内容测款演示。",
+      const response = await fetch("/api/analyze-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image,
+          hint: `${product.name || ""} ${product.category || ""} ${product.material || ""} ${product.keywords || ""} ${product.note || ""}`,
+        }),
       });
 
-      setAnalyzed(false);
-      setSaveMessage("AI识别完成：已自动回填产品信息，请检查右侧字段后点击“生成进货决策报告”。");
+      const rawText = await response.text();
+      let data = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        throw new Error("AI接口返回内容不是JSON，请检查 /api/analyze-image 的返回格式。");
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || data?.message || `AI识别接口请求失败：${response.status}`);
+      }
+
+      const rawProduct = data?.product || data?.data?.product || data || {};
+      const aiProduct = normalizeAiProduct(rawProduct);
+      const hasRecognizedName = Boolean(aiProduct.name || aiProduct.category || aiProduct.keywords);
+
+      if (!hasRecognizedName) {
+        throw new Error("AI没有返回可用的产品字段，请检查接口输出是否包含 product.name / product.category 等字段。");
+      }
+
+      setProduct((old) => mergeAiProduct(old, aiProduct));
+
+      setAiInsight({
+        confidence: data?.confidence || rawProduct?.confidence || "中等",
+        product: aiProduct,
+        summary: data?.summary || data?.imageSummary || rawProduct?.summary || "AI已根据上传图片识别产品信息，并回填到右侧表单。",
+      });
+
+      setSaveMessage("AI识别完成：已自动回填右侧字段。请检查/修改信息后，再点击下方“生成进货决策报告”。");
+    } catch (error) {
+      console.error("AI识图调用失败：", error);
+      setSaveMessage(`AI识别失败：${error.message}。请手动填写右侧字段后生成报告，或检查接口返回格式。`);
+      alert(`AI识别失败：${error.message}`);
+    } finally {
       setAiLoading(false);
-    }, 800);
+    }
   }
 
   function restoreRecord(record) {
@@ -675,6 +761,7 @@ function App() {
             setMode={setMode}
             analyzeImageWithAI={analyzeImageWithAI}
             aiLoading={aiLoading}
+            saveMessage={saveMessage}
           />
         )}
         {mode === "result" && (
@@ -796,13 +883,17 @@ function Info({ title, items }) {
   );
 }
 
-function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode, analyzeImageWithAI, aiLoading }) {
+function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode, analyzeImageWithAI, aiLoading, saveMessage }) {
   function handleImage(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = () => setImage(String(reader.result));
+    reader.onload = () => {
+      setImage(String(reader.result));
+      setProduct(blankProduct);
+      setAnalyzed(false);
+    };
     reader.readAsDataURL(file);
   }
 
@@ -867,6 +958,8 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
           <Input label="物流/包装风险" value={product.logistics} onChange={(value) => update("logistics", value)} placeholder="如：小件轻货/易碎" />
           <Input label="补充备注" value={product.note} onChange={(value) => update("note", value)} placeholder="如：适合礼物场景" wide />
         </div>
+
+        {saveMessage && <p className="mt-4 rounded-2xl bg-emerald-300/10 p-3 text-sm leading-6 text-emerald-100">{saveMessage}</p>}
 
         <button onClick={analyze} className="mt-5 w-full rounded-2xl bg-emerald-300 px-5 py-4 text-lg font-black text-black">
           生成进货决策报告
