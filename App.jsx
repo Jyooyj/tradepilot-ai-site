@@ -554,7 +554,26 @@ function App() {
 
       setSaveMessage("AI识别完成，已自动回填产品信息。");
     } catch (error) {
-      alert("AI识图调用失败：" + error.message);
+      console.error("AI识图调用失败：", error);
+
+setProduct({
+  ...blankProduct,
+  name: "珍珠项链",
+  type: "饰品 / 文创 / 礼品",
+  costPrice: "3.8",
+  salePrice: "19.9",
+  moq: "100",
+  material: "合金 + 仿珍珠",
+  targetUser: "学生党、通勤人群、礼物购买人群",
+  channel: "小红书 / 抖音 / 私域",
+  supplierInfo: "支持混批，7天补货",
+  keywords: "温柔风、礼物推荐、平价饰品、学生党"
+});
+
+setAiInsight("当前为演示模式：AI识图接口暂未接入线上环境，系统已自动载入示例产品，用于完整流程演示。");
+setAnalyzed(true);
+setMode("result");
+alert("当前为演示模式：AI识图暂未接入线上环境，已自动套用示例产品。");
     } finally {
       setAiLoading(false);
     }
