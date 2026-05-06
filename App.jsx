@@ -314,6 +314,8 @@ function App() {
             setProduct={setProduct}
             setAnalyzed={setAnalyzed}
             setMode={setMode}
+          analyzeImageWithAI={analyzeImageWithAI}
+aiLoading={aiLoading}
           />
         )}
 
@@ -380,7 +382,18 @@ function Info({ title, items }) {
   return <div className="rounded-3xl border border-white/10 bg-black/25 p-5"><h3 className="font-black text-white">{title}</h3><div className="mt-4 flex flex-wrap gap-2">{items.map((i) => <span key={i} className="rounded-full bg-emerald-300/10 px-3 py-1 text-sm font-bold text-emerald-200">{i}</span>)}</div></div>;
 }
 
-function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode }) {
+function OperateView({
+  product,
+  update,
+  image,
+  setImage,
+  result,
+  setProduct,
+  setAnalyzed,
+  setMode,
+  analyzeImageWithAI,
+  aiLoading,
+}) {
   function handleImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
