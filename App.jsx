@@ -318,7 +318,7 @@ async function deleteHistoryRecord(id) {
 
   loadHistoryRecords();
 }
-  async function analyzeImageWithAI() {
+async function analyzeImageWithAI() {
   alert("按钮已点击：开始调用AI识图");
 
   if (!image) {
@@ -345,16 +345,15 @@ async function deleteHistoryRecord(id) {
     alert("接口已返回，状态码：" + response.status);
 
     const text = await response.text();
-
     alert("接口返回内容前100字：" + text.slice(0, 100));
 
     let data;
 
     try {
       data = JSON.parse(text);
-    } catch (error) {
-      alert("接口返回不是JSON，说明后端返回格式异常");
+    } catch (parseError) {
       console.error("接口返回原文：", text);
+      alert("接口返回不是JSON，说明后端返回格式异常");
       return;
     }
 
@@ -382,31 +381,8 @@ async function deleteHistoryRecord(id) {
 
     alert("AI识别完成，已自动回填产品信息");
   } catch (error) {
+    console.error(error);
     alert("前端调用失败：" + error.message);
-    console.error(error);
-  } finally {
-    setAiLoading(false);
-  }
-}
-    setAiInsight(data);
-
-    setProduct((old) => ({
-      ...old,
-      name: data.product?.name || old.name,
-      category: data.product?.category || old.category,
-      material: data.product?.material || old.material,
-      channel: data.product?.channel || old.channel,
-      price: data.product?.price || old.price,
-      audience: data.product?.audience || old.audience,
-      competitorPrice: data.product?.competitorPrice || old.competitorPrice,
-      keywords: data.product?.keywords || old.keywords,
-      note: data.product?.note || old.note,
-    }));
-
-    alert("AI识别完成，已自动回填产品信息");
-  } catch (error) {
-    console.error(error);
-    alert("识别失败，请稍后重试");
   } finally {
     setAiLoading(false);
   }
