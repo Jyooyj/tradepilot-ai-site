@@ -1,63 +1,144 @@
-import React from "react";
+# TradePilot AI｜拿货搭子：进货选品与爆款测款智能体
 
-export default class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      info: null,
-    };
-  }
+> 面向小商品进货、内容电商测款和大学生创业场景的 AI 进货决策工作台。  
+> 项目口号：**先算清楚，再决定进不进货；别让第一次进货，变成第一次压货。**
 
-  static getDerivedStateFromError(error) {
-    return {
-      hasError: true,
-      error,
-    };
-  }
+---
 
-  componentDidCatch(error, info) {
-    console.error("页面运行错误：", error, info);
-    this.setState({
-      error,
-      info,
-    });
-  }
+## 1. 项目简介
 
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-[#08100d] px-6 py-16 text-white">
-          <div className="mx-auto max-w-4xl rounded-[2rem] border border-red-300/30 bg-red-300/10 p-8">
-            <h1 className="text-3xl font-black text-red-200">
-              页面运行出错
-            </h1>
+TradePilot AI｜拿货搭子 是一个面向小商品进货与内容电商测款场景的 AI 决策智能体。
 
-            <p className="mt-4 text-slate-300">
-              这不是服务器坏了，是前端某个变量或组件渲染时报错。
-            </p>
+项目针对新手卖家、大学生创业者、小微电商经营者在进货选品中常见的痛点：
 
-            <div className="mt-6 rounded-2xl bg-black/40 p-5">
-              <p className="font-black text-red-200">错误信息：</p>
-              <pre className="mt-3 whitespace-pre-wrap text-sm leading-7 text-red-100">
-                {String(this.state.error?.message || this.state.error)}
-              </pre>
-            </div>
+- 凭感觉拿货，缺少判断依据
+- 不知道商品是否具备爆款潜力
+- 成本、售价、利润、MOQ 等信息难以综合判断
+- 进货后缺少测款复盘机制
+- 多个候选商品之间难以比较优先级
 
-            {this.state.info?.componentStack && (
-              <div className="mt-6 rounded-2xl bg-black/40 p-5">
-                <p className="font-black text-amber-200">组件位置：</p>
-                <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap text-xs leading-6 text-slate-300">
-                  {this.state.info.componentStack}
-                </pre>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
+TradePilot AI 将一次进货决策拆解为：
 
-    return this.props.children;
-  }
-}
+**商品图片识别 → 进货信息采集 → 利润与风险分析 → 爆款潜力评分 → 内容测款建议 → 产品库沉淀 → 候选产品 PK → 测款复盘**
+
+帮助用户降低盲目进货和库存积压风险，提高选品、试单和复盘效率。
+
+---
+
+## 2. 在线演示
+
+演示地址：
+
+https://tradepilot-ai-site.vercel.app/
+
+---
+
+## 3. 目标用户
+
+- 大学生创业者
+- 校园摆摊 / 社群团购经营者
+- 义乌小商品进货新手
+- 小红书、抖音、视频号内容电商卖家
+- 小微零售经营者
+- 需要小批量试单和快速测款的初创团队
+
+---
+
+## 4. 核心业务闭环
+
+TradePilot AI 不是简单生成一份报告，而是围绕真实进货决策构建完整闭环：
+
+1. 上传商品图片
+2. AI 识别商品名称、品类、风格、适用人群
+3. 用户补充进货成本、预计售价、MOQ、渠道等信息
+4. 系统生成进货决策报告
+5. 输出利润测算、风险判断、爆款潜力评分和测款建议
+6. 保存到我的产品库
+7. 对多个候选商品进行 PK
+8. 根据测款结果进行复盘
+9. 辅助下一轮补货、优化或停止进货决策
+
+---
+
+## 5. 核心 Skills
+
+### Skill 1：商品视觉识别
+
+通过阿里云百炼视觉模型识别商品图片，提取商品名称、品类、材质、风格、适用场景和目标人群。
+
+### Skill 2：进货信息采集
+
+采集成本价、预计售价、MOQ、渠道、物流、库存压力等进货关键变量。
+
+### Skill 3：利润与风险分析
+
+结合成本、售价、起订量和渠道情况，分析利润空间、压货风险、同质化风险和供应链风险。
+
+### Skill 4：爆款潜力评分
+
+从视觉吸引力、利润空间、内容传播性、目标人群匹配度、价格接受度等维度评估商品爆款潜力。
+
+### Skill 5：内容测款建议生成
+
+根据商品特点生成小红书 / 抖音等内容平台的测款方向、标题角度、卖点表达和测试建议。
+
+### Skill 6：候选产品 PK
+
+对多个候选商品进行对比，辅助判断哪个商品更值得优先进货和试单。
+
+### Skill 7：测款复盘
+
+基于历史产品和测款反馈，判断是否补货、换图、改标题、降价或停止进货。
+
+---
+
+## 6. 功能模块
+
+- 注册 / 登录
+- 商品图片上传
+- AI 商品识别
+- 进货信息填写
+- 进货决策报告生成
+- 我的产品库
+- 候选产品 PK
+- 测款复盘
+- 评委演示
+- 报告下载
+
+---
+
+## 7. 技术栈
+
+- 前端框架：React
+- 构建工具：Vite
+- 样式方案：Tailwind CSS
+- 后端与数据库：Supabase
+- 部署平台：Vercel
+- AI 模型：阿里云百炼视觉模型
+- Serverless API：Vercel Functions
+
+---
+
+## 8. 快速评测路径
+
+建议评委按以下流程体验：
+
+1. 打开在线演示地址
+2. 注册或登录账号
+3. 上传商品图片
+4. 查看 AI 商品识别结果
+5. 填写进货成本、售价、MOQ、渠道等信息
+6. 点击生成进货决策报告
+7. 查看利润分析、风险判断、爆款潜力评分和内容测款建议
+8. 保存到我的产品库
+9. 进入候选产品 PK
+10. 查看测款复盘
+11. 下载报告或进入评委演示流程
+
+---
+
+## 9. 本地运行方式
+
+```bash
+npm install
+npm run dev
