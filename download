@@ -1,0 +1,107 @@
+# Supabase SQL｜TradePilot AI 数据库配置
+
+## 1. product_history 表
+
+请在 Supabase SQL Editor 中执行以下 SQL：
+
+```sql
+create table if not exists public.product_history (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  product_name text not null default '未命名产品',
+  category text default '未分类',
+  score numeric default 0,
+  advice text,
+  price text,
+  competitor_price text,
+  product jsonb default '{}'::jsonb,
+  result jsonb default '{}'::jsonb,
+  report text,
+  created_at timestamptz not null default now()
+);
+```
+
+---
+
+## 2. 开启 RLS
+
+```sql
+alter table public.product_history enable row level security;
+```
+
+---
+
+## 3. 用户只能读取自己的产品记录
+
+```sql
+create policy "Users can read own product history"
+on public.product_history
+for select
+to authenticated
+using (auth.uid() = user_id);
+```
+
+---
+
+## 4. 用户只能插入自己的产品记录
+
+```sql
+create policy "Users can insert own product history"
+on public.product_history
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+```
+
+---
+
+## 5. 用户只能更新自己的产品记录
+
+```sql
+create policy "Users can update own product history"
+on public.product_history
+for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+```
+
+---
+
+## 6. 用户只能删除自己的产品记录
+
+```sql
+create policy "Users can delete own product history"
+on public.product_history
+for delete
+to authenticated
+using (auth.uid() = user_id);
+```
+
+---
+
+## 7. 推荐索引
+
+```sql
+create index if not exists product_history_user_created_idx
+on public.product_history (user_id, created_at desc);
+```
+
+---
+
+## 8. 字段说明
+
+| 字段 | 说明 |
+|---|---|
+| id | 产品记录 ID |
+| user_id | 当前登录用户 ID |
+| product_name | 商品名称 |
+| category | 商品品类 |
+| score | 爆款潜力综合评分 |
+| advice | 进货建议 |
+| price | 预计售价 |
+| competitor_price | 竞品价格 |
+| product | 商品表单完整信息 JSON |
+| result | 分析结果 JSON |
+| report | 完整进货报告文本 |
+| created_at | 保存时间 |

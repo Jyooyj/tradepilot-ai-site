@@ -1,32 +1,63 @@
-# TradePilot AI｜拿货搭子
+import React from "react";
 
-会展选品与爆款测款智能体网站原型。
+export default class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+      info: null,
+    };
+  }
 
-## 本地运行
+  static getDerivedStateFromError(error) {
+    return {
+      hasError: true,
+      error,
+    };
+  }
 
-```bash
-npm install
-npm run dev
-```
+  componentDidCatch(error, info) {
+    console.error("页面运行错误：", error, info);
+    this.setState({
+      error,
+      info,
+    });
+  }
 
-## 构建
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#08100d] px-6 py-16 text-white">
+          <div className="mx-auto max-w-4xl rounded-[2rem] border border-red-300/30 bg-red-300/10 p-8">
+            <h1 className="text-3xl font-black text-red-200">
+              页面运行出错
+            </h1>
 
-```bash
-npm run build
-```
+            <p className="mt-4 text-slate-300">
+              这不是服务器坏了，是前端某个变量或组件渲染时报错。
+            </p>
 
-## Vercel 部署参数
+            <div className="mt-6 rounded-2xl bg-black/40 p-5">
+              <p className="font-black text-red-200">错误信息：</p>
+              <pre className="mt-3 whitespace-pre-wrap text-sm leading-7 text-red-100">
+                {String(this.state.error?.message || this.state.error)}
+              </pre>
+            </div>
 
-- Framework Preset: Vite
-- Build Command: npm run build
-- Output Directory: dist
-- Install Command: npm install
+            {this.state.info?.componentStack && (
+              <div className="mt-6 rounded-2xl bg-black/40 p-5">
+                <p className="font-black text-amber-200">组件位置：</p>
+                <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap text-xs leading-6 text-slate-300">
+                  {this.state.info.componentStack}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
 
-## 项目亮点
-
-- 产品信息采集
-- AI 爆款潜力评分
-- 利润测算
-- 供应商风险诊断
-- 小红书/抖音测款内容生成
-- 选品决策报告生成
+    return this.props.children;
+  }
+}
