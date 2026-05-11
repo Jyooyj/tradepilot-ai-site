@@ -401,53 +401,54 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
-  async function saveCurrentReport() {
-    try {
-      setSaveMessage("正在保存到我的产品库...");
+async function saveCurrentReport() {
+  try {
+    setSaveMessage("正在保存到我的产品库...");
 
-      if (!supabase) {
-        setSaveMessage("保存失败：Supabase 未初始化。");
-        return;
-      }
+    const smallImage = image && image.length < 180000 ? image : "";
 
-      const userResult = await supabase.auth.getUser();
-      const user = userResult.data?.user;
+    const localRecord = {
+      id: `local-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      product_name: product?.name || "未命名产品",
+      category: product?.category || "未分类",
+      score: Number(result?.totalScore ?? 0) || 0,
+      advice: result?.level || "暂无建议",
+      price: product?.price || "",
+      competitor_price: product?.competitorPrice || "",
+      product: {
+        ...product,
+        imagePreview: smallImage,
+      },
+      result: {
+        status: result?.status || "",
+        totalScore: result?.totalScore ?? 0,
+        level: result?.level || "",
+        risks: result?.risks || [],
+        scores: result?.scores || [],
+        explanations: result?.explanations || [],
+        review,
+      },
+      report: result?.report || "暂无报告内容",
+    };
 
-      if (userResult.error) {
-        setSaveMessage("获取用户失败：" + userResult.error.message);
-        return;
-      }
+    const oldRecords = JSON.parse(
+      localStorage.getItem("tradepilot_local_records") || "[]"
+    );
 
-      if (!user) {
-        setSaveMessage("请先登录后再保存。");
-        return;
-      }
+    const nextRecords = [localRecord, ...oldRecords].slice(0, 50);
 
-      const smallImage = image && image.length < 180000 ? image : "";
+    localStorage.setItem(
+      "tradepilot_local_records",
+      JSON.stringify(nextRecords)
+    );
 
-      const payload = {
-        user_id: user.id,
-        product_name: product?.name || "未命名产品",
-        category: product?.category || "未分类",
-        score: Number(result?.totalScore ?? 0) || 0,
-        advice: result?.level || "暂无建议",
-        price: product?.price || "",
-        competitor_price: product?.competitorPrice || "",
-        product: {
-          ...product,
-          imagePreview: smallImage,
-        },
-        result: {
-          status: result?.status || "",
-          totalScore: result?.totalScore ?? 0,
-          level: result?.level || "",
-          risks: result?.risks || [],
-          scores: result?.scores || [],
-          explanations: result?.explanations || [],
-          review,
-        },
-        report: result?.report || "暂无报告内容",
-      };
+    setHistoryRecords(nextRecords);
+    setSaveMessage("已保存到我的产品库 ✓（游客演示模式，本地保存）");
+  } catch (error) {
+    setSaveMessage("保存失败：" + error.message);
+  }
+}
 
       const insertResult = await supabase.from("product_history").insert(payload);
 
@@ -464,20 +465,25 @@ function App() {
   }
 
   async function loadHistoryRecords() {
-    try {
-      setHistoryLoading(true);
-      setHistoryMessage("");
+  try {
+    setHistoryLoading(true);
+    setHistoryMessage("");
 
-      const { data, error } = await supabase
-        .from("product_history")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
+    const localRecords = JSON.parse(
+      localStorage.getItem("tradepilot_local_records") || "[]"
+    );
 
-      if (error) {
-        setHistoryMessage("读取产品库失败：" + error.message);
-        return;
-      }
+    setHistoryRecords(localRecords);
+
+    if (localRecords.length === 0) {
+      setHistoryMessage("当前为游客演示模式，保存的产品会记录在本浏览器中。");
+    }
+  } catch (error) {
+    setHistoryMessage("读取产品库失败：" + error.message);
+  } finally {
+    setHistoryLoading(false);
+  }
+}
 
       setHistoryRecords(data || []);
     } catch (error) {
@@ -487,18 +493,23 @@ function App() {
     }
   }
 
-  async function deleteHistoryRecord(id) {
-    const ok = window.confirm("确定删除这条产品记录吗？");
-    if (!ok) return;
+async function deleteHistoryRecord(id) {
+  const ok = window.confirm("确定删除这条产品记录吗？");
+  if (!ok) return;
 
-    const { error } = await supabase.from("product_history").delete().eq("id", id);
+  const oldRecords = JSON.parse(
+    localStorage.getItem("tradepilot_local_records") || "[]"
+  );
 
-    if (error) {
-      alert("删除失败：" + error.message);
-      return;
-    }
+  const nextRecords = oldRecords.filter((record) => record.id !== id);
 
-    loadHistoryRecords();
+  localStorage.setItem(
+    "tradepilot_local_records",
+    JSON.stringify(nextRecords)
+  );
+
+  setHistoryRecords(nextRecords);
+}oadHistoryRecords();
   }
 
   async function analyzeImageWithAI() {
