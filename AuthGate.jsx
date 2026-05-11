@@ -198,11 +198,12 @@ function AuthPage({ onDemo }) {
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-           TradePilot AI｜拿货搭子 面向小商品进货、内容电商测款和大学生创业场景，帮助你完成图片识别、利润测算、爆款评分、内容测款和复盘决策。
-              <p className="mt-4 text-sm font-bold text-emerald-200">
+  TradePilot AI｜拿货搭子 面向小商品进货、内容电商测款和大学生创业场景，帮助你完成图片识别、利润测算、爆款评分、内容测款和复盘决策。
+</p>
+
+<p className="mt-4 text-sm font-bold text-emerald-200">
   先算清楚，再决定进不进货；别让第一次进货，变成第一次压货。
 </p>
-          </p>
         </section>
 
         <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-8 shadow-2xl backdrop-blur">
