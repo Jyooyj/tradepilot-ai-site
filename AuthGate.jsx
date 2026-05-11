@@ -197,7 +197,7 @@ function AuthPage({ onDemo }) {
 <span className="block text-emerald-300">AI 判断值不值得进货</span>
           </h1>
 
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+         <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
   TradePilot AI｜拿货搭子 面向小商品进货、内容电商测款和大学生创业场景，帮助你完成图片识别、利润测算、爆款评分、内容测款和复盘决策。
 </p>
 
