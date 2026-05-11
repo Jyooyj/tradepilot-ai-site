@@ -746,7 +746,6 @@ async function deleteHistoryRecord(id) {
       </main>
     </div>
   );
-}
 
 function CoverCard({ title, desc, onClick, highlight }) {
   return (
