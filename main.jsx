@@ -1,22 +1,33 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import AuthGate from "./AuthGate.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import "./index.css";
 
-function Root() {
-  const [demoMode, setDemoMode] = useState(() => {
-    return localStorage.getItem("tradepilot_demo_mode") === "1";
-  });
+function getInitialDemoMode() {
+  const params = new URLSearchParams(window.location.search);
+  return (
+    localStorage.getItem("tradepilot_demo_mode") === "1" ||
+    params.get("demo") === "1"
+  );
+}
 
-  function enterDemoMode() {
-    localStorage.setItem("tradepilot_demo_mode", "1");
-    setDemoMode(true);
-  }
+function Root() {
+  const [demoMode, setDemoMode] = useState(getInitialDemoMode);
+
+  useEffect(() => {
+    const nativeButton = document.getElementById("judge-demo-entry");
+    if (nativeButton) {
+      nativeButton.style.display = demoMode ? "none" : "block";
+    }
+  }, [demoMode]);
 
   function exitDemoMode() {
     localStorage.removeItem("tradepilot_demo_mode");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("demo");
+    window.history.replaceState({}, "", url.toString());
     setDemoMode(false);
   }
 
@@ -40,14 +51,6 @@ function Root() {
 
   return (
     <ErrorBoundary>
-      <button
-        type="button"
-        onClick={enterDemoMode}
-        className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full border border-emerald-300/40 bg-emerald-300 px-7 py-4 text-base font-black text-black shadow-2xl shadow-emerald-500/20"
-      >
-        评委快速体验 Demo｜无需注册
-      </button>
-
       <AuthGate>
         <App />
       </AuthGate>
