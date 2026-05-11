@@ -629,6 +629,9 @@ function App() {
           <div className="mb-6 inline-flex w-fit rounded-full border border-emerald-300/30 bg-emerald-300/10 px-4 py-2 text-sm font-bold text-emerald-200">
             AI Procurement Workspace · 进货决策与爆款测款智能体
           </div>
+          <div className="mb-4 w-fit rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-100">
+  当前为游客演示模式：无需登录即可体验完整流程；产品记录将暂存在本浏览器中。
+</div>
 
          <h1 className="mt-6 max-w-5xl text-5xl font-black leading-tight tracking-tight md:text-6xl xl:text-7xl">
   <span className="block text-white">TradePilot AI</span>
