@@ -193,12 +193,15 @@ function AuthPage({ onDemo }) {
           </div>
 
           <h1 className="text-5xl font-black leading-tight md:text-7xl">
-            登录后使用
-            <span className="block text-emerald-300">你的拿货搭子</span>
+         拍张照片
+<span className="block text-emerald-300">AI 判断值不值得进货</span>
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-            注册账号后，你可以长期使用 TradePilot AI 进行会展选品判断、图片识别、内容测款和报告生成。
+           TradePilot AI｜拿货搭子 面向小商品进货、内容电商测款和大学生创业场景，帮助你完成图片识别、利润测算、爆款评分、内容测款和复盘决策。
+              <p className="mt-4 text-sm font-bold text-emerald-200">
+  先算清楚，再决定进不进货；别让第一次进货，变成第一次压货。
+</p>
           </p>
         </section>
 
