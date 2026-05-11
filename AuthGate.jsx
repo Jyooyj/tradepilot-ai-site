@@ -2,6 +2,19 @@ import React, { useEffect, useState } from "react";
 import { hasSupabaseConfig, supabase } from "./supabaseClient";
 
 export default function AuthGate({ children }) {
+    const [demoMode, setDemoMode] = useState(() => {
+    return localStorage.getItem("tradepilot_demo_mode") === "1";
+  });
+
+  function enterDemoMode() {
+    localStorage.setItem("tradepilot_demo_mode", "1");
+    setDemoMode(true);
+  }
+
+  function exitDemoMode() {
+    localStorage.removeItem("tradepilot_demo_mode");
+    setDemoMode(false);
+  }
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -53,6 +66,22 @@ export default function AuthGate({ children }) {
     );
   }
 
+    if (demoMode) {
+    return (
+      <>
+        <div className="fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-emerald-300/30 bg-black/80 px-4 py-2 text-sm text-white shadow-xl backdrop-blur">
+          <span className="text-emerald-200 font-bold">评委演示模式</span>
+          <button
+            onClick={exitDemoMode}
+            className="rounded-full bg-emerald-300 px-3 py-1 font-black text-black"
+          >
+            退出演示
+          </button>
+        </div>
+        {children}
+      </>
+    );
+  }
   if (loading) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#08100d] text-white">
@@ -67,7 +96,7 @@ export default function AuthGate({ children }) {
   }
 
   if (!session) {
-    return <AuthPage />;
+     return <AuthPage onDemo={enterDemoMode} />;
   }
 
   return (
@@ -88,7 +117,7 @@ export default function AuthGate({ children }) {
   );
 }
 
-function AuthPage() {
+function AuthPage({ onDemo }) {
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -258,6 +287,17 @@ function AuthPage() {
             >
               {loading ? "处理中..." : mode === "register" ? "注册账号" : "登录并进入"}
             </button>
+            <button
+  type="button"
+  onClick={onDemo}
+  className="w-full rounded-2xl border border-emerald-300/40 bg-emerald-300/10 px-5 py-4 text-lg font-black text-emerald-200"
+>
+  评委快速体验 Demo
+</button>
+
+<p className="text-center text-xs leading-6 text-slate-500">
+  无需注册，可直接查看项目介绍、评委演示、样例报告和核心工作流。
+</p>
           </form>
 
           <p className="mt-5 text-xs leading-6 text-slate-500">
