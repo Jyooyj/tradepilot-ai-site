@@ -471,14 +471,6 @@ async function saveCurrentReport() {
   }
 }
 
-      setHistoryRecords(data || []);
-    } catch (error) {
-      setHistoryMessage("读取产品库失败：" + error.message);
-    } finally {
-      setHistoryLoading(false);
-    }
-  }
-
 async function deleteHistoryRecord(id) {
   const ok = window.confirm("确定删除这条产品记录吗？");
   if (!ok) return;
