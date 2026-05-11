@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import { supabase } from "./supabaseClient";
 
 const initialProduct = {
   name: "蝴蝶结珍珠耳夹",
@@ -401,42 +400,85 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
-async function saveCurrentReport() {
-  try {
-    setSaveMessage("正在保存到我的产品库...");
+  async function saveCurrentReport() {
+    try {
+      setSaveMessage("正在保存到我的产品库...");
 
-    const smallImage = image && image.length < 180000 ? image : "";
+      const smallImage = image && image.length < 180000 ? image : "";
 
-    const localRecord = {
-      id: `local-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      product_name: product?.name || "未命名产品",
-      category: product?.category || "未分类",
-      score: Number(result?.totalScore ?? 0) || 0,
-      advice: result?.level || "暂无建议",
-      price: product?.price || "",
-      competitor_price: product?.competitorPrice || "",
-      product: {
-        ...product,
-        imagePreview: smallImage,
-      },
-      result: {
-        status: result?.status || "",
-        totalScore: result?.totalScore ?? 0,
-        level: result?.level || "",
-        risks: result?.risks || [],
-        scores: result?.scores || [],
-        explanations: result?.explanations || [],
-        review,
-      },
-      report: result?.report || "暂无报告内容",
-    };
+      const localRecord = {
+        id: `local-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        product_name: product?.name || "未命名产品",
+        category: product?.category || "未分类",
+        score: Number(result?.totalScore ?? 0) || 0,
+        advice: result?.level || "暂无建议",
+        price: product?.price || "",
+        competitor_price: product?.competitorPrice || "",
+        product: {
+          ...product,
+          imagePreview: smallImage,
+        },
+        result: {
+          status: result?.status || "",
+          totalScore: result?.totalScore ?? 0,
+          level: result?.level || "",
+          risks: result?.risks || [],
+          scores: result?.scores || [],
+          explanations: result?.explanations || [],
+          review,
+        },
+        report: result?.report || "暂无报告内容",
+      };
+
+      const oldRecords = JSON.parse(
+        localStorage.getItem("tradepilot_local_records") || "[]"
+      );
+
+      const nextRecords = [localRecord, ...oldRecords].slice(0, 50);
+
+      localStorage.setItem(
+        "tradepilot_local_records",
+        JSON.stringify(nextRecords)
+      );
+
+      setHistoryRecords(nextRecords);
+      setSaveMessage("已保存到我的产品库 ✓（游客演示模式，本地保存）");
+    } catch (error) {
+      setSaveMessage("保存失败：" + error.message);
+    }
+  }
+
+  async function loadHistoryRecords() {
+    try {
+      setHistoryLoading(true);
+      setHistoryMessage("");
+
+      const localRecords = JSON.parse(
+        localStorage.getItem("tradepilot_local_records") || "[]"
+      );
+
+      setHistoryRecords(localRecords);
+
+      if (localRecords.length === 0) {
+        setHistoryMessage("当前为游客演示模式，保存的产品会记录在本浏览器中。");
+      }
+    } catch (error) {
+      setHistoryMessage("读取产品库失败：" + error.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function deleteHistoryRecord(id) {
+    const ok = window.confirm("确定删除这条产品记录吗？");
+    if (!ok) return;
 
     const oldRecords = JSON.parse(
       localStorage.getItem("tradepilot_local_records") || "[]"
     );
 
-    const nextRecords = [localRecord, ...oldRecords].slice(0, 50);
+    const nextRecords = oldRecords.filter((record) => record.id !== id);
 
     localStorage.setItem(
       "tradepilot_local_records",
@@ -444,50 +486,6 @@ async function saveCurrentReport() {
     );
 
     setHistoryRecords(nextRecords);
-    setSaveMessage("已保存到我的产品库 ✓（游客演示模式，本地保存）");
-  } catch (error) {
-    setSaveMessage("保存失败：" + error.message);
-  }
-}
-
-  async function loadHistoryRecords() {
-  try {
-    setHistoryLoading(true);
-    setHistoryMessage("");
-
-    const localRecords = JSON.parse(
-      localStorage.getItem("tradepilot_local_records") || "[]"
-    );
-
-    setHistoryRecords(localRecords);
-
-    if (localRecords.length === 0) {
-      setHistoryMessage("当前为游客演示模式，保存的产品会记录在本浏览器中。");
-    }
-  } catch (error) {
-    setHistoryMessage("读取产品库失败：" + error.message);
-  } finally {
-    setHistoryLoading(false);
-  }
-}
-
-async function deleteHistoryRecord(id) {
-  const ok = window.confirm("确定删除这条产品记录吗？");
-  if (!ok) return;
-
-  const oldRecords = JSON.parse(
-    localStorage.getItem("tradepilot_local_records") || "[]"
-  );
-
-  const nextRecords = oldRecords.filter((record) => record.id !== id);
-
-  localStorage.setItem(
-    "tradepilot_local_records",
-    JSON.stringify(nextRecords)
-  );
-
-  setHistoryRecords(nextRecords);
-}oadHistoryRecords();
   }
 
   async function analyzeImageWithAI() {
@@ -618,9 +616,6 @@ async function deleteHistoryRecord(id) {
           <div className="mb-6 inline-flex w-fit rounded-full border border-emerald-300/30 bg-emerald-300/10 px-4 py-2 text-sm font-bold text-emerald-200">
             AI Procurement Workspace · 进货决策与爆款测款智能体
           </div>
-          <div className="mb-4 w-fit rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-100">
-  当前为游客演示模式：无需登录即可体验完整流程；产品记录将暂存在本浏览器中。
-</div>
 
          <h1 className="mt-6 max-w-5xl text-5xl font-black leading-tight tracking-tight md:text-6xl xl:text-7xl">
   <span className="block text-white">TradePilot AI</span>
@@ -651,7 +646,7 @@ async function deleteHistoryRecord(id) {
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             <CoverCard title="项目介绍" desc="了解产品逻辑、适用场景和工作流程。" onClick={() => { setPage("app"); setMode("intro"); }} />
             <CoverCard title="开始进货判断" desc="上传产品图，填写拿货价、MOQ，一键生成进货报告。" highlight onClick={() => { setPage("app"); setMode("operate"); }} />
-            <CoverCard title="评委快速演示" desc="不依赖实时接口，直接查看3个完整案例。" onClick={() => { setPage("app"); setMode("demo"); }} />
+            <CoverCard title="游客快速体验" desc="无需注册登录，直接查看3个完整案例和AI进货报告。" onClick={() => { setPage("app"); setMode("demo"); }} />
           </div>
         </main>
       </div>
@@ -668,8 +663,9 @@ async function deleteHistoryRecord(id) {
           </button>
 
           <div className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs font-bold text-cyan-100">
-  游客演示版 · 免登录体验
-</div>
+            游客演示版 · 免登录体验
+          </div>
+
           <nav className="flex flex-wrap gap-2 text-sm font-bold">
             <Tab active={mode === "intro"} onClick={() => setMode("intro")}>项目介绍</Tab>
             <Tab active={mode === "operate"} onClick={() => setMode("operate")}>开始判断</Tab>
@@ -746,6 +742,7 @@ async function deleteHistoryRecord(id) {
       </main>
     </div>
   );
+}
 
 function CoverCard({ title, desc, onClick, highlight }) {
   return (
