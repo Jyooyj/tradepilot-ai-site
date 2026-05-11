@@ -678,6 +678,9 @@ function App() {
             <h1 className="text-xl font-black">进货决策与爆款测款智能体</h1>
           </button>
 
+          <div className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs font-bold text-cyan-100">
+  游客演示版 · 免登录体验
+</div>
           <nav className="flex flex-wrap gap-2 text-sm font-bold">
             <Tab active={mode === "intro"} onClick={() => setMode("intro")}>项目介绍</Tab>
             <Tab active={mode === "operate"} onClick={() => setMode("operate")}>开始判断</Tab>
