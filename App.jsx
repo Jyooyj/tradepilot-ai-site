@@ -6,7 +6,7 @@ const initialProduct = {
   category: "饰品 / 小商品",
   cost: "3.8",
   price: "19.9",
-  moq: "100"
+  moq: "100",
   material: "合金 + 仿珍珠",
   audience: "18-25岁女生、学生党、通勤人群",
   channel: "小红书 / 抖音 / 校园私域",
