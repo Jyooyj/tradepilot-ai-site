@@ -338,11 +338,12 @@ function productText(product) {
 
 function inferCategoryKey(product) {
   const text = productText(product);
+  if (/钥匙扣|包包挂件|挂件|挂饰|文创|国风|手作|木珠|果核|手账|手帐|帆布包|市集|文旅/.test(text)) return "stationery_cultural";
   if (/手机壳|挂绳|支架|数码|充电|耳机|数据线|平板|防摔/.test(text)) return "phone_accessory";
-  if (/发圈|发夹|发簪|头绳|鲨鱼夹|抓夹|发饰|大肠|盘发/.test(text)) return "hair_accessory";
+  if (/大肠发圈|发圈|发夹|发簪|发绳|头绳|鲨鱼夹|抓夹|发饰|扎发|丸子头|半扎发|盘发/.test(text)) return "hair_accessory";
   if (/杯|香薰|摆件|收纳|家居|桌面|宿舍好物|水杯|马克杯|镜子|抱枕|花瓶|灯/.test(text)) return "home_lifestyle";
-  if (/文创|国风|笔记本|贴纸|钥匙扣|手帐|文旅|明信片|书签|城市|市集/.test(text)) return "stationery_cultural";
-  if (/耳饰|耳夹|耳环|项链|戒指|手链|手串|锁骨链|珍珠|胸针|饰品|配饰/.test(text)) return "jewelry";
+  if (/笔记本|贴纸|明信片|书签|城市纪念/.test(text)) return "stationery_cultural";
+  if (/耳饰|珍珠耳饰|耳夹|耳环|项链|戒指|手链|手串|锁骨链|胸针|金属饰品|珍珠项链/.test(text)) return "jewelry";
   if (/低价日用|日用|湿巾|纸巾|清洁|洗脸巾|抹布|去污|一次性|拖鞋|收纳袋|搭售/.test(text)) return "daily_necessity";
   return "unknown";
 }
@@ -557,10 +558,10 @@ function getImageContentPlan(categoryKey, channelFit) {
       },
     },
     stationery_cultural: {
-      mustShoot: ["主题故事图：国风、校园、城市、节日或文旅元素", "使用场景图：书桌、手帐、钥匙包、帆布袋、笔记本", "系列化展示图：同系列不同款并排，提升收藏感", "细节图：印刷、纹理、挂件、边缘和材质", "市集/摊位图：展示线下售卖氛围"],
-      bonusShots: ["包装、卡片、礼袋等送礼图", "主题故事卡", "用户自定义搭配图"],
-      missingRisk: "不要只拍单品，要讲清楚文化符号、系列主题和使用场景。",
-      coverAdvice: "首图建议用系列化陈列 + 主题故事，让用户看见收藏理由。",
+      mustShoot: ["主题故事图：国风、自然感、手作感或文旅元素", "使用场景图：帆布包、钥匙串、手账包和书桌", "系列化展示图：同系列不同款并排，提升收藏感", "细节图：木珠、果核、纹理、挂件边缘和绳结", "市集/摊位图：展示线下售卖氛围"],
+      bonusShots: ["送礼图：包装、卡片、礼袋", "市集/摊位图：展示线下售卖氛围", "大小参照图：放在掌心、钥匙串或帆布包旁边"],
+      missingRisk: "不要只拍单品，要拍清楚文化符号、使用场景和大小参照，否则用户很难判断挂在包上或钥匙串上的真实效果。",
+      coverAdvice: "首图建议用帆布包/钥匙串使用场景 + 木珠、果核、绳结细节小图，让用户先看到故事感和真实搭配效果。",
       channelFocus: {
         xhs: "小红书重点讲审美、故事感、手帐和送礼。",
         douyin: "抖音重点做开箱、系列展示和用途切换。",
@@ -799,12 +800,12 @@ function getXhsContentPackage(product, categoryKey) {
       merchantStrategy: "这组内容重点测试消费者是否被真实场景和氛围变化吸引。发布后看收藏率、评论里的尺寸/运费疑问和私信询价；如果互动高但询单弱，补充尺寸参照、包装保护和真实使用细节。",
     },
     stationery_cultural: {
-      coverHooks: ["把一点国风小心思挂在包上", "这个小挂件，比普通钥匙扣更有故事感", "适合送朋友的低预算文创小物"],
+      coverHooks: ["这个小挂件，挂在包上真的很有氛围", "低预算文创小礼物，送朋友不尴尬", "喜欢自然感小物的人，会懂这个钥匙扣"],
       titles: [
-        `${name}挂在帆布包上真的很有氛围`,
-        "低预算文创小礼物，送朋友不尴尬",
-        "喜欢国风小物的人，会懂这个质感",
-        "普通钥匙串加一个小挂件，立刻变得有记忆点",
+        `${name}比普通钥匙扣更有故事感`,
+        "帆布包上挂一个小物，氛围感一下就有了",
+        "低预算但不敷衍的文创小礼物",
+        "喜欢国风 / 自然感小物的人应该会懂",
         "校园市集看到这种小物，我真的会停下来",
       ],
       coverDesign: "首图用包包、钥匙串或手帐包的真实使用场景，叠加一张细节小图，让用户同时看到故事感和质感。",
@@ -818,7 +819,7 @@ function getXhsContentPackage(product, categoryKey) {
         "第7页：补充材质、印刷、边缘和手作感细节。",
         "第8页：提问“你会挂哪里”，引导评论。",
       ],
-      body: "有些小物不是因为多贵才特别，而是因为它有一点自己的故事感。这个木珠和果核拼接的小挂件，挂在帆布包、钥匙串或者手账包上都挺有氛围。喜欢国风、自然感、手作感小物的姐妹应该会懂，它适合当作低预算小礼物，也适合自己日常搭配。",
+      body: "有些小物不是因为多贵才特别，而是因为它有一点自己的故事感。这个木珠和果核拼接的小挂饰，挂在帆布包、钥匙串或者手账包上都很有氛围。喜欢自然感、国风感、手作感小物的人应该会懂，它适合当作低预算小礼物，也适合日常搭配。",
       interactions: ["你会挂在包上还是当钥匙扣？", "你更喜欢国风、自然感还是城市主题？", "这种小物适合自用还是送朋友？", "想看同系列其他款吗？", "你会为包装和故事感加分吗？"],
       tags: ["#文创小物", "#国风小物", "#钥匙扣", "#低预算礼物", "#校园市集", "#手作感", "#小众礼物", "#包包挂件", "#文创礼物", "#帆布包搭配"],
       merchantStrategy: "这组内容重点测试消费者是否被故事感、文化符号和使用场景吸引。发布后看收藏率、评论主题偏好和私信询价；如果收藏高但评论弱，补充系列化展示、包装图和更明确的使用场景。",
@@ -929,13 +930,13 @@ function getDouyinVideoPackage(product, categoryKey) {
       merchantGoal: "这条视频主要测试消费者是否被真实场景和前后变化吸引。发布后看完播率、收藏、评论里的尺寸/摆放问题和私信询价；如果反馈弱，重拍更明确的使用前后对比。",
     },
     stationery_cultural: {
-      direction: "主打故事感、文化符号和低预算礼物感。",
+      direction: "主打故事感和包包装饰效果。",
       shots: [
-        { time: "0-2秒", focus: "强钩子", visual: "挂在帆布包上的特写。", copy: "一个小挂件，也能让包有记忆点。", purpose: "用场景感吸引审美人群。" },
-        { time: "3-6秒", focus: "细节故事", visual: "木珠、果核、图案或文化元素近拍。", copy: "喜欢这种自然感和一点点国风细节。", purpose: "突出故事感和文化符号。" },
-        { time: "7-11秒", focus: "使用场景", visual: "钥匙串、手帐包、书桌、帆布包四个画面切换。", copy: "挂包上、钥匙上、手帐包上都不突兀。", purpose: "扩展使用理由。" },
+        { time: "0-2秒", focus: "强钩子", visual: "普通帆布包切到挂上木珠果核挂饰后的效果。", copy: "一个小挂件，也能让包有记忆点。", purpose: "用前后对比抓住注意力。" },
+        { time: "3-6秒", focus: "展示细节", visual: "近拍木珠、果核、纹理、绳结和金属扣。", copy: "自然感和手作感，比普通钥匙扣更特别。", purpose: "突出材质和细节。" },
+        { time: "7-11秒", focus: "展示使用场景", visual: "切换钥匙串、帆布包、手账包三个使用场景。", copy: "挂包上、钥匙上、手账包上都挺有氛围。", purpose: "扩大使用场景。" },
         { time: "12-16秒", focus: "礼物感", visual: "包装、卡片或送朋友场景。", copy: "低预算但不敷衍的小礼物。", purpose: "强化送礼理由。" },
-        { time: "17-20秒", focus: "互动引导", visual: "挂包和钥匙扣两个画面定格。", copy: "你会挂包上还是当钥匙扣？", purpose: "引导评论和选择。" },
+        { time: "17-20秒", focus: "互动引导", visual: "展示不同款式并排。", copy: "你会挂包上，还是当钥匙扣？", purpose: "引导评论和选择偏好。" },
       ],
       coverTexts: ["这个小物，让包包一下有氛围了", "低预算文创礼物也能很特别", "喜欢国风小物的人会懂"],
       shootingNotes: ["不要只拍单品，要拍使用场景。", "需要展示故事感、文化符号和材质细节。", "可以拍包装和送礼场景。", "系列款要并排展示，收藏感会更强。"],
@@ -1087,30 +1088,31 @@ function getPlatformKeywordPlan(product, categoryKey) {
     },
     stationery_cultural: {
       xhs: {
-        core: withName(["文创小物", "国风挂件", "钥匙扣", "包包挂件", "手账周边"]),
-        scene: ["校园市集", "文旅纪念", "帆布包搭配", "手账装饰", "低预算礼物"],
-        pain: ["送朋友不尴尬", "钥匙串太普通", "包包缺少记忆点", "想要小众礼物"],
+        core: withName(["文创小物", "国风挂件", "钥匙扣", "包包挂件", "手作感小物"]),
+        scene: ["校园市集", "文旅纪念", "低预算礼物", "帆布包搭配", "手账周边"],
+        pain: ["送朋友什么不尴尬", "小众礼物推荐", "钥匙串太普通", "包包怎么装饰"],
         style: ["国风感", "自然感", "故事感", "手作感", "小众审美"],
-        attribute: uniqueWords([...materialWords, "挂件", "包装卡片", "系列款", "轻便", "可送礼"], 6),
+        attribute: uniqueWords([...materialWords, "木珠", "果核元素", "挂饰", "可挂包", "可当钥匙扣"], 6),
       },
       douyin: {
-        core: withName(["文创挂件", "国风钥匙扣", "包包挂件", "小众礼物"]),
-        scene: ["挂包上", "钥匙串装饰", "手账包", "校园市集", "送朋友"],
-        pain: ["普通钥匙扣没记忆点", "低预算礼物怎么选", "包包太单调", "想送特别一点"],
-        style: ["一个小挂件也有氛围", "有故事感的小物", "国风细节", "自然手作感"],
-        attribute: uniqueWords([...materialWords, "文化元素", "细节纹理", "系列展示", "礼袋包装", "轻便挂件"], 6),
+        core: withName(["小挂件推荐", "钥匙扣推荐", "包包挂件", "文创小物"]),
+        scene: ["包包装饰", "低预算礼物", "校园市集小物", "文旅小礼物"],
+        pain: ["普通包太单调", "钥匙串太普通", "送礼不知道选什么"],
+        style: ["有故事感", "氛围感小物", "手作感", "自然风"],
+        attribute: uniqueWords([...materialWords, "木珠挂件", "果核挂饰", "可挂包", "轻便小物"], 6),
       },
       ecommerce: {
-        core: withName(["文创钥匙扣", "国风挂件", "包包挂件", "手账周边", "小众礼物"]),
-        scene: ["学生党", "送朋友", "校园市集", "文旅纪念", "包包装饰"],
+        core: withName(["钥匙扣", "包包挂件", "文创挂件", "国风挂饰", "手作挂件"]),
+        scene: ["送朋友", "学生礼物", "文旅纪念", "校园市集", "帆布包挂件"],
         pain: ["低预算礼物", "钥匙串装饰", "包包装饰", "小众不撞款"],
         style: ["国风", "自然感", "手作感", "小众", "故事感"],
-        attribute: uniqueWords([...materialWords, "木珠", "果核", "挂件", "礼袋", "系列款"], 6),
+        attribute: uniqueWords([...materialWords, "木珠", "果核", "手作风", "挂饰", "钥匙圈", "轻便"], 6),
+        longTail: ["文创钥匙扣小众礼物", "木珠果核包包挂件", "国风手作钥匙扣", "低预算送女生小礼物"],
       },
       titles: [
-        ["小红书", "这个小挂件挂在帆布包上，真的很有故事感"],
-        ["抖音", "一个小挂件，也能让包包变得有记忆点"],
-        ["电商平台", "国风文创钥匙扣包包挂件低预算小众礼物学生党手作感"],
+        ["小红书", "这个木珠小挂件，挂在帆布包上真的很有氛围"],
+        ["抖音", "普通包加一个小挂件，氛围感立刻不一样"],
+        ["电商平台", "木珠果核文创钥匙扣包包挂件小众低预算礼物"],
       ],
     },
     phone_accessory: {
@@ -1205,6 +1207,7 @@ function getPlatformKeywordPlan(product, categoryKey) {
     pain: uniqueWords(platform.pain, 6),
     style: uniqueWords(platform.style, 6),
     attribute: uniqueWords(platform.attribute, 6),
+    longTail: uniqueWords(platform.longTail || [], 6),
   });
   return {
     xhs: normalizePlatform(plan.xhs),
@@ -1221,7 +1224,30 @@ function formatKeywordPlatform(platform) {
     `痛点词：${platform.pain.join("、")}`,
     `风格/情绪词：${platform.style.join("、")}`,
     `属性/功能词：${platform.attribute.join("、")}`,
-  ].join(String.fromCharCode(10));
+    platform.longTail?.length ? `长尾词：${platform.longTail.join("、")}` : "",
+  ].filter(Boolean).join(String.fromCharCode(10));
+}
+
+const hairOnlyTerms = ["大肠发圈", "发圈", "扎发", "丸子头", "半扎", "普通皮筋", "不勒头", "上头效果", "发量", "扎发神器", "发圈推荐", "低丸子头"];
+
+function hasHairOnlyTerms(content) {
+  return hairOnlyTerms.some((term) => String(content || "").includes(term));
+}
+
+function validateContentByCategory(categoryKey, generatedContent) {
+  if (categoryKey === "hair_accessory") {
+    return { ok: true, content: generatedContent };
+  }
+  const content = typeof generatedContent === "string" ? generatedContent : JSON.stringify(generatedContent || "");
+  if (!hasHairOnlyTerms(content)) {
+    return { ok: true, content: generatedContent };
+  }
+  return { ok: false, content: generatedContent };
+}
+
+function scrubHairOnlyTerms(categoryKey, content) {
+  if (categoryKey === "hair_accessory") return content;
+  return hairOnlyTerms.reduce((text, term) => text.replaceAll(term, ""), String(content || ""));
 }
 
 function inferMarketInfo(product) {
@@ -1249,10 +1275,18 @@ function analyzeProduct(product, hasImage) {
   const market = inferMarketInfo(product);
   const categoryKey = market.categoryKey;
   const channelFit = getChannelFit(product, categoryKey);
-  const imagePlan = getImageContentPlan(categoryKey, channelFit);
-  const xhsPackage = getXhsContentPackage(product, categoryKey);
-  const douyinPackage = getDouyinVideoPackage(product, categoryKey);
-  const keywordPlan = getPlatformKeywordPlan(product, categoryKey);
+  let imagePlan = getImageContentPlan(categoryKey, channelFit);
+  let xhsPackage = getXhsContentPackage(product, categoryKey);
+  let douyinPackage = getDouyinVideoPackage(product, categoryKey);
+  let keywordPlan = getPlatformKeywordPlan(product, categoryKey);
+  const moduleValidation = validateContentByCategory(categoryKey, { imagePlan, xhsPackage, douyinPackage, keywordPlan });
+  if (!moduleValidation.ok) {
+    const fallbackKey = categoryKey === "stationery_cultural" ? "stationery_cultural" : "unknown";
+    imagePlan = getImageContentPlan(fallbackKey, channelFit);
+    xhsPackage = getXhsContentPackage(product, fallbackKey);
+    douyinPackage = getDouyinVideoPackage(product, fallbackKey);
+    keywordPlan = getPlatformKeywordPlan(product, fallbackKey);
+  }
   const cost = n(product.cost);
   const price = n(product.price);
   const moq = n(product.moq);
@@ -1390,7 +1424,7 @@ function analyzeProduct(product, hasImage) {
     ["信息完整", Math.round(infoScore), infoScore >= 80 ? "产品基础信息较完整，报告可信度较高。" : "信息仍不完整，建议补充人群、渠道、供应商和物流风险。"],
   ];
 
-  const report = `【TradePilot AI 进货决策报告】
+  let report = `【TradePilot AI 进货决策报告】
 
 一、产品基础信息
 产品名称：${product.name || "未填写"}
@@ -1507,6 +1541,10 @@ ${nextTestActions.slice(-2).map((action, index) => `${samplingStrategy.checkpoin
 
 十六、AI评分依据
 ${explanations.map(([label, score, reason], index) => `${index + 1}. ${label}：${score}分。${reason}`).join(String.fromCharCode(10))}`;
+
+  if (!validateContentByCategory(categoryKey, report).ok) {
+    report = scrubHairOnlyTerms(categoryKey, report);
+  }
 
   return {
     market,
@@ -1796,7 +1834,7 @@ function generateHtmlReport(product, result) {
       <div class="grid">
         <div class="card"><h3>小红书搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.xhs.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.xhs.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.xhs.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.xhs.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.xhs.attribute.join("、"))}</p></div>
         <div class="card"><h3>抖音搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.douyin.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.douyin.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.douyin.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.douyin.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.douyin.attribute.join("、"))}</p></div>
-        <div class="card"><h3>电商平台搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.ecommerce.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.ecommerce.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.ecommerce.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.ecommerce.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.ecommerce.attribute.join("、"))}</p></div>
+        <div class="card"><h3>电商平台搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.ecommerce.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.ecommerce.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.ecommerce.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.ecommerce.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.ecommerce.attribute.join("、"))}</p>${keywordPlan.ecommerce.longTail?.length ? `<p><strong>长尾词：</strong>${escapeHtml(keywordPlan.ecommerce.longTail.join("、"))}</p>` : ""}</div>
         <div class="card"><h3>标题组合建议</h3>${htmlList(keywordPlan.titles.map(([platform, title]) => `${platform}标题：${title}`))}</div>
       </div>
     </section>
@@ -2958,6 +2996,7 @@ function KeywordPlatformCard({ title, platform }) {
     ["痛点词", platform?.pain || []],
     ["风格 / 情绪词", platform?.style || []],
     ["属性 / 功能词", platform?.attribute || []],
+    ...(platform?.longTail?.length ? [["长尾词", platform.longTail]] : []),
   ];
   return (
     <div className="rounded-2xl bg-white/[0.05] p-4">
