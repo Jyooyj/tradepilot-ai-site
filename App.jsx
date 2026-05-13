@@ -139,6 +139,7 @@ const flowSteps = [
 const painPoints = ["凭感觉拿货", "MOQ压货", "利润算不清", "爆款潜力难判断", "内容测款没方向", "进货后缺少复盘"];
 
 const statusOptions = ["全部", "准备拿样", "正在测款", "建议补货", "暂不考虑"];
+const feedbackFormUrl = "https://v.wjx.cn/vm/r7Utha0.aspx";
 
 function n(value) {
   const parsed = Number(value);
@@ -719,6 +720,510 @@ function getSupplierQuestions(categoryKey) {
   return questions[categoryKey] || questions.unknown;
 }
 
+function getXhsContentPackage(product, categoryKey) {
+  const name = product.name || "这款小物";
+  const packages = {
+    jewelry: {
+      coverHooks: ["不打耳洞也能戴的温柔感耳夹", "这对珍珠耳夹，真的很适合春夏通勤", "低预算礼物感小配饰，戴上比平铺好看太多"],
+      titles: [
+        `${name}戴上比平铺图更温柔`,
+        "不打耳洞也能有精致感，通勤戴刚刚好",
+        "低预算礼物感耳夹，送朋友也不敷衍",
+        "春夏小裙子可以搭的珍珠蝴蝶结配饰",
+        "耳夹别只看平铺，上耳效果才是重点",
+      ],
+      coverDesign: "首图用真人侧脸佩戴特写，旁边补一张近景质感小图，标题只留一句场景文案，例如“通勤戴也不夸张”。",
+      pages: [
+        "第1页：佩戴特写封面，用“戴上更温柔”的结果吸引点击。",
+        "第2页：正脸/侧脸上耳效果，让用户判断大小和修饰感。",
+        "第3页：近拍珍珠、金属光泽、接口和做工。",
+        "第4页：通勤、约会、校园穿搭三种场景切换。",
+        "第5页：说明适合不打耳洞、低预算送礼、春夏穿搭人群。",
+        "第6页：展示礼盒、卡纸或袋子，强化仪式感。",
+        "第7页：补充尺寸参照和佩戴舒适度。",
+        "第8页：提问“自用还是送朋友”，引导收藏和评论。",
+      ],
+      body: "最近真的很喜欢这种不用打耳洞也能戴的小耳夹。珍珠和蝴蝶结放在一起不会太夸张，通勤、约会、春夏小裙子都能搭。比起平铺图，我更建议看上耳效果，大小和脸型适配真的很重要。低预算想送朋友的话，配个小礼盒也挺有仪式感。",
+      interactions: ["你们更喜欢自用还是送朋友？", "这个风格适合通勤还是约会？", "想看正脸效果还是侧脸效果？", "你会更在意材质、包装还是价格？", "不打耳洞的姐妹会想试这种耳夹吗？"],
+      tags: ["#耳夹", "#珍珠耳夹", "#不打耳洞", "#通勤配饰", "#春夏穿搭", "#低预算礼物", "#小众配饰", "#温柔风穿搭", "#礼物推荐"],
+      merchantStrategy: "这组内容重点测试消费者是否被佩戴效果和礼物感吸引。发布后观察收藏率、评论里的材质疑问和私信询价；如果只有点赞没有询单，优先补充价格、包装和佩戴尺寸说明。",
+    },
+    hair_accessory: {
+      coverHooks: ["奶油色大肠发圈，上头比平铺好看", "宿舍姐妹问爆的温柔发圈", "扎丸子头的时候，这个颜色真的很显干净"],
+      titles: [
+        `${name}上头效果比平铺图好看太多`,
+        "奶油色发圈真的很适合宿舍日常",
+        "低丸子头加这个发圈，温柔感一下就有了",
+        "姐妹们选发圈别只看平铺，一定看上头效果",
+        "3个颜色组一套，日常扎发更好搭",
+      ],
+      coverDesign: "首图用上头效果做主画面，角落放颜色矩阵和扎发前后对比，让用户一眼看出颜色、体积和发型效果。",
+      pages: [
+        "第1页：上头效果封面，用“扎上更温柔”的结果吸引点击。",
+        "第2页：低丸子头、半扎发、低马尾三种发型效果。",
+        "第3页：颜色矩阵并排展示，方便用户选色。",
+        "第4页：宿舍镜子前、课桌旁、通勤包搭配场景。",
+        "第5页：展示弹力、布料纹理、缝线和厚度。",
+        "第6页：3件装/5件装同色系组合，强化搭配理由。",
+        "第7页：普通皮筋 vs 该款发圈的前后对比。",
+        "第8页：提问“想看哪个颜色上头”，收集颜色偏好。",
+      ],
+      body: "奶油色发圈真的比想象中更百搭，扎低丸子头或者半扎都很温柔。它不是那种很夸张的大肠发圈，日常上课、宿舍出门、通勤都能用。建议姐妹们选颜色的时候别只看平铺图，一定要看上头效果，颜色和发量适不适配差别挺大的。",
+      interactions: ["你们想看哪几个颜色上头效果？", "这个颜色更适合校园还是通勤？", "如果出套装，你们想要3件还是5件？", "你是发量多还是发量少？", "想看丸子头、半扎还是低马尾？"],
+      tags: ["#发圈", "#大肠发圈", "#宿舍好物", "#发型分享", "#校园穿搭", "#低预算好物", "#温柔风", "#扎发教程", "#奶油色系", "#学生党好物"],
+      merchantStrategy: "这组内容重点测试消费者对颜色组合和上头效果的偏好。发布后看收藏率、评论区选色、套装询问和私信询价；如果播放不错但询单弱，补充套装价格、上头对比和更多发量效果。",
+    },
+    home_lifestyle: {
+      coverHooks: ["宿舍桌面变好看，其实只差这个小物", "让书桌有氛围感的小东西", "办公室和宿舍都能用的生活感好物"],
+      titles: [
+        `${name}放在桌面上，氛围感真的会变好`,
+        "宿舍桌面想变整洁，可以从这个小物开始",
+        "低预算提升生活感，这个小东西挺加分",
+        "床头/书桌/办公室都能放的实用小物",
+        "不是精修图，真实桌面上也好看吗？",
+      ],
+      coverDesign: "首图用真实桌面或宿舍场景，保留一点使用痕迹和氛围光，旁边加手机或书本做尺寸参照。",
+      pages: [
+        "第1页：真实桌面/宿舍场景封面，用结果感吸引点击。",
+        "第2页：使用前后对比，展示空间变化。",
+        "第3页：尺寸、容量、材质、边角等细节。",
+        "第4页：宿舍、办公桌、床头不同位置效果。",
+        "第5页：说明适合自用、送室友或办公室小礼物。",
+        "第6页：展示包装保护和开箱状态。",
+        "第7页：补充清洁、摆放或日常维护细节。",
+        "第8页：提问“你会放在哪里”，引导评论。",
+      ],
+      body: "有些小物不是特别贵，但放到真实桌面上会让空间立刻顺眼很多。这个更适合宿舍、床头或者办公室小角落，拍照的时候也挺出片。选这类东西我会看三个点：尺寸会不会占地方、材质会不会显廉价、真实场景里是不是自然。",
+      interactions: ["你会把它放在书桌、床头还是办公室？", "你更喜欢实用型还是氛围感小物？", "想看白天自然光还是晚上开灯效果？", "会介意尺寸大一点吗？", "这种小物适合自用还是送室友？"],
+      tags: ["#宿舍好物", "#桌面改造", "#生活方式", "#氛围感好物", "#办公室好物", "#低预算改造", "#礼物推荐", "#桌搭分享", "#实用小物"],
+      merchantStrategy: "这组内容重点测试消费者是否被真实场景和氛围变化吸引。发布后看收藏率、评论里的尺寸/运费疑问和私信询价；如果互动高但询单弱，补充尺寸参照、包装保护和真实使用细节。",
+    },
+    stationery_cultural: {
+      coverHooks: ["把一点国风小心思挂在包上", "这个小挂件，比普通钥匙扣更有故事感", "适合送朋友的低预算文创小物"],
+      titles: [
+        `${name}挂在帆布包上真的很有氛围`,
+        "低预算文创小礼物，送朋友不尴尬",
+        "喜欢国风小物的人，会懂这个质感",
+        "普通钥匙串加一个小挂件，立刻变得有记忆点",
+        "校园市集看到这种小物，我真的会停下来",
+      ],
+      coverDesign: "首图用包包、钥匙串或手帐包的真实使用场景，叠加一张细节小图，让用户同时看到故事感和质感。",
+      pages: [
+        "第1页：场景故事图封面，突出“有记忆点”的感觉。",
+        "第2页：文化符号、木珠、果核、图案或主题元素细节。",
+        "第3页：挂在帆布包、钥匙串、手帐包上的效果。",
+        "第4页：同系列不同款并排，提升收藏感。",
+        "第5页：说明适合送朋友、校园市集、自用搭配场景。",
+        "第6页：展示包装、卡片或礼袋。",
+        "第7页：补充材质、印刷、边缘和手作感细节。",
+        "第8页：提问“你会挂哪里”，引导评论。",
+      ],
+      body: "有些小物不是因为多贵才特别，而是因为它有一点自己的故事感。这个木珠和果核拼接的小挂件，挂在帆布包、钥匙串或者手账包上都挺有氛围。喜欢国风、自然感、手作感小物的姐妹应该会懂，它适合当作低预算小礼物，也适合自己日常搭配。",
+      interactions: ["你会挂在包上还是当钥匙扣？", "你更喜欢国风、自然感还是城市主题？", "这种小物适合自用还是送朋友？", "想看同系列其他款吗？", "你会为包装和故事感加分吗？"],
+      tags: ["#文创小物", "#国风小物", "#钥匙扣", "#低预算礼物", "#校园市集", "#手作感", "#小众礼物", "#包包挂件", "#文创礼物", "#帆布包搭配"],
+      merchantStrategy: "这组内容重点测试消费者是否被故事感、文化符号和使用场景吸引。发布后看收藏率、评论主题偏好和私信询价；如果收藏高但评论弱，补充系列化展示、包装图和更明确的使用场景。",
+    },
+    phone_accessory: {
+      coverHooks: ["手机壳好不好看，上机才知道", "裸机普通，装上这个立刻有风格", "这个手机小配件，实用和好看都想要"],
+      titles: [
+        `${name}上机效果比单看产品图直观多了`,
+        "手机配件别只看颜值，孔位和手感也很重要",
+        "通勤党会喜欢的实用手机小配件",
+        "镜头、按键、边框细节一次看清楚",
+        "实用款和高颜值款，你更选哪种？",
+      ],
+      coverDesign: "首图用裸机和上机效果对比，角落写清适配机型，并把孔位、镜头保护或支架功能放到小图里。",
+      pages: [
+        "第1页：裸机 vs 上机效果封面，快速展示变化。",
+        "第2页：手持、放桌面、出门携带等真实使用效果。",
+        "第3页：孔位、按键、镜头保护、边框厚度细节。",
+        "第4页：支架、挂绳、防摔或功能演示。",
+        "第5页：明确适配机型和颜色选择。",
+        "第6页：展示穿搭、通勤、拍照场景。",
+        "第7页：解决“会不会厚、会不会挡镜头”等疑虑。",
+        "第8页：提问喜欢实用款还是高颜值款。",
+      ],
+      body: "手机配件真的不能只看单独产品图，上机效果才最直观。这个装上之后风格会明显一点，但我更在意孔位、按键和镜头保护这些细节。选之前一定要看清适配机型，手感、厚度和日常使用方便程度也很影响体验。",
+      interactions: ["你更喜欢实用款还是高颜值款？", "想看哪个机型的上机效果？", "你会介意手机壳变厚吗？", "挂绳、支架、防摔哪个功能最重要？", "你喜欢透明款还是有图案的？"],
+      tags: ["#手机壳", "#手机配件", "#上机效果", "#通勤好物", "#数码配件", "#手机挂绳", "#防摔手机壳", "#高颜值手机壳", "#实用好物"],
+      merchantStrategy: "这组内容重点测试消费者对上机效果、机型适配和功能演示的关注。发布后看完播率、评论区机型需求、收藏和私信询价；如果播放高但询单少，补充适配机型、价格和功能细节。",
+    },
+    daily_necessity: {
+      coverHooks: ["这个小问题，我以前每天都忍", "用前用后差别太明显了", "宿舍和办公室都能囤的实用小东西"],
+      titles: [
+        `${name}这种小东西，用过才知道方便`,
+        "低预算解决一个日常小麻烦",
+        "宿舍里可以一次囤几件的实用小物",
+        "一图看懂它到底解决什么问题",
+        "不是大件，但真的会提高日常幸福感",
+      ],
+      coverDesign: "首图用使用前后对比做主视觉，旁边放一图看懂功能和组合装，让用户立刻理解用途。",
+      pages: [
+        "第1页：痛点/结果对比封面，让用户马上看懂用途。",
+        "第2页：具体怎么用，步骤越简单越好。",
+        "第3页：使用前后对比，突出解决的问题。",
+        "第4页：宿舍、家庭、办公室不同场景。",
+        "第5页：尺寸、容量、材质和一次用量说明。",
+        "第6页：多件组合、囤货装或搭配使用方式。",
+        "第7页：说明适合哪些人和什么频率使用。",
+        "第8页：提问“一次会买几个”，收集购买偏好。",
+      ],
+      body: "这种小东西看起来不起眼，但真的会解决一个每天都会遇到的小麻烦。放在宿舍、办公室或者家里都能用，重点是用法简单、占地方少，囤几件也不心疼。比起只看产品图，我更建议看使用前后对比，能不能真的省事一眼就知道。",
+      interactions: ["这种小东西你会一次买几个？", "你更想放宿舍、办公室还是家里？", "组合装会更有吸引力吗？", "你最在意便宜、方便还是耐用？", "想看使用前后对比还是具体步骤？"],
+      tags: ["#日用好物", "#宿舍好物", "#办公室好物", "#低预算好物", "#实用小物", "#生活小妙招", "#囤货清单", "#组合装", "#性价比好物"],
+      merchantStrategy: "这组内容重点测试消费者是否被使用前后对比和组合价值吸引。发布后看完播率、收藏、评论里的使用场景和私信询价；如果互动高但转化弱，补充价格、组合数量和更直接的使用结果。",
+    },
+  };
+
+  return packages[categoryKey] || {
+    coverHooks: ["这个小物，实际用起来比想象中更有存在感", "低预算也能提升一点日常幸福感", "刷到会想点开看的实用小东西"],
+    titles: [`${name}适合什么场景？先看真实使用效果`, "这个小物到底值不值得买，看完场景再决定", "低预算小东西，也要看实用和质感", "适合自用还是送人？这几个细节很关键", "别只看产品图，真实场景更有参考价值"],
+    coverDesign: "首图先拍清楚产品的真实使用场景，再用小图补充尺寸、细节或对比，让用户在3秒内看懂用途。",
+    pages: ["第1页：用结果或场景吸引点击。", "第2页：展示最好看的使用效果。", "第3页：展示细节、尺寸或功能。", "第4页：放到真实生活场景里。", "第5页：说明适合什么人或场合。", "第6页：补充组合、包装或对比。", "第7页：突出实用价值或礼物感。", "第8页：用问题引导评论和收藏。"],
+    body: "这种小物最重要的是放到真实场景里看效果。单看产品图可能很普通，但如果能解决一个小麻烦，或者让桌面、穿搭、包包变得更有细节，就会更有购买理由。建议先看尺寸、材质和使用场景，再决定适不适合自己。",
+    interactions: ["你会自用还是送朋友？", "更想看细节图还是使用图？", "这个适合宿舍、通勤还是办公室？", "你更在意颜值还是实用？", "想看哪个颜色/款式？"],
+    tags: ["#低预算好物", "#实用小物", "#生活好物", "#礼物推荐", "#宿舍好物", "#小众好物", "#日常分享", "#种草清单"],
+    merchantStrategy: "这组内容重点测试消费者是否能快速理解用途和购买理由。发布后看收藏、评论问题、私信询价和转化；如果反馈弱，优先补充真实场景、价格信息和更明确的使用结果。",
+  };
+}
+
+function getDouyinVideoPackage(product, categoryKey) {
+  const packages = {
+    jewelry: {
+      direction: "主打佩戴效果和低预算礼物感。",
+      shots: [
+        { time: "0-2秒", focus: "强钩子", visual: "平铺图切到侧脸佩戴特写。", copy: "这对耳夹，戴上比平铺好看太多。", purpose: "用反差让用户停下来。" },
+        { time: "3-6秒", focus: "展示最强效果", visual: "正脸、侧脸、近距离耳部效果快速切换。", copy: "不打耳洞也能有一点温柔精致感。", purpose: "证明上耳大小和修饰效果。" },
+        { time: "7-11秒", focus: "细节质感", visual: "近拍珍珠、蝴蝶结、金属光泽和接口。", copy: "珍珠和金属细节要近看，才知道会不会显廉价。", purpose: "降低用户对质感的疑虑。" },
+        { time: "12-16秒", focus: "场景/疑虑", visual: "通勤、约会、礼盒包装三个画面。", copy: "自用不夸张，送朋友也有一点仪式感。", purpose: "补充购买场景和礼物理由。" },
+        { time: "17-20秒", focus: "互动引导", visual: "两个佩戴角度定格。", copy: "你觉得它更适合自用还是送朋友？", purpose: "引导评论和收藏。" },
+      ],
+      coverTexts: ["戴上才知道它有多温柔", "平铺普通，上耳真的不一样", "低预算礼物也可以很有心意"],
+      shootingNotes: ["不要只拍平铺，一定要有佩戴图。", "光线不要太暗，否则珍珠和金属质感拍不出来。", "镜头要给耳部/颈部近景，方便判断大小。", "包装只作为加分画面，不要抢过佩戴效果。"],
+      merchantGoal: "这条视频主要测试消费者是否被佩戴反差和礼物感吸引。发布后看完播率、收藏、评论里的材质疑问和私信询价；如果播放高但询单少，补充价格、包装和佩戴尺寸说明。",
+    },
+    hair_accessory: {
+      direction: "主打上头效果、颜色组合和宿舍日常。",
+      shots: [
+        { time: "0-2秒", focus: "强钩子", visual: "普通皮筋扎发切到大肠发圈上头效果。", copy: "扎头发好不好看，真的差一个发圈。", purpose: "用前后对比抓住注意力。" },
+        { time: "3-6秒", focus: "展示最强效果", visual: "低丸子头、半扎发、低马尾三连切。", copy: "奶油色系上头之后很显干净。", purpose: "展示不同发型适配。" },
+        { time: "7-11秒", focus: "颜色选择", visual: "多个颜色并排铺开，再逐个拿起对比。", copy: "这几个颜色放在宿舍里真的很容易被问。", purpose: "引导用户选择颜色。" },
+        { time: "12-16秒", focus: "细节/组合", visual: "拉伸弹力、布料纹理、3件装/5件装组合。", copy: "日常用的话，组一套会比单个更好搭。", purpose: "强化套装购买理由。" },
+        { time: "17-20秒", focus: "互动引导", visual: "定格颜色矩阵和上头效果。", copy: "你们想看哪几个颜色上头？", purpose: "收集颜色偏好和评论。" },
+      ],
+      coverTexts: ["平铺普通，上头真的不一样", "宿舍姐妹问链接的发圈", "奶油色系扎发太显干净了"],
+      shootingNotes: ["一定要拍上头效果，不要只拍单个平铺图。", "颜色尽量在自然光下拍，避免色差太大。", "最好展示不同发型和发量。", "套装画面要拍清楚颜色组合和数量。"],
+      merchantGoal: "这条视频主要测试消费者是否被上头效果和颜色组合吸引。发布后重点看完播率、评论区选色、私信询价和收藏；如果播放高但询单少，需要补充价格、套装和购买理由。",
+    },
+    home_lifestyle: {
+      direction: "主打真实使用场景和宿舍/桌面氛围变化。",
+      shots: [
+        { time: "0-2秒", focus: "强钩子", visual: "杂乱桌面切到整理后氛围画面。", copy: "宿舍桌面变好看，其实只差这个小物。", purpose: "用结果对比让用户停留。" },
+        { time: "3-6秒", focus: "展示最强效果", visual: "产品放在书桌、床头或办公室的真实画面。", copy: "放上去以后，整个角落会顺眼很多。", purpose: "让用户代入自己的空间。" },
+        { time: "7-11秒", focus: "细节/功能", visual: "尺寸参照、材质纹理、容量或边角细节。", copy: "大小和质感要看清，不然很容易买回来不合适。", purpose: "解决尺寸和质感疑虑。" },
+        { time: "12-16秒", focus: "包装/便利", visual: "开箱、包装保护、摆放过程。", copy: "如果是送人或者宿舍用，包装和稳定性也很重要。", purpose: "补充真实使用信任。" },
+        { time: "17-20秒", focus: "互动引导", visual: "桌面、床头、办公室三格定格。", copy: "你会放在书桌、床头还是办公室？", purpose: "引导场景评论。" },
+      ],
+      coverTexts: ["宿舍桌面变好看就靠它", "小物一放，氛围感就来了", "这个角落终于顺眼了"],
+      shootingNotes: ["不要只拍精修图，要拍真实使用环境。", "一定要给尺寸参照，避免用户误判大小。", "灯光可以有氛围，但不能暗到看不清细节。", "易碎或体积类产品要展示包装保护。"],
+      merchantGoal: "这条视频主要测试消费者是否被真实场景和前后变化吸引。发布后看完播率、收藏、评论里的尺寸/摆放问题和私信询价；如果反馈弱，重拍更明确的使用前后对比。",
+    },
+    stationery_cultural: {
+      direction: "主打故事感、文化符号和低预算礼物感。",
+      shots: [
+        { time: "0-2秒", focus: "强钩子", visual: "挂在帆布包上的特写。", copy: "一个小挂件，也能让包有记忆点。", purpose: "用场景感吸引审美人群。" },
+        { time: "3-6秒", focus: "细节故事", visual: "木珠、果核、图案或文化元素近拍。", copy: "喜欢这种自然感和一点点国风细节。", purpose: "突出故事感和文化符号。" },
+        { time: "7-11秒", focus: "使用场景", visual: "钥匙串、手帐包、书桌、帆布包四个画面切换。", copy: "挂包上、钥匙上、手帐包上都不突兀。", purpose: "扩展使用理由。" },
+        { time: "12-16秒", focus: "礼物感", visual: "包装、卡片或送朋友场景。", copy: "低预算但不敷衍的小礼物。", purpose: "强化送礼理由。" },
+        { time: "17-20秒", focus: "互动引导", visual: "挂包和钥匙扣两个画面定格。", copy: "你会挂包上还是当钥匙扣？", purpose: "引导评论和选择。" },
+      ],
+      coverTexts: ["这个小物，让包包一下有氛围了", "低预算文创礼物也能很特别", "喜欢国风小物的人会懂"],
+      shootingNotes: ["不要只拍单品，要拍使用场景。", "需要展示故事感、文化符号和材质细节。", "可以拍包装和送礼场景。", "系列款要并排展示，收藏感会更强。"],
+      merchantGoal: "这条视频主要测试消费者是否被故事感和使用场景吸引。发布后看完播率、收藏、评论里的主题偏好和私信询价；如果收藏高但询单少，补充包装、价格和更多使用场景。",
+    },
+    phone_accessory: {
+      direction: "主打上机效果、功能演示和机型适配。",
+      shots: [
+        { time: "0-2秒", focus: "强钩子", visual: "裸机和装上后的快速对比。", copy: "手机壳好不好看，上机才知道。", purpose: "用反差吸引停留。" },
+        { time: "3-6秒", focus: "展示最强效果", visual: "手持、侧面、背面、镜头区多个角度。", copy: "装上以后，风格会明显很多。", purpose: "证明上机颜值和手感。" },
+        { time: "7-11秒", focus: "细节/功能", visual: "孔位、按键、镜头保护、边框厚度。", copy: "孔位和按键这些细节，真的会影响体验。", purpose: "解决适配疑虑。" },
+        { time: "12-16秒", focus: "功能演示", visual: "支架角度、挂绳承重、防摔或镜头保护演示。", copy: "好看之外，日常用也要顺手。", purpose: "补充实用购买理由。" },
+        { time: "17-20秒", focus: "互动引导", visual: "不同颜色或功能款定格。", copy: "你更喜欢实用款还是高颜值款？", purpose: "收集款式偏好。" },
+      ],
+      coverTexts: ["手机壳上机才知道好不好看", "裸机普通，装上立刻有风格", "实用和好看我都想要"],
+      shootingNotes: ["一定要拍上机效果和手持效果。", "机型适配要写清楚，避免用户误会。", "孔位、按键、镜头保护要给近景。", "功能款要直接演示，不要只口播。"],
+      merchantGoal: "这条视频主要测试消费者是否被上机效果和功能演示吸引。发布后看完播率、评论区机型需求、收藏和私信询价；如果评论都在问机型，优先补充适配清单和不同机型画面。",
+    },
+    daily_necessity: {
+      direction: "主打使用前后对比和低预算实用价值。",
+      shots: [
+        { time: "0-2秒", focus: "强钩子", visual: "痛点画面直接出现。", copy: "这个小问题，我以前每天都忍。", purpose: "让用户快速共鸣。" },
+        { time: "3-6秒", focus: "展示最强效果", visual: "使用前后对比。", copy: "用了以后差别其实很明显。", purpose: "证明它解决了具体问题。" },
+        { time: "7-11秒", focus: "具体怎么用", visual: "一步一步展示使用过程。", copy: "用法很简单，不需要额外准备什么。", purpose: "降低使用门槛。" },
+        { time: "12-16秒", focus: "组合/场景", visual: "宿舍、办公室、家庭和多件组合。", copy: "这种小东西适合放几个常用位置。", purpose: "强化囤货和组合理由。" },
+        { time: "17-20秒", focus: "互动引导", visual: "组合装和使用结果定格。", copy: "这种小东西你会一次买几个？", purpose: "收集购买数量偏好。" },
+      ],
+      coverTexts: ["这个小问题终于解决了", "用前用后差别太明显", "宿舍和办公室都能囤"],
+      shootingNotes: ["开头一定要先拍痛点，不要直接拍产品。", "使用前后对比要清楚，结果越直观越好。", "步骤不要太复杂，尽量一镜到底。", "组合装要拍出数量感和性价比。"],
+      merchantGoal: "这条视频主要测试消费者是否被痛点和使用结果吸引。发布后看完播率、收藏、评论使用场景和私信询价；如果播放好但转化弱，补充价格、组合数量和真实使用频率。",
+    },
+  };
+
+  return packages[categoryKey] || packages.daily_necessity;
+}
+
+function uniqueWords(words, limit = 6) {
+  return [...new Set((words || []).map((word) => String(word || "").trim()).filter(Boolean))].slice(0, limit);
+}
+
+function getProductMaterialWords(product) {
+  const text = `${product.name} ${product.category} ${product.material} ${product.keywords} ${product.note}`;
+  const materialMap = [
+    ["珍珠", "珍珠质感"],
+    ["合金", "合金材质"],
+    ["钛钢", "钛钢"],
+    ["925", "925银"],
+    ["布", "布料纹理"],
+    ["绒", "绒感面料"],
+    ["木", "木质感"],
+    ["果核", "果核元素"],
+    ["PET", "防水PET"],
+    ["玻璃", "玻璃质感"],
+    ["陶瓷", "陶瓷质感"],
+    ["TPU", "TPU软壳"],
+    ["硅胶", "硅胶材质"],
+  ];
+  return materialMap.filter(([key]) => text.includes(key)).map(([, value]) => value);
+}
+
+function getPlatformKeywordPlan(product, categoryKey) {
+  const name = product.name || "";
+  const materialWords = getProductMaterialWords(product);
+  const withName = (items) => uniqueWords(name ? [name, ...items] : items, 6);
+  const templates = {
+    jewelry: {
+      xhs: {
+        core: withName(["珍珠耳夹", "不打耳洞耳夹", "蝴蝶结耳夹", "温柔风耳夹", "显脸小耳饰"]),
+        scene: ["通勤配饰", "春夏穿搭", "约会配饰", "低预算礼物", "校园穿搭"],
+        pain: ["不打耳洞戴什么", "耳夹不痛推荐", "显脸小耳饰", "平铺普通戴上好看"],
+        style: ["温柔风", "法式感", "氛围感", "小众配饰", "精致感"],
+        attribute: uniqueWords([...materialWords, "不打耳洞", "轻便", "礼盒装", "珍珠光泽"], 6),
+      },
+      douyin: {
+        core: withName(["耳夹推荐", "珍珠耳夹", "显脸小耳饰", "不打耳洞耳饰"]),
+        scene: ["约会穿搭", "通勤变精致", "春夏配饰", "低预算礼物"],
+        pain: ["平铺普通戴上好看", "不打耳洞也能戴", "低预算变精致", "耳夹不痛"],
+        style: ["戴上才知道", "氛围感拉满", "温柔显气质", "精致感加分"],
+        attribute: uniqueWords([...materialWords, "上耳效果", "近景光泽", "礼盒包装", "轻便耳夹"], 6),
+      },
+      ecommerce: {
+        core: withName(["珍珠耳夹", "蝴蝶结耳夹", "无耳洞耳夹", "女款耳饰"]),
+        scene: ["学生党", "通勤", "约会", "送女友", "生日礼物"],
+        pain: ["无耳洞可戴", "不夹耳", "显脸小", "低预算礼物"],
+        style: ["温柔风", "法式", "小众", "春夏", "精致"],
+        attribute: uniqueWords([...materialWords, "合金", "仿珍珠", "轻便", "礼盒装"], 6),
+      },
+      titles: [
+        ["小红书", "不打耳洞也能戴的珍珠耳夹，春夏通勤真的很温柔"],
+        ["抖音", "平铺普通，戴上才知道这对耳夹有多显气质"],
+        ["电商平台", "蝴蝶结珍珠耳夹女不打耳洞温柔风学生党通勤耳饰礼物"],
+      ],
+    },
+    hair_accessory: {
+      xhs: {
+        core: withName(["大肠发圈", "奶油色发圈", "温柔发饰", "显发量发圈"]),
+        scene: ["宿舍好物", "校园穿搭", "通勤扎发", "上课发型", "镜子前出门"],
+        pain: ["扎头发不好看", "发量少怎么扎", "发圈不勒头", "平铺普通上头好看"],
+        style: ["奶油色系", "温柔感", "干净感", "低预算好物", "宿舍姐妹同款"],
+        attribute: uniqueWords([...materialWords, "弹力好", "布料纹理", "不勒头", "套装组合", "颜色矩阵"], 6),
+      },
+      douyin: {
+        core: withName(["发圈推荐", "大肠发圈", "上头好看的发圈", "扎发神器"]),
+        scene: ["宿舍日常", "校园出门", "通勤扎发", "半扎发", "丸子头"],
+        pain: ["普通皮筋显土", "扎发没氛围", "发量少显秃", "颜色不会选"],
+        style: ["上头才知道", "温柔显干净", "奶油色太百搭", "宿舍姐妹问链接"],
+        attribute: uniqueWords([...materialWords, "弹力展示", "颜色组合", "3件装", "5件装", "布料厚度"], 6),
+      },
+      ecommerce: {
+        core: withName(["大肠发圈", "奶油色发圈", "女款发饰", "扎发发圈"]),
+        scene: ["学生党", "宿舍", "通勤", "日常扎发", "送同学"],
+        pain: ["不勒头", "显发量", "不掉发", "百搭颜色"],
+        style: ["温柔风", "奶油色", "韩系", "简约", "少女感"],
+        attribute: uniqueWords([...materialWords, "弹力发绳", "布艺", "套装", "多色可选", "厚实"], 6),
+      },
+      titles: [
+        ["小红书", "奶油色大肠发圈，上头效果比平铺图好看太多"],
+        ["抖音", "扎头发好不好看，真的差一个发圈"],
+        ["电商平台", "奶油色大肠发圈女温柔风显发量不勒头学生党扎发套装"],
+      ],
+    },
+    home_lifestyle: {
+      xhs: {
+        core: withName(["桌面好物", "宿舍好物", "家居小物", "氛围感摆件"]),
+        scene: ["宿舍桌面", "办公桌", "床头小物", "书桌改造", "低预算改造"],
+        pain: ["桌面乱怎么办", "宿舍太单调", "小空间改造", "提升幸福感"],
+        style: ["生活方式感", "治愈感", "氛围感", "干净桌搭", "精致生活"],
+        attribute: uniqueWords([...materialWords, "尺寸参照", "容量", "防碎包装", "易摆放", "不占地方"], 6),
+      },
+      douyin: {
+        core: withName(["宿舍桌面好物", "家居小物", "办公室好物", "桌面改造"]),
+        scene: ["宿舍改造", "办公桌整理", "床头布置", "书桌氛围", "开箱摆放"],
+        pain: ["桌面杂乱", "宿舍没氛围", "小空间不好收纳", "买回来怕不合适"],
+        style: ["改造前后对比", "小物提升幸福感", "低预算变好看", "氛围感来了"],
+        attribute: uniqueWords([...materialWords, "尺寸对比", "真实使用", "包装保护", "材质细节", "稳定摆放"], 6),
+      },
+      ecommerce: {
+        core: withName(["家居小物", "宿舍桌面摆件", "办公室桌面好物", "生活用品"]),
+        scene: ["宿舍", "办公室", "床头", "书桌", "送室友"],
+        pain: ["收纳整理", "不占地方", "桌面美化", "低预算改造"],
+        style: ["简约", "氛围感", "治愈", "ins风", "实用"],
+        attribute: uniqueWords([...materialWords, "尺寸", "容量", "材质", "防摔包装", "轻便"], 6),
+      },
+      titles: [
+        ["小红书", "宿舍桌面变好看，其实只差这个低预算小物"],
+        ["抖音", "杂乱桌面变顺眼，这个小物放上去氛围感就来了"],
+        ["电商平台", "宿舍桌面好物家居小物办公室床头摆件低预算氛围感礼物"],
+      ],
+    },
+    stationery_cultural: {
+      xhs: {
+        core: withName(["文创小物", "国风挂件", "钥匙扣", "包包挂件", "手账周边"]),
+        scene: ["校园市集", "文旅纪念", "帆布包搭配", "手账装饰", "低预算礼物"],
+        pain: ["送朋友不尴尬", "钥匙串太普通", "包包缺少记忆点", "想要小众礼物"],
+        style: ["国风感", "自然感", "故事感", "手作感", "小众审美"],
+        attribute: uniqueWords([...materialWords, "挂件", "包装卡片", "系列款", "轻便", "可送礼"], 6),
+      },
+      douyin: {
+        core: withName(["文创挂件", "国风钥匙扣", "包包挂件", "小众礼物"]),
+        scene: ["挂包上", "钥匙串装饰", "手账包", "校园市集", "送朋友"],
+        pain: ["普通钥匙扣没记忆点", "低预算礼物怎么选", "包包太单调", "想送特别一点"],
+        style: ["一个小挂件也有氛围", "有故事感的小物", "国风细节", "自然手作感"],
+        attribute: uniqueWords([...materialWords, "文化元素", "细节纹理", "系列展示", "礼袋包装", "轻便挂件"], 6),
+      },
+      ecommerce: {
+        core: withName(["文创钥匙扣", "国风挂件", "包包挂件", "手账周边", "小众礼物"]),
+        scene: ["学生党", "送朋友", "校园市集", "文旅纪念", "包包装饰"],
+        pain: ["低预算礼物", "钥匙串装饰", "包包装饰", "小众不撞款"],
+        style: ["国风", "自然感", "手作感", "小众", "故事感"],
+        attribute: uniqueWords([...materialWords, "木珠", "果核", "挂件", "礼袋", "系列款"], 6),
+      },
+      titles: [
+        ["小红书", "这个小挂件挂在帆布包上，真的很有故事感"],
+        ["抖音", "一个小挂件，也能让包包变得有记忆点"],
+        ["电商平台", "国风文创钥匙扣包包挂件低预算小众礼物学生党手作感"],
+      ],
+    },
+    phone_accessory: {
+      xhs: {
+        core: withName(["手机壳", "手机挂绳", "手机支架", "镜头保护", "数码配件"]),
+        scene: ["通勤出门", "拍照出片", "上机效果", "日常防摔", "个性化搭配"],
+        pain: ["裸机怕摔", "孔位不准怎么办", "手机壳太厚", "挂绳好不好用"],
+        style: ["高颜值", "实用党", "个性化", "简约耐看", "上机才知道"],
+        attribute: uniqueWords([...materialWords, "机型适配", "防摔", "支架角度", "挂绳承重", "按键孔位"], 6),
+      },
+      douyin: {
+        core: withName(["手机壳推荐", "上机效果", "手机挂绳", "防摔手机壳", "支架手机壳"]),
+        scene: ["裸机对比", "通勤使用", "单手携带", "拍照支架", "出门解放双手"],
+        pain: ["手机壳好不好看上机才知道", "孔位不准很麻烦", "怕摔手机", "挂绳牢不牢"],
+        style: ["装上立刻有风格", "实用和好看都要", "高颜值数码配件", "功能演示"],
+        attribute: uniqueWords([...materialWords, "防摔测试", "镜头保护", "孔位细节", "支架演示", "机型清单"], 6),
+      },
+      ecommerce: {
+        core: withName(["手机壳", "手机挂绳", "手机支架", "防摔手机壳", "镜头保护壳"]),
+        scene: ["学生党", "通勤", "拍照", "出门", "送朋友"],
+        pain: ["防摔", "不挡镜头", "孔位精准", "挂绳承重", "轻薄"],
+        style: ["透明", "高颜值", "个性", "简约", "实用"],
+        attribute: uniqueWords([...materialWords, "适配机型", "TPU", "镜头保护", "按键灵敏", "支架功能"], 6),
+      },
+      titles: [
+        ["小红书", "手机壳别只看产品图，上机效果才最直观"],
+        ["抖音", "裸机普通，装上这个手机壳立刻有风格"],
+        ["电商平台", "透明防摔手机壳挂绳支架镜头保护适配多机型高颜值实用"],
+      ],
+    },
+    daily_necessity: {
+      xhs: {
+        core: withName(["低价好物", "实用小物", "生活小工具", "宿舍神器", "办公室好物"]),
+        scene: ["宿舍日常", "办公室", "家庭收纳", "清洁整理", "囤货清单"],
+        pain: ["每天都忍的小问题", "使用前后对比", "懒人友好", "提升效率", "便宜又实用"],
+        style: ["性价比", "实用党", "低预算", "方便省事", "生活幸福感"],
+        attribute: uniqueWords([...materialWords, "多件组合", "独立包装", "小巧", "耐用", "易收纳"], 6),
+      },
+      douyin: {
+        core: withName(["生活小妙招", "实用小物", "低价好物", "宿舍神器", "懒人工具"]),
+        scene: ["宿舍清洁", "办公室使用", "家庭日用", "囤货组合", "使用演示"],
+        pain: ["这个问题终于解决了", "用前用后差别明显", "每天都用得到", "便宜但实用"],
+        style: ["懒人友好", "效率提升", "小东西大作用", "性价比高", "真实好用"],
+        attribute: uniqueWords([...materialWords, "组合装", "批量囤货", "尺寸说明", "容量", "独立包装"], 6),
+      },
+      ecommerce: {
+        core: withName(["低价日用", "实用小物", "生活小工具", "宿舍神器", "家庭收纳"]),
+        scene: ["宿舍", "办公室", "家庭", "清洁", "团购"],
+        pain: ["便宜又实用", "多件组合", "囤货", "省时省力", "懒人必备"],
+        style: ["性价比", "简约", "实用", "耐用", "低预算"],
+        attribute: uniqueWords([...materialWords, "组合装", "尺寸", "容量", "独立包装", "批量装"], 6),
+      },
+      titles: [
+        ["小红书", "这个低价实用小物，宿舍和办公室都能用"],
+        ["抖音", "这个小问题我以前每天都忍，用了以后差别太明显"],
+        ["电商平台", "低价实用小物宿舍办公室家庭日用多件组合懒人清洁收纳工具"],
+      ],
+    },
+  };
+  const fallback = {
+    xhs: {
+      core: withName(["实用小物", "低预算好物", "生活好物", "小众好物"]),
+      scene: ["宿舍", "通勤", "办公室", "送朋友", "日常使用"],
+      pain: ["不知道怎么选", "真实使用效果", "性价比", "不踩雷"],
+      style: ["实用", "小众", "低预算", "氛围感", "方便"],
+      attribute: uniqueWords([...materialWords, "尺寸", "材质", "功能", "包装", "轻便"], 6),
+    },
+    douyin: {
+      core: withName(["实用小物推荐", "低价好物", "生活小工具", "真实使用"]),
+      scene: ["使用演示", "前后对比", "日常场景", "开箱展示", "评论区选款"],
+      pain: ["用了才知道", "解决小麻烦", "便宜但实用", "真实效果"],
+      style: ["一眼看懂", "实用党", "低预算", "小东西大作用", "真实好用"],
+      attribute: uniqueWords([...materialWords, "功能展示", "尺寸参照", "材质细节", "组合", "包装"], 6),
+    },
+    ecommerce: {
+      core: withName(["实用小物", "生活好物", "低价好物", "日用小商品"]),
+      scene: ["学生党", "宿舍", "办公室", "家庭", "送礼"],
+      pain: ["性价比", "实用", "不占地方", "多场景", "便宜"],
+      style: ["简约", "小众", "实用", "低预算", "百搭"],
+      attribute: uniqueWords([...materialWords, "尺寸", "材质", "功能", "包装", "多件装"], 6),
+    },
+    titles: [
+      ["小红书", `${name || "这个小物"}真实使用效果，比单看产品图更有参考`],
+      ["抖音", `${name || "这个小物"}用了才知道，到底解决了什么小麻烦`],
+      ["电商平台", `${name || "实用小物"}低预算多场景日用学生党宿舍办公室好物`],
+    ],
+  };
+  const plan = templates[categoryKey] || fallback;
+  const normalizePlatform = (platform) => ({
+    core: uniqueWords(platform.core, 6),
+    scene: uniqueWords(platform.scene, 6),
+    pain: uniqueWords(platform.pain, 6),
+    style: uniqueWords(platform.style, 6),
+    attribute: uniqueWords(platform.attribute, 6),
+  });
+  return {
+    xhs: normalizePlatform(plan.xhs),
+    douyin: normalizePlatform(plan.douyin),
+    ecommerce: normalizePlatform(plan.ecommerce),
+    titles: plan.titles,
+  };
+}
+
+function formatKeywordPlatform(platform) {
+  return [
+    `核心产品词：${platform.core.join("、")}`,
+    `场景词：${platform.scene.join("、")}`,
+    `痛点词：${platform.pain.join("、")}`,
+    `风格/情绪词：${platform.style.join("、")}`,
+    `属性/功能词：${platform.attribute.join("、")}`,
+  ].join(String.fromCharCode(10));
+}
+
 function inferMarketInfo(product) {
   const categoryKey = inferCategoryKey(product);
   const template = categoryTemplates[categoryKey] || categoryTemplates.unknown;
@@ -745,6 +1250,9 @@ function analyzeProduct(product, hasImage) {
   const categoryKey = market.categoryKey;
   const channelFit = getChannelFit(product, categoryKey);
   const imagePlan = getImageContentPlan(categoryKey, channelFit);
+  const xhsPackage = getXhsContentPackage(product, categoryKey);
+  const douyinPackage = getDouyinVideoPackage(product, categoryKey);
+  const keywordPlan = getPlatformKeywordPlan(product, categoryKey);
   const cost = n(product.cost);
   const price = n(product.price);
   const moq = n(product.moq);
@@ -847,16 +1355,7 @@ function analyzeProduct(product, hasImage) {
     "复盘每款产品的数据，把评分、利润、内容表现和销量记录到产品库。",
   ];
 
-  const xhsStructure = [
-    "封面提出痛点或结果，例如“这个货值不值得进？”",
-    `展示${market.categoryName}的关键画面：${market.categoryFocus.slice(0, 3).join("、")}。`,
-    "讲价格结构：拿货价、建议售价、预计利润。",
-    "讲适合人群和真实使用场景。",
-    `讲风险点：${market.categoryFocus.slice(-3).join("、")}。`,
-    "给出是否建议拿样/测款的结论。",
-    "发起互动投票：你会买吗？哪个颜色/款式更好？",
-    "引导收藏或评论，收集市场反馈。",
-  ];
+  const xhsStructure = xhsPackage.pages;
 
   const fitReasons = [
     margin >= 0.35 ? `毛利率约${Math.round(margin * 100)}%，有一定空间覆盖包装、物流和平台费用。` : "毛利率偏低，暂时不适合作为高投入主推款。",
@@ -963,24 +1462,50 @@ ${market.differentiation.map((item, index) => `${index + 1}. ${item}`).join(Stri
 十一、风险备忘
 ${risks.map((risk, index) => `${index + 1}. ${risk}`).join(String.fromCharCode(10))}
 
-十二、小红书内容包
-封面文案：${market.cover}
+十二、跨平台搜索关键词建议
+小红书搜索词：
+${formatKeywordPlatform(keywordPlan.xhs)}
+抖音搜索词：
+${formatKeywordPlatform(keywordPlan.douyin)}
+电商平台搜索词：
+${formatKeywordPlatform(keywordPlan.ecommerce)}
+标题组合建议：
+${keywordPlan.titles.map(([platform, title], index) => `${index + 1}. ${platform}标题：${title}`).join(String.fromCharCode(10))}
+
+十三、小红书种草发布方案
+封面钩子：
+${xhsPackage.coverHooks.map((hook, index) => `${index + 1}. ${hook}`).join(String.fromCharCode(10))}
 标题建议：
-${market.xhsTitles.map((title, index) => `${index + 1}. ${title}`).join(String.fromCharCode(10))}
+${xhsPackage.titles.map((title, index) => `${index + 1}. ${title}`).join(String.fromCharCode(10))}
+首图/封面设计建议：${xhsPackage.coverDesign}
 图文结构：
 ${xhsStructure.map((item, index) => `${index + 1}. ${item}`).join(String.fromCharCode(10))}
-推荐标签：#进货测款 #小商品创业 #选品笔记 #小红书开店 #低成本创业
+正文示例：${xhsPackage.body}
+互动引导：
+${xhsPackage.interactions.map((item, index) => `${index + 1}. ${item}`).join(String.fromCharCode(10))}
+推荐标签：${xhsPackage.tags.join(" ")}
+商家发布策略：${xhsPackage.merchantStrategy}
 
-十三、抖音短视频脚本
-${market.douyinScript.map((shot, index) => `${index + 1}. ${shot}`).join(String.fromCharCode(10))}
+十四、抖音视频脚本
+视频方向：${douyinPackage.direction}
+20秒分镜脚本：
+${douyinPackage.shots.map((shot, index) => `镜头${index + 1}｜${shot.time}｜${shot.focus}
+画面：${shot.visual}
+口播/字幕：${shot.copy}
+目的：${shot.purpose}`).join(String.fromCharCode(10))}
+抖音封面文案：
+${douyinPackage.coverTexts.map((item, index) => `${index + 1}. ${item}`).join(String.fromCharCode(10))}
+拍摄注意点：
+${douyinPackage.shootingNotes.map((item, index) => `${index + 1}. ${item}`).join(String.fromCharCode(10))}
+商家测试目标：${douyinPackage.merchantGoal}
 
-十四、下一步执行动作
+十五、下一步执行动作
 拿样验证重点：${samplingStrategy.headline}
 验证背景：${samplingStrategy.context}
 ${samplingStrategy.checkpoints.map((action, index) => `${index + 1}. ${action}`).join(String.fromCharCode(10))}
 ${nextTestActions.slice(-2).map((action, index) => `${samplingStrategy.checkpoints.length + index + 1}. ${action}`).join(String.fromCharCode(10))}
 
-十五、AI评分依据
+十六、AI评分依据
 ${explanations.map(([label, score, reason], index) => `${index + 1}. ${label}：${score}分。${reason}`).join(String.fromCharCode(10))}`;
 
   return {
@@ -1007,6 +1532,12 @@ ${explanations.map(([label, score, reason], index) => `${index + 1}. ${label}：
     unfitReasons,
     explanations,
     xhsStructure,
+    xhsPackage,
+    douyinPackage,
+    keywordPlan,
+    testStandards,
+    supplierQuestions,
+    visualEvidenceNote,
     report,
     contentPotentialScore: Math.round(contentScore),
     scores: [
@@ -1051,6 +1582,276 @@ function getPkRecommendation(left, right) {
   return `${winner.product_name || "候选产品"}更适合${action}，原因是评分、内容潜力和渠道适配综合更稳，同时当前风险数量为${winnerMetrics.riskCount}个。`;
 }
 
+function cleanFileName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "-")
+    .slice(0, 40);
+}
+
+function escapeHtml(value) {
+  const text = value === undefined || value === null || value === "" ? "未填写" : String(value);
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/\r?\n/g, "<br>")
+    .trim() || "未填写";
+}
+
+function htmlTable(headers, rows) {
+  return `<table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${(rows || [])
+    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
+    .join("")}</tbody></table>`;
+}
+
+function htmlList(items, ordered = true) {
+  const safeItems = (items || []).filter(Boolean);
+  const tag = ordered ? "ol" : "ul";
+  if (!safeItems.length) return `<${tag}><li>暂无</li></${tag}>`;
+  return `<${tag}>${safeItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</${tag}>`;
+}
+
+function htmlChecklist(items) {
+  const safeItems = (items || []).filter(Boolean);
+  if (!safeItems.length) return `<ul class="checklist"><li><span class="box"></span><span>暂无</span></li></ul>`;
+  return `<ul class="checklist">${safeItems.map((item) => `<li><span class="box"></span><span>${escapeHtml(item)}</span></li>`).join("")}</ul>`;
+}
+
+function htmlPills(items) {
+  const safeItems = (items || []).filter(Boolean);
+  return `<div class="pills">${safeItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("") || "<span>暂无</span>"}</div>`;
+}
+
+function getScoreValue(result, keyword, fallback = "") {
+  const found = (result?.scores || []).find(([label]) => String(label).includes(keyword));
+  return found?.[1] ?? fallback;
+}
+
+function generateHtmlReport(product, result) {
+  const xhs = result.xhsPackage || getXhsContentPackage(product, result.categoryKey);
+  const douyin = result.douyinPackage || getDouyinVideoPackage(product, result.categoryKey);
+  const keywordPlan = result.keywordPlan || getPlatformKeywordPlan(product, result.categoryKey);
+  const nextActions = (result.actions && result.actions.length)
+    ? result.actions
+    : [...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)];
+  const channelScore = getScoreValue(result, "渠道", result.channelFit?.score || "");
+  const basicRows = [
+    ["产品名称", product.name || "未填写"],
+    ["产品类型", product.category || result.market?.marketType || "未填写"],
+    ["拿货价", product.cost ? `¥${product.cost}` : "未填写"],
+    ["建议售价", product.price ? `¥${product.price}` : "未填写"],
+    ["MOQ", product.moq ? `${product.moq} 件` : "未填写"],
+    ["材质", product.material || "未填写"],
+    ["目标人群", product.audience || "未填写"],
+    ["销售渠道", product.channel || "未填写"],
+    ["竞品价格", product.competitorPrice || "未填写"],
+    ["供应商信息", product.supplier || "未填写"],
+  ];
+  const scoreRows = (result.explanations || []).map(([label, score, reason]) => [label, score, reason]);
+
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TradePilot AI 进货决策报告</title>
+  <style>
+    :root { color-scheme: dark; --bg: #06120d; --panel: #0d2017; --panel-2: #10291d; --line: rgba(129, 255, 193, .22); --accent: #7df5ac; --accent-2: #b6ffd1; --text: #edfdf4; --muted: #a8bfb0; --warn: #fde68a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at top left, rgba(125,245,172,.14), transparent 32rem), var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif; line-height: 1.72; }
+    .page { max-width: 1080px; margin: 0 auto; padding: 40px 20px 64px; }
+    .hero { border: 1px solid var(--line); background: linear-gradient(135deg, rgba(125,245,172,.14), rgba(255,255,255,.035)); border-radius: 28px; padding: 32px; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+    h1 { margin: 0; font-size: 36px; line-height: 1.15; letter-spacing: 0; }
+    .subtitle { margin: 12px 0 0; color: var(--accent-2); font-weight: 700; }
+    .print-note { margin: 18px 0 0; color: var(--muted); font-size: 14px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+    .metric { border: 1px solid rgba(255,255,255,.08); border-radius: 18px; background: rgba(0,0,0,.22); padding: 14px; }
+    .metric span { display: block; color: var(--muted); font-size: 12px; }
+    .metric strong { display: block; margin-top: 6px; color: var(--text); font-size: 17px; }
+    section { margin-top: 22px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.045); border-radius: 24px; padding: 24px; break-inside: avoid; }
+    h2 { margin: 0 0 16px; display: flex; align-items: center; gap: 10px; font-size: 22px; line-height: 1.3; }
+    h2::before { content: ""; width: 6px; height: 24px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 18px rgba(125,245,172,.5); }
+    h3 { margin: 22px 0 10px; color: var(--accent-2); font-size: 16px; }
+    p { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 16px; background: rgba(0,0,0,.18); }
+    th, td { border: 1px solid rgba(255,255,255,.08); padding: 11px 12px; text-align: left; vertical-align: top; }
+    th { background: rgba(125,245,172,.13); color: var(--accent-2); font-size: 13px; }
+    td { color: #e4f5eb; font-size: 14px; }
+    ol, ul { margin: 10px 0 0 22px; padding: 0; }
+    li { margin: 8px 0; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .card { border: 1px solid rgba(255,255,255,.08); border-radius: 18px; background: rgba(0,0,0,.2); padding: 16px; }
+    .card strong { color: var(--accent-2); }
+    .summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .summary p { margin: 0; border-radius: 16px; background: rgba(0,0,0,.22); padding: 14px; }
+    .checklist { list-style: none; margin-left: 0; }
+    .checklist li { display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; background: rgba(0,0,0,.18); padding: 10px 12px; }
+    .box { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 6px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(125,245,172,.08); }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .pills span { border: 1px solid var(--line); border-radius: 999px; background: rgba(125,245,172,.1); color: var(--accent-2); padding: 6px 10px; font-size: 13px; font-weight: 700; }
+    .notice { border-color: rgba(253,230,138,.22); background: rgba(253,230,138,.08); color: #fff4bc; }
+    .footer { color: var(--muted); font-size: 13px; }
+    @media (max-width: 760px) { .metrics, .grid, .summary { grid-template-columns: 1fr; } h1 { font-size: 28px; } .hero, section { padding: 20px; border-radius: 20px; } }
+    @media print { body { background: #fff; color: #111; } .hero, section { box-shadow: none; break-inside: avoid; } .print-note { color: #444; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <h1>TradePilot AI 进货决策报告</h1>
+      <p class="subtitle">进货前，先算清楚。别让第一次进货，变成第一次压货。</p>
+      <p class="print-note">可在浏览器中使用 Ctrl+P / 打印功能导出为 PDF。</p>
+      <div class="metrics">
+        <div class="metric"><span>综合评分</span><strong>${escapeHtml(result.totalScore)}/100</strong></div>
+        <div class="metric"><span>状态</span><strong>状态：${escapeHtml(result.status)}</strong></div>
+        <div class="metric"><span>决策建议</span><strong>${escapeHtml(result.level)}</strong></div>
+        <div class="metric"><span>最适合渠道</span><strong>${escapeHtml(result.channelFit?.best)}</strong></div>
+      </div>
+    </header>
+
+    <section>
+      <h2>基础信息</h2>
+      ${htmlTable(["项目", "内容"], basicRows)}
+    </section>
+
+    <section>
+      <h2>一、执行摘要</h2>
+      <div class="summary">${(result.executiveSummary || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>
+    </section>
+
+    <section>
+      <h2>二、利润测算</h2>
+      ${htmlTable(["指标", "数值"], [
+        ["单件综合成本", `¥${money(result.unitCost)}`],
+        ["预估单件利润", `¥${money(result.profit)}`],
+        ["预估毛利率", `${Math.round(result.margin * 100)}%`],
+        ["首批压货资金", `¥${money(result.stockCost)}`],
+      ])}
+      <p class="footer">说明：测算默认平台费率 5%，实际经营时需根据渠道重新校正。</p>
+    </section>
+
+    <section>
+      <h2>三、品类判断</h2>
+      <div class="card"><p><strong>识别品类：</strong>${escapeHtml(result.categoryName)}（${escapeHtml(result.categoryKey)}）</p><p>${escapeHtml(getCategoryNarrative(product, result.categoryKey))}</p></div>
+    </section>
+
+    <section>
+      <h2>四、渠道适配建议</h2>
+      ${htmlTable(["项目", "内容"], [
+        ["最适合渠道", result.channelFit?.best || "未填写"],
+        ["适合理由", result.channelFit?.reason || "未填写"],
+        ["暂不建议渠道", result.channelFit?.avoid || "未填写"],
+        ["不建议理由", result.channelFit?.avoidReason || "未填写"],
+        ["当前填写渠道", result.channelFit?.declared || product.channel || "未填写"],
+        ["渠道适配评分", `${channelScore}/100`],
+      ])}
+    </section>
+
+    <section>
+      <h2>五、价格带与 MOQ 判断</h2>
+      <div class="grid">
+        <div class="card"><h3>价格带判断</h3><p><strong>价格带：</strong>${escapeHtml(result.priceBand?.label)}</p><p><strong>建议：</strong>${escapeHtml(result.priceBand?.advice)}</p><p><strong>风险：</strong>${escapeHtml(result.priceBand?.risk)}</p></div>
+        <div class="card"><h3>MOQ 风险判断</h3><p><strong>MOQ 区间：</strong>${escapeHtml(result.moqAdvice?.label)}</p><p><strong>风险等级：</strong>${escapeHtml(result.moqAdvice?.riskLevel)}</p><p><strong>建议：</strong>${escapeHtml(result.moqAdvice?.advice)}</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>六、图片与内容素材建议</h2>
+      <p class="card">${escapeHtml(result.visualEvidenceNote)}</p>
+      <div class="grid">
+        <div class="card"><h3>必拍图片</h3>${htmlList(result.imagePlan?.mustShoot || [])}</div>
+        <div class="card"><h3>加分图片</h3>${htmlList(result.imagePlan?.bonusShots || [])}</div>
+        <div class="card"><h3>首图 / 封面建议</h3><p>${escapeHtml(result.imagePlan?.coverAdvice)}</p><h3>不建议缺失的图片</h3><p>${escapeHtml(result.imagePlan?.missingRisk)}</p></div>
+        <div class="card"><h3>渠道拍摄重点</h3>${htmlList(result.imagePlan?.preferredFocus || [])}</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>七、测款判断标准</h2>
+      ${htmlList(result.testStandards || [], false)}
+    </section>
+
+    <section>
+      <h2>八、供应商沟通清单</h2>
+      ${htmlChecklist(result.supplierQuestions || [])}
+    </section>
+
+    <section>
+      <h2>九、产品差异化建议</h2>
+      ${htmlList(result.market?.differentiation || [])}
+    </section>
+
+    <section>
+      <h2>十、风险备忘</h2>
+      ${htmlList((result.risks || []).slice(0, 3))}
+    </section>
+
+    <section>
+      <h2>十一、跨平台搜索关键词建议</h2>
+      <p class="footer">这些词用于标题、正文、标签、短视频字幕和商品标题，按平台区分消费者真实搜索习惯。</p>
+      <div class="grid">
+        <div class="card"><h3>小红书搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.xhs.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.xhs.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.xhs.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.xhs.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.xhs.attribute.join("、"))}</p></div>
+        <div class="card"><h3>抖音搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.douyin.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.douyin.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.douyin.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.douyin.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.douyin.attribute.join("、"))}</p></div>
+        <div class="card"><h3>电商平台搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.ecommerce.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.ecommerce.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.ecommerce.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.ecommerce.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.ecommerce.attribute.join("、"))}</p></div>
+        <div class="card"><h3>标题组合建议</h3>${htmlList(keywordPlan.titles.map(([platform, title]) => `${platform}标题：${title}`))}</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>十二、小红书种草发布方案</h2>
+      <p class="footer">这一部分是给卖家/创业者使用的内容发布方案，但标题、正文、封面文案使用消费者视角。</p>
+      <div class="grid">
+        <div class="card"><h3>封面钩子</h3>${htmlList(xhs.coverHooks)}</div>
+        <div class="card"><h3>标题建议</h3>${htmlList(xhs.titles)}</div>
+        <div class="card"><h3>首图 / 封面设计建议</h3><p>${escapeHtml(xhs.coverDesign)}</p></div>
+        <div class="card"><h3>互动引导</h3>${htmlList(xhs.interactions)}</div>
+      </div>
+      <h3>图文结构</h3>${htmlList(xhs.pages)}
+      <h3>正文示例</h3><p class="card">${escapeHtml(xhs.body)}</p>
+      <h3>推荐标签</h3>${htmlPills(xhs.tags || [])}
+      <h3>商家发布策略</h3><p class="card">${escapeHtml(xhs.merchantStrategy)}</p>
+    </section>
+
+    <section>
+      <h2>十三、抖音视频脚本</h2>
+      <p class="footer">这一部分是给卖家/创业者使用的短视频拍摄方案，但脚本本身面向消费者。</p>
+      <div class="card"><h3>视频方向</h3><p>${escapeHtml(douyin.direction)}</p></div>
+      <h3>抖音封面文案</h3>${htmlList(douyin.coverTexts)}
+      <h3>20 秒分镜脚本</h3>
+      ${htmlTable(["镜头", "时间", "画面怎么拍", "字幕 / 口播", "目的"], (douyin.shots || []).map((shot, index) => [
+        `镜头${index + 1}`,
+        shot.time,
+        shot.visual,
+        shot.copy,
+        shot.purpose,
+      ]))}
+      <h3>拍摄注意点</h3>${htmlList(douyin.shootingNotes)}
+      <h3>商家测试目标</h3><p class="card">${escapeHtml(douyin.merchantGoal)}</p>
+    </section>
+
+    <section>
+      <h2>十四、下一步执行动作</h2>
+      ${htmlList(nextActions)}
+    </section>
+
+    <section>
+      <h2>十五、AI 评分依据</h2>
+      ${htmlTable(["维度", "分数", "说明"], scoreRows)}
+    </section>
+
+    <section class="notice">
+      <h2>报告说明</h2>
+      <p>本报告由 TradePilot AI 基于用户填写的产品信息、图片识别结果、成本结构、目标人群、销售渠道和测款逻辑自动生成。报告适用于进货前判断、内容测款准备、团队讨论和后续复盘，不构成绝对经营承诺。</p>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
 function App() {
   const [page, setPage] = useState("cover");
   const [mode, setMode] = useState("intro");
@@ -1078,6 +1879,7 @@ function App() {
     orders: "",
     cost: "",
   });
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const result = useMemo(() => analyzeProduct(product, Boolean(image)), [product, image]);
 
@@ -1094,11 +1896,13 @@ function App() {
   }
 
   function downloadReport() {
-    const blob = new Blob([result.report], { type: "text/plain;charset=utf-8" });
+    const html = generateHtmlReport(product, result);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
+    const cleanName = cleanFileName(product.name);
     anchor.href = url;
-    anchor.download = `${product.name || "进货报告"}-TradePilot.txt`;
+    anchor.download = cleanName ? `TradePilot-${cleanName}-进货决策报告.html` : "TradePilot-进货决策报告.html";
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -1401,6 +2205,10 @@ function App() {
             <CoverCard title="游客快速体验" desc="无需注册登录，直接查看完整案例，体验报告、产品库、PK和复盘流程。" onClick={() => { setPage("app"); setMode("demo"); }} />
           </div>
         </main>
+        <FloatingFeedback
+          open={feedbackOpen}
+          setOpen={setFeedbackOpen}
+        />
       </div>
     );
   }
@@ -1503,6 +2311,10 @@ function App() {
         )}
         {mode === "demo" && <DemoView applyDemo={applyDemo} />}
       </main>
+      <FloatingFeedback
+        open={feedbackOpen}
+        setOpen={setFeedbackOpen}
+      />
     </div>
   );
 }
@@ -1519,6 +2331,56 @@ function CoverCard({ title, desc, onClick, highlight }) {
       <p className={`mt-3 text-sm leading-7 ${highlight ? "text-black/70" : "text-slate-400"}`}>{desc}</p>
       <p className="mt-6 font-black">进入 →</p>
     </button>
+  );
+}
+
+function FloatingFeedback({ open, setOpen }) {
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-5 right-5 z-50 rounded-full border border-emerald-300/40 bg-[#0d2017] px-4 py-3 text-sm font-black text-emerald-200 shadow-2xl shadow-black/40 transition hover:-translate-y-0.5 hover:bg-emerald-300 hover:text-black"
+      >
+        反馈建议
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 py-5 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-xl rounded-[2rem] border border-emerald-300/20 bg-[#08100d] p-5 text-white shadow-2xl shadow-black/50">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Feedback</p>
+                <h2 className="mt-2 text-2xl font-black leading-tight">帮助 TradePilot AI 变得更懂进货场景</h2>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-sm font-black text-slate-200 hover:bg-white/10"
+              >
+                关闭
+              </button>
+            </div>
+
+            <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
+              如果你觉得报告不够准确，或希望增加功能，请通过问卷星反馈表提交建议。反馈会直接汇总到项目团队，方便后续优化。
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs leading-6 text-slate-400">
+                问卷约 1 分钟完成，感谢你帮助我们优化进货决策智能体。
+              </p>
+              <a
+                href={feedbackFormUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-2xl bg-emerald-300 px-5 py-3 text-center font-black text-black shadow-lg shadow-emerald-300/10"
+              >
+                填写反馈表
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1778,31 +2640,49 @@ function ResultView({ product, image, result, analyzed, setMode, copyReport, cop
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
           <h2 className="text-2xl font-black">小红书内容包</h2>
-          <p className="mt-4 rounded-2xl bg-emerald-300 p-4 font-black text-black">封面：{result.market.cover}</p>
-          <div className="mt-4 space-y-3 text-sm leading-7 text-slate-300">
-            {result.market.xhsTitles.map((title, index) => (
+          <p className="mt-2 text-sm leading-7 text-slate-400">消费者视角的种草素材，商家策略单独放在最后，避免把经营分析写进对外文案。</p>
+          <div className="mt-4 grid gap-2">
+            {result.xhsPackage.coverHooks.map((hook) => (
+              <p key={hook} className="rounded-2xl bg-emerald-300 p-3 text-sm font-black text-black">封面钩子：{hook}</p>
+            ))}
+          </div>
+          <h3 className="mt-5 font-black text-white">标题建议</h3>
+          <div className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+            {result.xhsPackage.titles.slice(0, 5).map((title, index) => (
               <p key={title} className="rounded-2xl bg-black/25 p-4">标题{index + 1}：{title}</p>
             ))}
           </div>
-          <h3 className="mt-5 font-black text-white">8页图文结构</h3>
+          <h3 className="mt-5 font-black text-white">图文结构</h3>
           <ol className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
             {result.xhsStructure.map((item, index) => <li key={item}>{index + 1}. {item}</li>)}
           </ol>
+          <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm leading-7 text-emerald-50">
+            商家发布策略：{result.xhsPackage.merchantStrategy}
+          </p>
         </div>
 
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
           <h2 className="text-2xl font-black">抖音视频脚本</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-400">{result.douyinPackage.direction}</p>
           <div className="mt-4 space-y-3 text-sm leading-7 text-slate-300">
-            {result.market.douyinScript.map((shot, index) => (
-              <p key={shot} className="rounded-2xl bg-black/25 p-4">镜头{index + 1}：{shot}</p>
+            {result.douyinPackage.shots.map((shot, index) => (
+              <div key={`${shot.time}-${shot.copy}`} className="rounded-2xl bg-black/25 p-4">
+                <p className="font-black text-emerald-200">镜头{index + 1}｜{shot.time}｜{shot.focus}</p>
+                <p className="mt-2">画面：{shot.visual}</p>
+                <p>口播/字幕：{shot.copy}</p>
+                <p className="text-slate-400">目的：{shot.purpose}</p>
+              </div>
             ))}
           </div>
-          <h3 className="mt-5 font-black text-white">主要风险</h3>
-          <div className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
-            {result.risks.map((risk, index) => (
-              <p key={risk} className="rounded-2xl bg-black/25 p-4"><b className="text-amber-300">风险{index + 1}：</b>{risk}</p>
+          <h3 className="mt-5 font-black text-white">封面文案</h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {result.douyinPackage.coverTexts.map((text) => (
+              <span key={text} className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-bold text-emerald-100">{text}</span>
             ))}
           </div>
+          <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-50">
+            商家测试目标：{result.douyinPackage.merchantGoal}
+          </p>
         </div>
       </section>
 
@@ -1810,18 +2690,372 @@ function ResultView({ product, image, result, analyzed, setMode, copyReport, cop
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-2xl font-black">完整AI进货报告</h2>
-            <p className="mt-2 text-sm text-slate-400">报告可复制给团队、保存到产品库，也可以下载为TXT留档。</p>
+            <p className="mt-2 text-sm text-slate-400">报告可复制给团队、保存到产品库，也可以下载为可视化HTML留档。</p>
             {saveMessage && <p className="mt-3 rounded-2xl bg-emerald-300/10 p-3 text-sm text-emerald-100">{saveMessage}</p>}
           </div>
           <div className="flex flex-wrap gap-3">
             <button onClick={() => setMode("operate")} className="rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-bold text-white">返回修改</button>
             <button onClick={saveCurrentReport} className="rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">保存到我的产品库</button>
             <button onClick={copyReport} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">{copied ? "已复制" : "复制给团队"}</button>
-            <button onClick={downloadReport} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-200">下载报告</button>
+            <button onClick={downloadReport} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-200">下载可视化报告</button>
           </div>
         </div>
-        <pre className="mt-5 whitespace-pre-wrap rounded-3xl bg-white/[0.06] p-5 text-sm leading-8 text-slate-200">{result.report}</pre>
+        <StructuredReport product={product} result={result} />
       </section>
+    </div>
+  );
+}
+
+function StructuredReport({ product, result }) {
+  const xhs = result.xhsPackage;
+  const douyin = result.douyinPackage;
+  const keywordPlan = result.keywordPlan;
+  const summaryMetrics = [
+    ["综合评分", `${result.totalScore}/100`],
+    ["状态", `状态：${result.status}`],
+    ["决策建议", result.level],
+    ["预计毛利率", `${Math.round(result.margin * 100)}%`],
+    ["首批压货资金", `¥${money(result.stockCost)}`],
+    ["最适合渠道", result.channelFit?.best],
+    ["风险等级", result.moqAdvice?.riskLevel],
+    ["MOQ区间", result.moqAdvice?.label],
+  ];
+  const basics = [
+    ["产品名称", product.name || "未填写"],
+    ["产品类型", product.category || result.market?.marketType || "未填写"],
+    ["拿货价", `${product.cost || "未填写"} 元`],
+    ["建议售价", `${product.price || "未填写"} 元`],
+    ["MOQ", `${product.moq || "未填写"} 件`],
+    ["材质", product.material || "未填写"],
+    ["目标人群", product.audience || "未填写"],
+    ["销售渠道", product.channel || "未填写"],
+    ["竞品价格", product.competitorPrice || "未填写"],
+    ["供应商信息", product.supplier || "未填写"],
+  ];
+
+  return (
+    <div className="mt-6 space-y-5">
+      <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-300/[0.07] p-5">
+        <p className="text-xs font-black uppercase tracking-wide text-emerald-300">Executive Summary</p>
+        <h3 className="mt-2 text-2xl font-black text-white">执行摘要</h3>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          {summaryMetrics.map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <p className="text-xs text-slate-400">{label}</p>
+              <p className="mt-2 text-sm font-black text-white">{value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {(result.executiveSummary || []).map((item) => (
+            <p key={item} className="rounded-2xl bg-black/25 p-4 text-sm leading-7 text-emerald-50">{item}</p>
+          ))}
+        </div>
+      </div>
+
+      <ReportSection number="一" title="产品基础信息">
+        <ReportInfoGrid items={basics} />
+      </ReportSection>
+
+      <ReportSection number="二" title="AI综合判断">
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl bg-white/[0.05] p-4">
+            <h4 className="font-black text-emerald-200">为什么适合</h4>
+            <ReportList items={result.fitReasons || []} />
+          </div>
+          <div className="rounded-2xl bg-white/[0.05] p-4">
+            <h4 className="font-black text-amber-200">为什么需要谨慎</h4>
+            <ReportList items={result.unfitReasons || []} />
+          </div>
+        </div>
+      </ReportSection>
+
+      <ReportSection number="三" title="利润测算">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <ReportMetric label="单件综合成本" value={`¥${money(result.unitCost)}`} />
+          <ReportMetric label="预估单件利润" value={`¥${money(result.profit)}`} />
+          <ReportMetric label="预估毛利率" value={`${Math.round(result.margin * 100)}%`} />
+          <ReportMetric label="首批压货资金" value={`¥${money(result.stockCost)}`} />
+        </div>
+        <p className="mt-4 rounded-2xl bg-black/25 p-4 text-sm leading-7 text-slate-300">测算默认平台费率5%，实际经营时需根据渠道重新校正。</p>
+      </ReportSection>
+
+      <ReportSection number="四" title="品类判断">
+        <div className="rounded-2xl bg-black/25 p-4">
+          <p className="text-xs font-bold text-emerald-300">识别品类：{result.categoryName}（{result.categoryKey}）</p>
+          <p className="mt-3 text-sm leading-8 text-slate-200">{getCategoryNarrative(product, result.categoryKey)}</p>
+        </div>
+      </ReportSection>
+
+      <ReportSection number="五" title="渠道适配建议">
+        <div className="grid gap-3 lg:grid-cols-3">
+          <ReportMetric label="最适合渠道" value={result.channelFit?.best} />
+          <ReportMetric label="渠道适配评分" value={`${result.scores?.find(([label]) => label === "渠道适配")?.[1] || result.channelFit?.score}/100`} />
+          <ReportMetric label="暂不建议渠道" value={result.channelFit?.avoid} />
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <p className="rounded-2xl bg-white/[0.05] p-4 text-sm leading-7 text-slate-300">{result.channelFit?.reason}</p>
+          <p className="rounded-2xl bg-white/[0.05] p-4 text-sm leading-7 text-slate-300">{result.channelFit?.scoreReason}</p>
+        </div>
+      </ReportSection>
+
+      <ReportSection number="六" title="价格带与 MOQ 判断">
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl bg-white/[0.05] p-4">
+            <h4 className="font-black text-emerald-200">{result.priceBand?.label}</h4>
+            <p className="mt-2 text-sm leading-7 text-slate-300">{result.priceBand?.advice}</p>
+            <p className="mt-2 text-xs leading-6 text-amber-100">{result.priceBand?.risk}</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.05] p-4">
+            <h4 className="font-black text-emerald-200">{result.moqAdvice?.label} · {result.moqAdvice?.riskLevel}</h4>
+            <p className="mt-2 text-sm leading-7 text-slate-300">{result.moqAdvice?.advice}</p>
+          </div>
+        </div>
+      </ReportSection>
+
+      <ReportSection number="七" title="图片与内容素材建议">
+        <p className="rounded-2xl bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-50">{result.visualEvidenceNote}</p>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <ReportSubList title="必拍图片" items={result.imagePlan?.mustShoot || []} />
+          <ReportSubList title="加分图片" items={result.imagePlan?.bonusShots || []} />
+          <ReportSubList title="渠道拍摄重点" items={result.imagePlan?.preferredFocus || []} />
+          <div className="rounded-2xl bg-white/[0.05] p-4">
+            <h4 className="font-black text-white">首图/封面建议</h4>
+            <p className="mt-3 text-sm leading-7 text-slate-300">{result.imagePlan?.coverAdvice}</p>
+            <p className="mt-3 rounded-2xl bg-amber-300/10 p-3 text-xs leading-6 text-amber-100">{result.imagePlan?.missingRisk}</p>
+          </div>
+        </div>
+      </ReportSection>
+
+      <ReportSection number="八" title="测款判断标准">
+        <div className="grid gap-3 md:grid-cols-2">
+          {(result.testStandards || []).map((item) => (
+            <p key={item} className="rounded-2xl bg-black/25 p-4 text-sm leading-7 text-slate-200">{item}</p>
+          ))}
+        </div>
+      </ReportSection>
+
+      <ReportSection number="九" title="供应商沟通清单">
+        <Checklist items={result.supplierQuestions || []} />
+      </ReportSection>
+
+      <ReportSection number="十" title="跨平台搜索关键词建议">
+        <p className="mb-4 rounded-2xl bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-50">
+          用于标题、正文、标签、短视频字幕和商品标题。小红书偏种草场景，抖音偏效果钩子，电商平台偏产品属性和长尾搜索。
+        </p>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <KeywordPlatformCard title="小红书搜索词" platform={keywordPlan.xhs} />
+          <KeywordPlatformCard title="抖音搜索词" platform={keywordPlan.douyin} />
+          <KeywordPlatformCard title="电商平台搜索词" platform={keywordPlan.ecommerce} />
+        </div>
+        <div className="mt-4 rounded-2xl bg-white/[0.05] p-4">
+          <h4 className="font-black text-white">标题组合建议</h4>
+          <div className="mt-3 space-y-2">
+            {keywordPlan.titles.map(([platform, title]) => (
+              <p key={`${platform}-${title}`} className="rounded-2xl bg-black/25 p-3 text-sm leading-7 text-slate-300">
+                <b className="text-emerald-200">{platform}标题：</b>{title}
+              </p>
+            ))}
+          </div>
+        </div>
+      </ReportSection>
+
+      <ReportSection number="十一" title="小红书种草发布方案">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ReportSubList title="封面钩子" items={xhs.coverHooks} strong />
+          <ReportSubList title="标题建议" items={xhs.titles} />
+          <div className="rounded-2xl bg-white/[0.05] p-4 lg:col-span-2">
+            <h4 className="font-black text-white">首图/封面设计</h4>
+            <p className="mt-3 text-sm leading-7 text-slate-300">{xhs.coverDesign}</p>
+          </div>
+          <ReportSubList title="图文结构" items={xhs.pages} />
+          <div className="rounded-2xl bg-white/[0.05] p-4">
+            <h4 className="font-black text-white">正文示例</h4>
+            <p className="mt-3 text-sm leading-8 text-slate-200">{xhs.body}</p>
+          </div>
+          <ReportSubList title="互动引导" items={xhs.interactions} />
+          <div className="rounded-2xl bg-white/[0.05] p-4">
+            <h4 className="font-black text-white">推荐标签</h4>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {xhs.tags.map((tag) => (
+                <span key={tag} className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-bold text-emerald-100">{tag}</span>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 lg:col-span-2">
+            <h4 className="font-black text-emerald-100">商家发布策略</h4>
+            <p className="mt-3 text-sm leading-7 text-emerald-50">{xhs.merchantStrategy}</p>
+          </div>
+        </div>
+      </ReportSection>
+
+      <ReportSection number="十二" title="抖音视频脚本">
+        <div className="rounded-2xl bg-white/[0.05] p-4">
+          <h4 className="font-black text-white">视频方向</h4>
+          <p className="mt-3 text-sm leading-7 text-slate-300">{douyin.direction}</p>
+        </div>
+        <div className="mt-4 grid gap-3">
+          {douyin.shots.map((shot, index) => (
+            <ShotCard key={`${shot.time}-${shot.copy}`} index={index} shot={shot} />
+          ))}
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <ReportSubList title="抖音封面文案" items={douyin.coverTexts} strong />
+          <ReportSubList title="拍摄注意点" items={douyin.shootingNotes} />
+        </div>
+        <div className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
+          <h4 className="font-black text-cyan-100">商家测试目标</h4>
+          <p className="mt-3 text-sm leading-7 text-cyan-50">{douyin.merchantGoal}</p>
+        </div>
+      </ReportSection>
+
+      <ReportSection number="十三" title="产品差异化建议">
+        <ReportList items={result.market?.differentiation || []} />
+      </ReportSection>
+
+      <ReportSection number="十四" title="风险备忘">
+        <ReportList items={result.risks || []} tone="warning" />
+      </ReportSection>
+
+      <ReportSection number="十五" title="下一步执行动作">
+        <div className="rounded-2xl bg-white/[0.05] p-4">
+          <h4 className="font-black text-emerald-200">{result.samplingStrategy?.headline}</h4>
+          <p className="mt-2 text-xs text-slate-400">{result.samplingStrategy?.context}</p>
+          <ReportList items={[...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)]} />
+        </div>
+      </ReportSection>
+
+      <ReportSection number="十六" title="AI评分依据">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {(result.explanations || []).map(([label, score, reason]) => (
+            <div key={label} className="rounded-2xl bg-white/[0.05] p-4">
+              <Score label={label} value={score} />
+              <p className="mt-3 text-sm leading-7 text-slate-300">{reason}</p>
+            </div>
+          ))}
+        </div>
+      </ReportSection>
+    </div>
+  );
+}
+
+function ReportSection({ number, title, children }) {
+  return (
+    <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.045] p-5">
+      <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+        <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-emerald-300 px-3 text-sm font-black text-black">{number}</span>
+        <h3 className="text-xl font-black text-white">{title}</h3>
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function KeywordPlatformCard({ title, platform }) {
+  const rows = [
+    ["核心产品词", platform?.core || []],
+    ["场景词", platform?.scene || []],
+    ["痛点词", platform?.pain || []],
+    ["风格 / 情绪词", platform?.style || []],
+    ["属性 / 功能词", platform?.attribute || []],
+  ];
+  return (
+    <div className="rounded-2xl bg-white/[0.05] p-4">
+      <h4 className="font-black text-white">{title}</h4>
+      <div className="mt-3 space-y-3">
+        {rows.map(([label, words]) => (
+          <div key={label}>
+            <p className="text-xs font-bold text-emerald-200">{label}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {words.map((word) => (
+                <span key={word} className="rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs font-bold text-slate-200">
+                  {word}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReportInfoGrid({ items }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {items.map(([label, value]) => (
+        <div key={label} className="rounded-2xl bg-black/25 p-4">
+          <p className="text-xs text-slate-400">{label}</p>
+          <p className="mt-2 break-words text-sm font-bold leading-6 text-slate-100">{value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReportMetric({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.07] p-4">
+      <p className="text-xs text-emerald-200">{label}</p>
+      <p className="mt-2 break-words text-lg font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function ReportSubList({ title, items, strong = false }) {
+  return (
+    <div className="rounded-2xl bg-white/[0.05] p-4">
+      <h4 className="font-black text-white">{title}</h4>
+      <div className="mt-3 space-y-2">
+        {(items || []).map((item, index) => (
+          <p key={item} className={`rounded-2xl p-3 text-sm leading-7 ${strong ? "bg-emerald-300 text-black font-black" : "bg-black/25 text-slate-300"}`}>
+            {index + 1}. {item}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReportList({ items, tone = "default" }) {
+  const warning = tone === "warning";
+  return (
+    <div className="mt-3 space-y-2">
+      {(items || []).map((item, index) => (
+        <p key={item} className={`rounded-2xl p-3 text-sm leading-7 ${warning ? "bg-amber-300/10 text-amber-50" : "bg-black/25 text-slate-300"}`}>
+          {index + 1}. {item}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function Checklist({ items }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {(items || []).map((item) => (
+        <div key={item} className="flex gap-3 rounded-2xl bg-black/25 p-4 text-sm leading-7 text-slate-200">
+          <span className="mt-1 h-4 w-4 shrink-0 rounded border border-emerald-300/60 bg-emerald-300/10" />
+          <span>{item}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ShotCard({ index, shot }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-emerald-300 px-3 py-1 text-xs font-black text-black">镜头{index + 1}</span>
+        <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-bold text-slate-200">{shot.time}</span>
+        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-100">{shot.focus}</span>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <p className="rounded-2xl bg-white/[0.05] p-3 text-sm leading-7 text-slate-300"><b className="text-white">画面：</b>{shot.visual}</p>
+        <p className="rounded-2xl bg-white/[0.05] p-3 text-sm leading-7 text-slate-300"><b className="text-white">口播/字幕：</b>{shot.copy}</p>
+        <p className="rounded-2xl bg-white/[0.05] p-3 text-sm leading-7 text-slate-300"><b className="text-white">目的：</b>{shot.purpose}</p>
+      </div>
     </div>
   );
 }
