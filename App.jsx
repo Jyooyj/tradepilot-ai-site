@@ -338,12 +338,12 @@ function productText(product) {
 
 function inferCategoryKey(product) {
   const text = productText(product);
-  if (/钥匙扣|包包挂件|挂件|挂饰|文创|国风|手作|木珠|果核|手账|手帐|帆布包|市集|文旅/.test(text)) return "stationery_cultural";
+  if (/钥匙扣|包包挂件|帆布包挂件|亚克力挂件|挂件|挂饰|文创|国风|手作|木珠|果核|手账|手帐|帆布包|市集|文旅|书签|明信片|徽章|冰箱贴/.test(text)) return "stationery_cultural";
   if (/手机壳|挂绳|支架|数码|充电|耳机|数据线|平板|防摔/.test(text)) return "phone_accessory";
-  if (/大肠发圈|发圈|发夹|发簪|发绳|头绳|鲨鱼夹|抓夹|发饰|扎发|丸子头|半扎发|盘发/.test(text)) return "hair_accessory";
+  if (/大肠发圈|发圈|发夹|发簪|发绳|头绳|皮筋|鲨鱼夹|抓夹|发饰|扎发|丸子头|半扎发|低马尾|盘发/.test(text)) return "hair_accessory";
   if (/杯|香薰|摆件|收纳|家居|桌面|宿舍好物|水杯|马克杯|镜子|抱枕|花瓶|灯/.test(text)) return "home_lifestyle";
-  if (/笔记本|贴纸|明信片|书签|城市纪念/.test(text)) return "stationery_cultural";
-  if (/耳饰|珍珠耳饰|耳夹|耳环|项链|戒指|手链|手串|锁骨链|胸针|金属饰品|珍珠项链/.test(text)) return "jewelry";
+  if (/笔记本|贴纸|明信片|书签|城市纪念|徽章|冰箱贴/.test(text)) return "stationery_cultural";
+  if (/耳饰|珍珠耳饰|耳夹|耳环|项链|戒指|手链|手串|锁骨链|胸针|金属饰品|珍珠项链|不打耳洞/.test(text)) return "jewelry";
   if (/低价日用|日用|湿巾|纸巾|清洁|洗脸巾|抹布|去污|一次性|拖鞋|收纳袋|搭售/.test(text)) return "daily_necessity";
   return "unknown";
 }
@@ -642,7 +642,7 @@ function getTestDecisionStandards(categoryKey) {
     jewelry: "饰品类还要重点观察用户是否追问材质、是否过敏、是否有礼盒和佩戴尺寸。",
     hair_accessory: "发饰类要额外记录用户偏好的颜色、套装数量和上头效果反馈，颜色投票比单条点赞更有参考价值。",
     home_lifestyle: "家居生活类要同时记录用户对尺寸、运费、破损和真实场景的疑问，不能只看氛围图互动。",
-    stationery_cultural: "文创类要关注用户是否理解主题故事，是否愿意为了系列化、限定款或送礼场景付费。",
+    stationery_cultural: "文创类要关注评论里是否出现“想送人”“挂包好看”“有故事感”“价格能接受”等信号；如果只被夸好看但没人问用途和价格，说明购买理由还不够强。",
     phone_accessory: "手机周边类要把询单机型单独统计，避免内容热度高但实际可售机型不匹配。",
     daily_necessity: "低价日用类要看复购意愿、组合装接受度和社群团购转化，而不是只看单条内容曝光。",
     unknown: "品类不明确时，先看用户是否能快速理解产品用途和价格，再决定是否继续补充信息。",
@@ -687,12 +687,12 @@ function getSupplierQuestions(categoryKey) {
       "批量发货时包装、标签和质检是否稳定？",
     ],
     stationery_cultural: [
-      "是否支持小批量定制？最低定制量是多少？",
-      "图案版权和授权是否清楚？能否提供授权说明？",
-      "是否可以做系列化组合或节日限定套装？",
-      "包装、卡片和礼袋是否支持定制？费用如何计算？",
-      "节日款或文旅款是否有稳定补货周期？",
-      "印刷色差、材质误差和瑕疵品如何处理？",
+      "木珠、果核、绳结和金属扣的材质参数是否清楚？大货和样品是否一致？",
+      "图案版权和授权是否清楚？如果涉及国风、城市或文旅元素，能否提供授权说明？",
+      "手作绳结、挂扣和钥匙圈是否牢固？是否有拉力或掉件售后规则？",
+      "包装、卡片和礼袋是否支持定制？低预算礼物场景的包装成本如何计算？",
+      "是否支持小批量定制或系列化组合？最低定制量是多少？",
+      "节日款、文旅款或校园市集款是否有稳定补货周期？",
     ],
     phone_accessory: [
       "当前适配哪些具体机型？热门机型库存分别有多少？",
@@ -1228,26 +1228,186 @@ function formatKeywordPlatform(platform) {
   ].filter(Boolean).join(String.fromCharCode(10));
 }
 
-const hairOnlyTerms = ["大肠发圈", "发圈", "扎发", "丸子头", "半扎", "普通皮筋", "不勒头", "上头效果", "发量", "扎发神器", "发圈推荐", "低丸子头"];
+const categoryTermRules = {
+  stationery_cultural: {
+    allowedTerms: ["文创小物", "钥匙扣", "挂饰", "包包挂件", "帆布包", "钥匙串", "手账包", "木珠", "果核", "手作感", "自然感", "故事感", "低预算礼物", "校园市集", "文旅纪念", "小众审美", "包包装饰", "手作绳结", "国风感", "送朋友"],
+    bannedTerms: ["发圈", "大肠发圈", "扎发", "丸子头", "半扎", "低马尾", "普通皮筋", "皮筋", "不勒头", "显发量", "上头效果", "发量", "发夹", "鲨鱼夹", "发簪"],
+    fallbackTerm: "文创挂件",
+  },
+  hair_accessory: {
+    allowedTerms: ["发圈", "发夹", "大肠发圈", "扎发", "半扎", "丸子头", "低马尾", "上头效果", "颜色矩阵", "套装组合", "宿舍日常", "校园穿搭", "显发量", "不勒头", "发量", "发型", "布料弹力"],
+    bannedTerms: ["钥匙扣", "果核", "木珠", "包包挂件", "文旅纪念", "帆布包挂件", "钥匙串", "手账包"],
+    fallbackTerm: "发饰",
+  },
+  jewelry: {
+    allowedTerms: ["耳夹", "耳环", "耳饰", "项链", "手链", "戒指", "珍珠", "金属光泽", "不打耳洞", "佩戴图", "礼物包装", "通勤配饰", "约会穿搭", "显脸小", "过敏风险", "材质说明"],
+    bannedTerms: ["发圈", "扎发", "丸子头", "低马尾", "钥匙扣", "包包挂件", "果核", "木珠", "大肠发圈", "上头效果"],
+    fallbackTerm: "饰品",
+  },
+  home_lifestyle: {
+    allowedTerms: ["宿舍好物", "桌面好物", "家居小物", "收纳", "桌搭", "床头", "厨房", "办公室", "氛围感", "尺寸参照", "包装保护", "破损风险", "运费"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "钥匙扣", "果核"],
+    fallbackTerm: "家居小物",
+  },
+  phone_accessory: {
+    allowedTerms: ["手机壳", "手机挂绳", "手机支架", "镜头保护", "机型适配", "上机效果", "孔位", "按键", "防摔", "支架角度", "个性化"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "果核", "木珠"],
+    fallbackTerm: "数码周边",
+  },
+  daily_necessity: {
+    allowedTerms: ["低价好物", "实用小物", "生活小工具", "宿舍神器", "办公室好物", "家庭收纳", "使用前后对比", "多件组合", "囤货", "性价比", "复购"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "果核", "木珠", "机型适配"],
+    fallbackTerm: "实用小物",
+  },
+  unknown: {
+    allowedTerms: ["实用小物", "低预算好物", "使用场景", "目标人群", "内容测试"],
+    bannedTerms: [],
+    fallbackTerm: "小商品",
+  },
+};
 
-function hasHairOnlyTerms(content) {
-  return hairOnlyTerms.some((term) => String(content || "").includes(term));
+const contextRequiredModules = new Set([
+  "imagePlan",
+  "xhsPackage",
+  "douyinPackage",
+  "keywordPlan",
+  "samplingStrategy",
+  "testStandards",
+  "supplierQuestions",
+  "differentiation",
+  "risks",
+  "fitReasons",
+  "unfitReasons",
+  "explanations",
+  "executiveSummary",
+  "report",
+  "htmlReport",
+]);
+
+function getCategoryRule(categoryKey) {
+  return categoryTermRules[categoryKey] || categoryTermRules.unknown;
+}
+
+function contentToText(value) {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(contentToText).join(" ");
+  if (value && typeof value === "object") return Object.values(value).map(contentToText).join(" ");
+  return String(value || "");
+}
+
+function hasAnyTerm(text, terms) {
+  return (terms || []).some((term) => term && String(text || "").includes(term));
+}
+
+function getCoreProductTerms(product, categoryKey) {
+  const rule = getCategoryRule(categoryKey);
+  const source = `${product?.name || ""} ${product?.category || ""} ${product?.material || ""} ${product?.keywords || ""} ${product?.note || ""}`;
+  const fromAllowed = rule.allowedTerms.filter((term) => source.includes(term) || productText(product || {}).includes(term.toLowerCase()));
+  const name = String(product?.name || "").trim();
+  const category = String(product?.category || "").trim();
+  const material = String(product?.material || "").trim();
+  return uniqueWords([name, category, ...fromAllowed, material, ...rule.allowedTerms.slice(0, 4)].filter((term) => String(term).length >= 2), 10);
+}
+
+function createContentContext(product, hasImage, market, channelFit, priceBand, moqAdvice) {
+  const categoryKey = market?.categoryKey || inferCategoryKey(product);
+  const rule = getCategoryRule(categoryKey);
+  const coreProductTerms = getCoreProductTerms(product, categoryKey);
+  return {
+    productName: product?.name || "未命名产品",
+    category: product?.category || market?.marketType || "",
+    categoryKey,
+    categoryName: market?.categoryName || categoryTemplates[categoryKey]?.label || "待判断品类",
+    material: product?.material || "",
+    audience: product?.audience || "",
+    channel: product?.channel || "",
+    price: n(product?.price),
+    cost: n(product?.cost),
+    moq: n(product?.moq),
+    supplier: product?.supplier || "",
+    keywords: product?.keywords || "",
+    uploadedImage: Boolean(hasImage),
+    coreProductTerms,
+    allowedTerms: rule.allowedTerms,
+    bannedTerms: rule.bannedTerms,
+    sceneTerms: uniqueWords(rule.allowedTerms.filter((term) => /场景|宿舍|校园|通勤|约会|市集|文旅|帆布包|办公室|家庭|包包/.test(term)).concat(rule.allowedTerms.slice(0, 4)), 8),
+    sellingPoints: uniqueWords([...coreProductTerms, ...rule.allowedTerms.slice(0, 6)], 8),
+    risks: [],
+    platformFit: channelFit,
+    priceBand,
+    moqRisk: moqAdvice,
+    fallbackTerm: rule.fallbackTerm,
+  };
+}
+
+function dedupeRepeatedSentences(text) {
+  const counts = new Map();
+  return String(text || "")
+    .split(/(?<=[。！？\n])/)
+    .filter((part) => {
+      const key = part.trim().replace(/\s+/g, "");
+      if (key.length < 18) return true;
+      const count = counts.get(key) || 0;
+      counts.set(key, count + 1);
+      return count < 2;
+    })
+    .join("");
+}
+
+function sanitizeStringByContext(contentContext, value, moduleName = "") {
+  const rule = getCategoryRule(contentContext?.categoryKey);
+  let text = String(value || "");
+  [...(rule.bannedTerms || [])].sort((a, b) => b.length - a.length).forEach((term) => {
+    if (term) text = text.replaceAll(term, rule.fallbackTerm);
+  });
+  if (moduleName === "report") text = dedupeRepeatedSentences(text);
+  return text;
+}
+
+function sanitizeGeneratedObject(contentContext, value, moduleName = "") {
+  if (typeof value === "string") return sanitizeStringByContext(contentContext, value, moduleName);
+  if (Array.isArray(value)) return value.map((item) => sanitizeGeneratedObject(contentContext, item, moduleName));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitizeGeneratedObject(contentContext, item, moduleName)]));
+  }
+  return value;
+}
+
+function anchorGeneratedContent(contentContext, value) {
+  const anchor = contentContext?.productName || contentContext?.fallbackTerm || "该产品";
+  if (typeof value === "string") return `针对${anchor}：${value}`;
+  if (Array.isArray(value)) {
+    if (!value.length) return [`针对${anchor}补充当前品类判断。`];
+    return [`针对${anchor}：${value[0]}`, ...value.slice(1)];
+  }
+  if (value && typeof value === "object") return { contextAnchor: `当前内容基于${anchor}生成。`, ...value };
+  return value;
+}
+
+function validateGeneratedContent(contentContext, generatedContent, moduleName = "module") {
+  const cleaned = sanitizeGeneratedObject(contentContext, generatedContent, moduleName);
+  const text = contentToText(cleaned);
+  const bannedHits = (contentContext?.bannedTerms || []).filter((term) => term && text.includes(term));
+  const missingCoreTerm = contextRequiredModules.has(moduleName) && !hasAnyTerm(text, contentContext?.coreProductTerms || []);
+  const content = missingCoreTerm ? anchorGeneratedContent(contentContext, cleaned) : cleaned;
+  return {
+    ok: bannedHits.length === 0 && !missingCoreTerm,
+    content,
+    bannedHits,
+    missingCoreTerm,
+  };
 }
 
 function validateContentByCategory(categoryKey, generatedContent) {
-  if (categoryKey === "hair_accessory") {
-    return { ok: true, content: generatedContent };
-  }
-  const content = typeof generatedContent === "string" ? generatedContent : JSON.stringify(generatedContent || "");
-  if (!hasHairOnlyTerms(content)) {
-    return { ok: true, content: generatedContent };
-  }
-  return { ok: false, content: generatedContent };
+  const market = categoryTemplates[categoryKey] || categoryTemplates.unknown;
+  const contentContext = createContentContext({}, false, { categoryKey, categoryName: market.label, marketType: market.marketType }, null, null, null);
+  return validateGeneratedContent(contentContext, generatedContent);
 }
 
 function scrubHairOnlyTerms(categoryKey, content) {
-  if (categoryKey === "hair_accessory") return content;
-  return hairOnlyTerms.reduce((text, term) => text.replaceAll(term, ""), String(content || ""));
+  const market = categoryTemplates[categoryKey] || categoryTemplates.unknown;
+  const contentContext = createContentContext({}, false, { categoryKey, categoryName: market.label, marketType: market.marketType }, null, null, null);
+  return sanitizeStringByContext(contentContext, content);
 }
 
 function inferMarketInfo(product) {
@@ -1275,23 +1435,17 @@ function analyzeProduct(product, hasImage) {
   const market = inferMarketInfo(product);
   const categoryKey = market.categoryKey;
   const channelFit = getChannelFit(product, categoryKey);
-  let imagePlan = getImageContentPlan(categoryKey, channelFit);
-  let xhsPackage = getXhsContentPackage(product, categoryKey);
-  let douyinPackage = getDouyinVideoPackage(product, categoryKey);
-  let keywordPlan = getPlatformKeywordPlan(product, categoryKey);
-  const moduleValidation = validateContentByCategory(categoryKey, { imagePlan, xhsPackage, douyinPackage, keywordPlan });
-  if (!moduleValidation.ok) {
-    const fallbackKey = categoryKey === "stationery_cultural" ? "stationery_cultural" : "unknown";
-    imagePlan = getImageContentPlan(fallbackKey, channelFit);
-    xhsPackage = getXhsContentPackage(product, fallbackKey);
-    douyinPackage = getDouyinVideoPackage(product, fallbackKey);
-    keywordPlan = getPlatformKeywordPlan(product, fallbackKey);
-  }
   const cost = n(product.cost);
   const price = n(product.price);
   const moq = n(product.moq);
   const priceBand = getPriceBand(price);
   const moqAdvice = getMoqAdvice(moq);
+  const contentContext = createContentContext(product, hasImage, market, channelFit, priceBand, moqAdvice);
+  const validateModule = (moduleName, generatedContent) => validateGeneratedContent(contentContext, generatedContent, moduleName).content;
+  const imagePlan = validateModule("imagePlan", getImageContentPlan(contentContext.categoryKey, contentContext.platformFit));
+  const xhsPackage = validateModule("xhsPackage", getXhsContentPackage(product, contentContext.categoryKey));
+  const douyinPackage = validateModule("douyinPackage", getDouyinVideoPackage(product, contentContext.categoryKey));
+  const keywordPlan = validateModule("keywordPlan", getPlatformKeywordPlan(product, contentContext.categoryKey));
 
   const categoryPackaging = {
     jewelry: /礼盒|包装|礼物/.test(`${product.supplier} ${product.note}`) ? 1.8 : 1.1,
@@ -1362,73 +1516,89 @@ function analyzeProduct(product, hasImage) {
     status = "暂不考虑";
   }
 
+  const imageExamples = (imagePlan.mustShoot || [])
+    .slice(0, 3)
+    .map((item) => String(item).split("：")[0])
+    .join("、");
   const visualEvidenceNote = hasImage
-    ? "已基于上传图片完成初步判断，但仍建议补充更完整的实拍素材，例如佩戴图、细节图、尺寸参照图或包装图，以提升测款准确性。"
-    : "暂未上传产品图片，当前视觉判断主要基于文字信息。建议补充实拍图后，再校准封面吸引力、细节质感和内容测款判断。";
+    ? `已基于上传图片完成初步判断，但仍建议补充更完整的实拍素材，例如${imageExamples || "细节图、场景图和尺寸参照图"}，以提升测款准确性。`
+    : `暂未上传产品图片，当前视觉判断主要基于文字信息。建议补充${imageExamples || "实拍图"}后，再校准封面吸引力、细节质感和内容测款判断。`;
+
+  const contentRisk = validateGeneratedContent(contentContext, market.contentRisk, "risks").content;
+  const differentiation = validateModule("differentiation", market.differentiation);
+  const categoryTestActions = validateGeneratedContent(contentContext, market.testActions, "testStandards").content;
+  const safeMarket = {
+    ...market,
+    contentRisk,
+    differentiation,
+    testActions: categoryTestActions,
+  };
+  const categoryNarrative = validateGeneratedContent(contentContext, getCategoryNarrative(product, categoryKey), "categoryNarrative").content;
 
   let risks = [];
   if (margin < 0.35) risks.push("毛利率偏低，后续广告、退换货和包装成本会挤压利润。建议重新核算售价或寻找更低拿货价。");
   if (moq > 150) risks.push(`MOQ处于${moqAdvice.label}，${moqAdvice.advice}`);
   if (!(product.supplier || "").includes("补货")) risks.push("供应商补货周期不明确，爆单后可能出现断货风险。");
   if (!product.competitorPrice) risks.push("缺少同类竞品价格，建议补充1688/淘宝/小红书同款价格区间。");
-  risks.push(market.contentRisk);
+  risks.push(contentRisk);
   if (risks.length === 0) risks.push("基础风险较可控，但仍需核实样品与大货一致性、质检信息和售后条款。");
-  risks = risks.slice(0, 3);
+  risks = validateModule("risks", risks).slice(0, 3);
+  contentContext.risks = risks;
 
-  const nextTestActions = [
-    ...market.testActions,
+  const nextTestActions = validateGeneratedContent(contentContext, [
+    ...categoryTestActions,
     "收集收藏、评论、询单和私信数据，至少观察24-72小时。",
     "把测款数据回填到测款复盘，再决定补货、改图、降价或停测。",
-  ];
+  ], "testStandards").content;
 
-  const actions = [
+  const actions = validateGeneratedContent(contentContext, [
     "先拿样或小批量进货，不建议直接大批量压货。",
     "用小红书/抖音发布2-3条测款内容，观察收藏率、评论询单率、私信咨询量。",
     "用校园群、朋友圈或私域做小范围成交验证，记录真实转化。",
     "如果互动率和询单率较好，再和供应商谈补货周期、混批政策和包装定制。",
     "复盘每款产品的数据，把评分、利润、内容表现和销量记录到产品库。",
-  ];
+  ], "testStandards").content;
 
   const xhsStructure = xhsPackage.pages;
 
-  const fitReasons = [
+  const fitReasons = validateModule("fitReasons", [
     margin >= 0.35 ? `毛利率约${Math.round(margin * 100)}%，有一定空间覆盖包装、物流和平台费用。` : "毛利率偏低，暂时不适合作为高投入主推款。",
     stockCost <= 1800 ? `首批压货约¥${money(stockCost)}，仍处在可小批量测试范围。` : `首批压货约¥${money(stockCost)}，对新手压力偏高。`,
     `渠道验证路径相对清楚，可优先围绕${channelFit.best}做首轮反馈收集。`,
     `当前信息足以形成一轮最小测试，但补货前仍需要看真实询单和成交数据。`,
-  ];
+  ]);
 
-  const unfitReasons = [
+  const unfitReasons = validateModule("unfitReasons", [
     moq > 150 ? `MOQ风险偏高：${moqAdvice.advice}` : "若供应商不能提供样品或混批，仍要重新评估首单风险。",
-    `${market.categoryName}常见风险：${market.contentRisk}`,
+    `${safeMarket.categoryName}常见风险：${safeMarket.contentRisk}`,
     `暂不建议渠道：${channelFit.avoid}。${channelFit.avoidReason}`,
-  ];
+  ]);
 
-  const samplingStrategy = getSamplingStrategy({ categoryKey, priceBand, moqAdvice, channelFit, status });
-  const testStandards = getTestDecisionStandards(categoryKey);
-  const supplierQuestions = getSupplierQuestions(categoryKey);
-  const biggestRisk = risks.find((risk) => !risk.includes("暂未上传产品图片")) || risks[0] || market.contentRisk;
-  const executiveSummary = [
+  const samplingStrategy = validateModule("samplingStrategy", getSamplingStrategy({ categoryKey, priceBand, moqAdvice, channelFit, status }));
+  const testStandards = validateModule("testStandards", getTestDecisionStandards(categoryKey));
+  const supplierQuestions = validateModule("supplierQuestions", getSupplierQuestions(categoryKey));
+  const biggestRisk = risks.find((risk) => !risk.includes("暂未上传产品图片")) || risks[0] || safeMarket.contentRisk;
+  const executiveSummary = validateModule("executiveSummary", [
     status === "暂不考虑" ? "暂不建议直接下单，先降低首单量或补充关键信息。" : status === "建议补货" ? "可以进入补货观察，但仍需用真实测款数据复核。" : "建议先拿样或小批量测款，不建议直接大批量压货。",
     `核心理由：${priceBand.label}的售价区间与${channelFit.best}较匹配，首批压货约¥${money(stockCost)}。`,
     `最大风险：${biggestRisk}`,
     "下一步：完成一轮最小内容测试，并把反馈回填到测款复盘。",
-  ];
+  ]);
 
-  const explanations = [
+  const explanations = validateModule("explanations", [
     ["利润与价格带", Math.round(profitScore), `${priceBand.label}：${priceBand.advice} 当前预估毛利率约${Math.round(margin * 100)}%。`],
-    [`${market.categoryName}内容潜力`, Math.round(contentScore), hasImage ? "已有图片输入，可进一步判断封面吸引力、细节完整度和内容素材丰富度。" : "暂缺图片输入，内容潜力主要来自文本信息，建议补图后再校准判断。"],
+    [`${safeMarket.categoryName}内容潜力`, Math.round(contentScore), hasImage ? "已有图片输入，可进一步判断封面吸引力、细节完整度和内容素材丰富度。" : "暂缺图片输入，内容潜力主要来自文本信息，建议补图后再校准判断。"],
     ["渠道适配", Math.round(channelScore), `最适合渠道：${channelFit.best}。${channelFit.reason} 评分原因：${channelFit.scoreReason}`],
     ["MOQ与供应", Math.round(supplyScore), `${moqAdvice.label}：${moqAdvice.advice} ${(product.supplier || "").includes("补货") ? "供应商补货信息较清楚。" : "还需要确认补货周期和混批政策。"}`],
-    ["风险控制", Math.round(riskScore), `${market.categoryName}需重点关注：${market.categoryFocus.slice(-3).join("、")}。${product.competitorPrice ? "已有竞品价格区间，可辅助校准定价。" : "仍缺少竞品价格校准。"}`],
+    ["风险控制", Math.round(riskScore), `${safeMarket.categoryName}需重点关注：${safeMarket.categoryFocus.slice(-3).join("、")}。${product.competitorPrice ? "已有竞品价格区间，可辅助校准定价。" : "仍缺少竞品价格校准。"}`],
     ["信息完整", Math.round(infoScore), infoScore >= 80 ? "产品基础信息较完整，报告可信度较高。" : "信息仍不完整，建议补充人群、渠道、供应商和物流风险。"],
-  ];
+  ]);
 
   let report = `【TradePilot AI 进货决策报告】
 
 一、产品基础信息
 产品名称：${product.name || "未填写"}
-产品类型：${product.category || market.marketType || "未填写"}
+产品类型：${product.category || safeMarket.marketType || "未填写"}
 拿货价：${product.cost || "未填写"} 元
 建议售价：${product.price || "未填写"} 元
 MOQ：${product.moq || "未填写"} 件
@@ -1453,8 +1623,8 @@ ${executiveSummary.map((item, index) => `${index + 1}. ${item}`).join(String.fro
 说明：测算默认平台费率5%，实际经营时需根据渠道重新校正。
 
 四、品类判断
-识别品类：${market.categoryName}（${categoryKey}）
-品类逻辑：${getCategoryNarrative(product, categoryKey)}
+识别品类：${safeMarket.categoryName}（${categoryKey}）
+品类逻辑：${categoryNarrative}
 
 五、渠道适配建议
 最适合渠道：${channelFit.best}
@@ -1491,7 +1661,7 @@ ${testStandards.map((item, index) => `${index + 1}. ${item}`).join(String.fromCh
 ${supplierQuestions.map((item, index) => `${index + 1}. ${item}`).join(String.fromCharCode(10))}
 
 十、产品差异化建议
-${market.differentiation.map((item, index) => `${index + 1}. ${item}`).join(String.fromCharCode(10))}
+${differentiation.map((item, index) => `${index + 1}. ${item}`).join(String.fromCharCode(10))}
 
 十一、风险备忘
 ${risks.map((risk, index) => `${index + 1}. ${risk}`).join(String.fromCharCode(10))}
@@ -1542,14 +1712,14 @@ ${nextTestActions.slice(-2).map((action, index) => `${samplingStrategy.checkpoin
 十六、AI评分依据
 ${explanations.map(([label, score, reason], index) => `${index + 1}. ${label}：${score}分。${reason}`).join(String.fromCharCode(10))}`;
 
-  if (!validateContentByCategory(categoryKey, report).ok) {
-    report = scrubHairOnlyTerms(categoryKey, report);
-  }
+  report = validateGeneratedContent(contentContext, report, "report").content;
 
   return {
-    market,
+    market: safeMarket,
+    contentContext,
+    categoryNarrative,
     categoryKey,
-    categoryName: market.categoryName,
+    categoryName: safeMarket.categoryName,
     channelFit,
     imagePlan,
     samplingStrategy,
@@ -1581,7 +1751,7 @@ ${explanations.map(([label, score, reason], index) => `${index + 1}. ${label}：
     scores: [
       ["利润与价格带", Math.round(profitScore)],
       ["渠道适配", Math.round(channelScore)],
-      [`${market.categoryName}内容`, Math.round(contentScore)],
+      [`${safeMarket.categoryName}内容`, Math.round(contentScore)],
       ["MOQ供应", Math.round(supplyScore)],
       ["风险控制", Math.round(riskScore)],
       ["信息完整", Math.round(infoScore)],
@@ -1597,15 +1767,25 @@ function getRecordMetrics(record) {
   const fallback = record?.product ? analyzeProduct(record.product, Boolean(record.product.imagePreview)) : null;
   const result = record?.result || {};
   return {
-    score: Number(record?.score ?? result.totalScore ?? fallback?.totalScore ?? 0) || 0,
-    status: getRecordStatus(record),
-    margin: Number(result.margin ?? fallback?.margin ?? 0) || 0,
-    stockCost: Number(result.stockCost ?? fallback?.stockCost ?? 0) || 0,
-    riskCount: Array.isArray(result.risks) ? result.risks.length : fallback?.risks?.length || 0,
-    contentPotential: Number(result.contentPotentialScore ?? fallback?.contentPotentialScore ?? 0) || 0,
-    channelFit: result.channelFit?.best || fallback?.channelFit?.best || "待补充渠道",
-    categoryName: result.categoryName || fallback?.categoryName || record?.category || "未分类",
+    score: Number(fallback?.totalScore ?? record?.score ?? result.totalScore ?? 0) || 0,
+    status: fallback?.status || getRecordStatus(record),
+    margin: Number(fallback?.margin ?? result.margin ?? 0) || 0,
+    stockCost: Number(fallback?.stockCost ?? result.stockCost ?? 0) || 0,
+    riskCount: fallback?.risks?.length || (Array.isArray(result.risks) ? result.risks.length : 0),
+    contentPotential: Number(fallback?.contentPotentialScore ?? result.contentPotentialScore ?? 0) || 0,
+    channelFit: fallback?.channelFit?.best || result.channelFit?.best || "待补充渠道",
+    categoryName: fallback?.categoryName || result.categoryName || record?.category || "未分类",
   };
+}
+
+function getRecordReport(record) {
+  if (record?.product) {
+    return analyzeProduct(record.product, Boolean(record.product.imagePreview)).report;
+  }
+  const categoryKey = inferCategoryKey({ name: record?.product_name, category: record?.category });
+  const market = categoryTemplates[categoryKey] || categoryTemplates.unknown;
+  const contentContext = createContentContext({ name: record?.product_name, category: record?.category }, false, { categoryKey, categoryName: market.label, marketType: market.marketType }, null, null, null);
+  return validateGeneratedContent(contentContext, record?.report || "暂无报告内容", "report").content;
 }
 
 function getPkRecommendation(left, right) {
@@ -1670,9 +1850,12 @@ function getScoreValue(result, keyword, fallback = "") {
 }
 
 function generateHtmlReport(product, result) {
-  const xhs = result.xhsPackage || getXhsContentPackage(product, result.categoryKey);
-  const douyin = result.douyinPackage || getDouyinVideoPackage(product, result.categoryKey);
-  const keywordPlan = result.keywordPlan || getPlatformKeywordPlan(product, result.categoryKey);
+  const fallbackMarket = result.market || inferMarketInfo(product);
+  const fallbackChannelFit = result.channelFit || getChannelFit(product, fallbackMarket.categoryKey);
+  const contentContext = result.contentContext || createContentContext(product, Boolean(product?.imagePreview), fallbackMarket, fallbackChannelFit, result.priceBand || getPriceBand(n(product.price)), result.moqAdvice || getMoqAdvice(n(product.moq)));
+  const xhs = validateGeneratedContent(contentContext, result.xhsPackage || getXhsContentPackage(product, contentContext.categoryKey), "xhsPackage").content;
+  const douyin = validateGeneratedContent(contentContext, result.douyinPackage || getDouyinVideoPackage(product, contentContext.categoryKey), "douyinPackage").content;
+  const keywordPlan = validateGeneratedContent(contentContext, result.keywordPlan || getPlatformKeywordPlan(product, contentContext.categoryKey), "keywordPlan").content;
   const nextActions = (result.actions && result.actions.length)
     ? result.actions
     : [...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)];
@@ -1691,7 +1874,7 @@ function generateHtmlReport(product, result) {
   ];
   const scoreRows = (result.explanations || []).map(([label, score, reason]) => [label, score, reason]);
 
-  return `<!doctype html>
+  const html = `<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
@@ -1774,7 +1957,7 @@ function generateHtmlReport(product, result) {
 
     <section>
       <h2>三、品类判断</h2>
-      <div class="card"><p><strong>识别品类：</strong>${escapeHtml(result.categoryName)}（${escapeHtml(result.categoryKey)}）</p><p>${escapeHtml(getCategoryNarrative(product, result.categoryKey))}</p></div>
+      <div class="card"><p><strong>识别品类：</strong>${escapeHtml(result.categoryName || contentContext.categoryName)}（${escapeHtml(contentContext.categoryKey)}）</p><p>${escapeHtml(result.categoryNarrative || getCategoryNarrative(product, contentContext.categoryKey))}</p></div>
     </section>
 
     <section>
@@ -1888,6 +2071,7 @@ function generateHtmlReport(product, result) {
   </main>
 </body>
 </html>`;
+  return validateGeneratedContent(contentContext, html, "htmlReport").content;
 }
 
 function App() {
@@ -2821,7 +3005,7 @@ function StructuredReport({ product, result }) {
       <ReportSection number="四" title="品类判断">
         <div className="rounded-2xl bg-black/25 p-4">
           <p className="text-xs font-bold text-emerald-300">识别品类：{result.categoryName}（{result.categoryKey}）</p>
-          <p className="mt-3 text-sm leading-8 text-slate-200">{getCategoryNarrative(product, result.categoryKey)}</p>
+          <p className="mt-3 text-sm leading-8 text-slate-200">{result.categoryNarrative}</p>
         </div>
       </ReportSection>
 
@@ -3319,6 +3503,7 @@ function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh
 
 function HistoryCard({ record, onDelete, onRestore }) {
   const metrics = getRecordMetrics(record);
+  const displayReport = getRecordReport(record);
   return (
     <article className="rounded-3xl border border-white/10 bg-black/30 p-5">
       <div className="flex gap-4">
@@ -3340,10 +3525,10 @@ function HistoryCard({ record, onDelete, onRestore }) {
         <button onClick={() => onDelete(record.id)} className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-white">删除</button>
       </div>
 
-      {record.report && (
+      {displayReport && (
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-bold text-emerald-300">展开报告</summary>
-          <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl bg-white/[0.06] p-4 text-xs leading-6 text-slate-300">{record.report}</pre>
+          <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl bg-white/[0.06] p-4 text-xs leading-6 text-slate-300">{displayReport}</pre>
         </details>
       )}
     </article>
