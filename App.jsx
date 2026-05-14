@@ -332,20 +332,255 @@ const categoryTemplates = {
   },
 };
 
+function getProductSource(product = {}) {
+  const fields = {
+    name: product?.name || "",
+    category: product?.category || "",
+    material: product?.material || "",
+    keywords: product?.keywords || "",
+    note: product?.note || "",
+    audience: product?.audience || "",
+    channel: product?.channel || "",
+    logistics: product?.logistics || "",
+    scene: product?.scene || product?.usage || "",
+  };
+  return {
+    fields,
+    allText: Object.values(fields).join(" "),
+    supportingText: Object.entries(fields)
+      .filter(([key]) => key !== "name")
+      .map(([, value]) => value)
+      .join(" "),
+  };
+}
+
 function productText(product) {
-  return `${product.name || ""} ${product.category || ""} ${product.material || ""} ${product.keywords || ""} ${product.note || ""}`.toLowerCase();
+  return getProductSource(product).allText.toLowerCase();
+}
+
+const productIdentityProfiles = {
+  hair_accessory: {
+    categoryKey: "hair_accessory",
+    label: "发饰 / 发圈",
+    fallbackTerm: "发饰",
+    priority: 90,
+    categoryHints: ["发饰", "发圈", "发夹", "头饰"],
+    strongTerms: ["发圈", "大肠发圈", "发夹", "头绳", "发绳", "扎发", "发量", "不勒头", "低丸子头", "上头效果", "刘海夹", "鲨鱼夹", "发簪", "皮筋", "丸子头", "半扎发", "低马尾"],
+    weakTerms: ["宿舍姐妹", "发型", "布料弹力"],
+    allowedTerms: ["发圈", "发夹", "大肠发圈", "扎发", "半扎", "丸子头", "低马尾", "上头效果", "颜色矩阵", "套装组合", "宿舍日常", "校园穿搭", "显发量", "不勒头", "发量", "发型", "布料弹力"],
+    bannedTerms: ["钥匙扣", "钥匙串", "钥匙链", "钥匙圈", "包包挂件", "书包挂件", "挂饰", "挂件", "可挂包", "挂包", "帆布包搭配", "文创挂件", "手链", "手绳", "腕饰", "耳夹", "不打耳洞", "果核", "木珠"],
+    coreProductTerms: ["发圈", "发夹", "发饰", "大肠发圈", "头绳"],
+    scenarioTerms: ["宿舍日常", "校园穿搭", "通勤扎发", "上课发型", "镜子前出门"],
+    styleTerms: ["奶油色系", "温柔感", "干净感", "低预算好物", "宿舍姐妹同款"],
+    functionTerms: ["上头效果", "颜色矩阵", "套装组合", "不勒头", "布料弹力"],
+    longTailTerms: ["显发量大肠发圈", "宿舍日常发圈套装", "不勒头发圈女", "奶油色发饰套装"],
+  },
+  earring_accessory: {
+    categoryKey: "jewelry",
+    label: "饰品 / 耳饰 / 配饰",
+    fallbackTerm: "耳饰",
+    priority: 85,
+    categoryHints: ["耳饰", "耳夹", "耳环"],
+    strongTerms: ["耳夹", "耳环", "耳饰", "耳钉", "不打耳洞", "耳垂", "珍珠耳夹", "佩戴耳朵", "上耳", "耳部"],
+    weakTerms: ["珍珠", "蝴蝶结", "金属光泽", "礼盒"],
+    allowedTerms: ["耳夹", "耳环", "耳饰", "耳钉", "珍珠", "金属光泽", "不打耳洞", "佩戴图", "礼物包装", "通勤配饰", "约会穿搭", "显脸小", "过敏风险", "材质说明"],
+    bannedTerms: ["发圈", "扎发", "上头效果", "低丸子头", "大肠发圈", "钥匙扣", "钥匙串", "钥匙链", "钥匙圈", "包包挂件", "挂饰", "挂件", "手链", "手绳", "腕饰", "果核", "木珠"],
+    coreProductTerms: ["耳夹", "耳环", "耳饰", "珍珠耳夹", "不打耳洞耳夹"],
+    scenarioTerms: ["通勤配饰", "约会穿搭", "春夏穿搭", "低预算礼物", "校园穿搭"],
+    styleTerms: ["温柔风", "法式感", "氛围感", "小众配饰", "精致感"],
+    functionTerms: ["不打耳洞", "轻便", "佩戴图", "礼物包装", "材质说明"],
+    longTailTerms: ["不打耳洞珍珠耳夹女", "温柔风耳夹学生党", "低预算礼物耳饰", "通勤珍珠耳夹"],
+  },
+  wrist_accessory: {
+    categoryKey: "jewelry",
+    label: "饰品 / 手链 / 手绳",
+    fallbackTerm: "手链手绳",
+    priority: 80,
+    categoryHints: ["手链", "手绳", "腕饰", "手串"],
+    strongTerms: ["手链", "手绳", "腕饰", "手串", "编织手链", "编织手绳", "串珠手链", "手腕佩戴", "戴手上", "戴在手腕", "手腕搭配", "编织绳", "串珠", "珠子"],
+    weakTerms: ["小熊", "胡萝卜", "低预算礼物", "学生党礼物", "手作绳"],
+    allowedTerms: ["手绳", "手链", "腕饰", "手串", "编织绳", "串珠", "珠子", "手腕佩戴", "佩戴图", "小众饰品", "低预算礼物", "学生党礼物", "手腕搭配", "编织手链"],
+    bannedTerms: ["钥匙扣", "钥匙串", "钥匙链", "钥匙圈", "包包挂件", "挂包", "挂饰", "挂件", "可挂包", "书包挂件", "文创挂件", "帆布包", "帆布包搭配", "木珠", "果核", "木珠果核包包挂件", "发圈", "扎发", "上头效果", "大肠发圈", "低丸子头", "不勒头", "发量", "耳夹", "不打耳洞"],
+    coreProductTerms: ["手绳", "手链", "腕饰", "编织手链", "串珠手链"],
+    scenarioTerms: ["手腕佩戴", "日常搭配", "校园穿搭", "学生党礼物", "低预算礼物"],
+    styleTerms: ["可爱感", "田园风", "手作感", "小众饰品", "清新感"],
+    functionTerms: ["编织绳", "串珠", "珠子", "可调节", "轻便佩戴"],
+    longTailTerms: ["小众编织手链女", "学生党低预算手绳", "可爱手绳礼物", "田园风串珠手链"],
+  },
+  cultural_charm: {
+    categoryKey: "stationery_cultural",
+    label: "文创挂饰 / 钥匙扣 / 包包挂件",
+    fallbackTerm: "文创挂饰",
+    priority: 75,
+    categoryHints: ["钥匙扣", "挂件", "挂饰", "包包挂件", "文创挂件"],
+    strongTerms: ["钥匙扣", "钥匙链", "钥匙圈", "钥匙串", "包包挂件", "书包挂件", "挂件", "挂饰", "可挂包", "挂包", "帆布包搭配", "文创挂件", "手机挂件", "小挂件"],
+    weakTerms: ["文创", "国风", "手作", "木珠", "果核", "手作绳结", "校园市集", "文旅纪念", "自然感"],
+    allowedTerms: ["文创挂饰", "钥匙扣", "钥匙链", "钥匙圈", "钥匙串", "挂饰", "包包挂件", "帆布包", "手账包", "木珠", "果核", "手作感", "自然感", "故事感", "低预算礼物", "校园市集", "文旅纪念", "小众审美", "包包装饰", "手作绳结", "国风感", "送朋友"],
+    bannedTerms: ["手链", "手绳", "腕饰", "手腕佩戴", "戴在手腕", "耳夹", "不打耳洞", "发圈", "扎发", "上头效果", "大肠发圈", "低丸子头"],
+    coreProductTerms: ["文创挂饰", "钥匙扣", "包包挂件", "国风挂件", "手作挂件"],
+    scenarioTerms: ["帆布包搭配", "钥匙串装饰", "校园市集", "文旅纪念", "低预算礼物"],
+    styleTerms: ["国风感", "自然感", "故事感", "手作感", "小众审美"],
+    functionTerms: ["木珠", "果核元素", "挂饰", "可挂包", "可当钥匙扣"],
+    longTailTerms: ["文创钥匙扣小众礼物", "木珠果核包包挂件", "国风手作钥匙扣", "低预算送朋友小礼物"],
+  },
+  stationery_cultural: {
+    categoryKey: "stationery_cultural",
+    label: "文创纸品 / 手帐 / 贴纸",
+    fallbackTerm: "文创纸品",
+    priority: 70,
+    categoryHints: ["文创", "贴纸", "手帐", "明信片", "书签"],
+    strongTerms: ["贴纸", "手帐", "手账", "明信片", "书签", "卡片", "文创纸品", "城市贴纸", "国风贴纸", "旅行纪念", "收藏卡", "PET贴纸"],
+    weakTerms: ["文创", "国风", "城市记忆", "文旅", "收藏", "纸品"],
+    allowedTerms: ["文创纸品", "贴纸", "手帐", "手账", "明信片", "书签", "卡片", "城市贴纸", "国风贴纸", "旅行纪念", "收藏卡", "文旅纪念", "校园市集", "国风感", "故事感", "系列化", "低预算礼物"],
+    bannedTerms: ["手链", "手绳", "腕饰", "钥匙扣", "钥匙串", "包包挂件", "挂饰", "可挂包", "发圈", "扎发", "上头效果", "耳夹", "不打耳洞"],
+    coreProductTerms: ["文创贴纸", "国风贴纸", "手帐贴纸", "明信片", "书签"],
+    scenarioTerms: ["手帐拼贴", "旅行纪念", "校园市集", "文旅纪念", "书桌收集"],
+    styleTerms: ["国风感", "城市记忆", "故事感", "小众审美", "收藏感"],
+    functionTerms: ["PET贴纸", "防水", "系列套装", "卡纸包装", "可收藏"],
+    longTailTerms: ["国风城市贴纸套装", "旅行纪念手帐贴纸", "文创贴纸低预算礼物", "城市记忆PET贴纸"],
+  },
+  phone_accessory: {
+    categoryKey: "phone_accessory",
+    label: "数码周边 / 手机配件",
+    fallbackTerm: "手机配件",
+    priority: 65,
+    categoryHints: ["手机壳", "手机挂绳", "数码周边"],
+    strongTerms: ["手机壳", "手机链", "手机挂绳", "手机支架", "镜头膜", "数据线", "充电线", "防摔壳", "机型", "镜头保护", "上机效果"],
+    weakTerms: ["挂绳", "防摔", "孔位", "按键", "数码"],
+    allowedTerms: ["手机壳", "手机挂绳", "手机支架", "镜头保护", "机型适配", "上机效果", "孔位", "按键", "防摔", "支架角度", "个性化"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "手链", "手绳", "腕饰", "果核", "木珠", "钥匙扣"],
+    coreProductTerms: ["手机壳", "手机挂绳", "手机支架", "镜头保护", "数码配件"],
+    scenarioTerms: ["通勤出门", "上机效果", "日常防摔", "拍照支架", "出门携带"],
+    styleTerms: ["高颜值", "实用党", "个性化", "简约耐看", "上机才知道"],
+    functionTerms: ["机型适配", "防摔", "支架角度", "挂绳承重", "按键孔位"],
+    longTailTerms: ["透明防摔手机壳", "手机壳挂绳套装", "适配机型手机支架", "高颜值手机配件"],
+  },
+  home_lifestyle: {
+    categoryKey: "home_lifestyle",
+    label: "家居生活 / 宿舍好物",
+    fallbackTerm: "家居小物",
+    priority: 60,
+    categoryHints: ["家居", "宿舍好物", "桌面好物"],
+    strongTerms: ["香薰", "摆件", "收纳", "桌面", "宿舍", "家居", "氛围灯", "装饰画", "杯垫", "床头", "办公桌"],
+    weakTerms: ["氛围感", "生活方式", "办公室", "桌搭"],
+    allowedTerms: ["宿舍好物", "桌面好物", "家居小物", "收纳", "桌搭", "床头", "厨房", "办公室", "氛围感", "尺寸参照", "包装保护", "破损风险", "运费"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "钥匙扣", "手链", "手绳", "果核"],
+    coreProductTerms: ["桌面好物", "宿舍好物", "家居小物", "氛围感摆件", "收纳小物"],
+    scenarioTerms: ["宿舍桌面", "办公桌", "床头小物", "书桌改造", "低预算改造"],
+    styleTerms: ["生活方式感", "治愈感", "氛围感", "干净桌搭", "精致生活"],
+    functionTerms: ["尺寸参照", "容量", "防碎包装", "易摆放", "不占地方"],
+    longTailTerms: ["宿舍桌面香薰摆件", "低预算桌面好物", "办公室桌面小物", "宿舍氛围感摆件"],
+  },
+  daily_necessity: {
+    categoryKey: "daily_necessity",
+    label: "低价日用 / 实用小物",
+    fallbackTerm: "实用小物",
+    priority: 55,
+    categoryHints: ["日用", "清洁", "耗材"],
+    strongTerms: ["湿巾", "清洁", "去污", "收纳袋", "抹布", "一次性", "补充装", "日用", "复购", "纸巾", "洗脸巾"],
+    weakTerms: ["囤货", "组合装", "社群团购", "家庭收纳"],
+    allowedTerms: ["低价好物", "实用小物", "生活小工具", "宿舍神器", "办公室好物", "家庭收纳", "使用前后对比", "多件组合", "囤货", "性价比", "复购"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "手链", "手绳", "果核", "木珠", "机型适配"],
+    coreProductTerms: ["低价好物", "实用小物", "生活小工具", "宿舍神器", "办公室好物"],
+    scenarioTerms: ["宿舍日常", "办公室", "家庭收纳", "清洁整理", "囤货清单"],
+    styleTerms: ["性价比", "实用党", "低预算", "方便省事", "生活幸福感"],
+    functionTerms: ["多件组合", "独立包装", "小巧", "耐用", "易收纳"],
+    longTailTerms: ["宿舍低价实用小物", "办公室清洁好物", "日用组合装囤货", "懒人清洁小工具"],
+  },
+};
+
+function uniqueIdentityTerms(...lists) {
+  return [...new Set(lists.flat().map((term) => String(term || "").trim()).filter(Boolean))];
+}
+
+function scoreIdentityProfile(source, profile) {
+  const weights = { name: 5, category: 4, material: 2, keywords: 3, note: 3, audience: 1, channel: 1, logistics: 1, scene: 3 };
+  const evidence = [];
+  let score = 0;
+
+  Object.entries(source.fields).forEach(([field, value]) => {
+    const fieldText = String(value || "");
+    profile.strongTerms.forEach((term) => {
+      if (term && fieldText.includes(term)) {
+        score += weights[field] || 1;
+        evidence.push(`${field}:${term}`);
+      }
+    });
+    (profile.weakTerms || []).forEach((term) => {
+      if (term && fieldText.includes(term)) {
+        score += 1;
+        evidence.push(`${field}:${term}`);
+      }
+    });
+  });
+
+  return { score, evidence: [...new Set(evidence)] };
+}
+
+function defaultIdentityKeyFromCategory(categoryKey) {
+  const map = {
+    hair_accessory: "hair_accessory",
+    jewelry: "earring_accessory",
+    stationery_cultural: "cultural_charm",
+    phone_accessory: "phone_accessory",
+    home_lifestyle: "home_lifestyle",
+    daily_necessity: "daily_necessity",
+  };
+  return map[categoryKey] || "daily_necessity";
+}
+
+function inferProductIdentity(product = {}, categoryHint = "") {
+  const source = getProductSource(product);
+  const hintKey = defaultIdentityKeyFromCategory(categoryHint);
+  const scored = Object.entries(productIdentityProfiles)
+    .map(([identityKey, profile]) => {
+      const result = scoreIdentityProfile(source, profile);
+      const hintHit = categoryHint && (profile.categoryKey === categoryHint || identityKey === hintKey);
+      return {
+        identityKey,
+        profile,
+        score: result.score + (hintHit ? 2 : 0),
+        evidence: hintHit ? [...result.evidence, `categoryHint:${categoryHint}`] : result.evidence,
+      };
+    })
+    .sort((a, b) => b.score - a.score || b.profile.priority - a.profile.priority);
+
+  const best = scored[0];
+  const profile = best && best.score >= 3 ? best.profile : productIdentityProfiles.daily_necessity;
+  const identityKey = best && best.score >= 3 ? best.identityKey : "daily_necessity";
+  const rawName = String(product?.name || "").trim();
+  const bannedHitsInName = profile.bannedTerms.filter((term) => rawName.includes(term));
+  const allowedHitsInName = profile.allowedTerms.filter((term) => rawName.includes(term));
+  const displayName = rawName && (!bannedHitsInName.length || allowedHitsInName.length || best.score < 8)
+    ? rawName
+    : (profile.coreProductTerms[0] || profile.fallbackTerm || "该产品");
+  const confidence = best.score >= 12 ? "high" : best.score >= 6 ? "medium" : "low";
+  const materialHits = getProductMaterialWords(product || {});
+
+  return {
+    categoryKey: profile.categoryKey,
+    identityKey,
+    label: profile.label,
+    productTypeLabel: profile.label,
+    displayName,
+    primaryUse: profile.scenarioTerms?.[0] || "围绕真实使用场景验证用户反馈",
+    allowedTerms: uniqueIdentityTerms(profile.allowedTerms, profile.coreProductTerms, profile.scenarioTerms, profile.styleTerms, profile.functionTerms, materialHits),
+    bannedTerms: uniqueIdentityTerms(profile.bannedTerms),
+    allowedIdentityTerms: uniqueIdentityTerms(profile.allowedTerms, profile.coreProductTerms, profile.scenarioTerms, profile.styleTerms, profile.functionTerms),
+    forbiddenIdentityTerms: uniqueIdentityTerms(profile.bannedTerms),
+    coreProductTerms: uniqueWords([rawName, ...profile.coreProductTerms, ...allowedHitsInName].filter(Boolean), 8),
+    scenarioTerms: uniqueWords(profile.scenarioTerms, 8),
+    styleTerms: uniqueWords(profile.styleTerms, 8),
+    functionTerms: uniqueWords([...materialHits, ...profile.functionTerms], 8),
+    longTailTerms: uniqueWords(profile.longTailTerms, 8),
+    fallbackTerm: profile.fallbackTerm,
+    confidence,
+    evidence: best.evidence,
+  };
 }
 
 function inferCategoryKey(product) {
-  const text = productText(product);
-  if (/钥匙扣|包包挂件|帆布包挂件|亚克力挂件|挂件|挂饰|文创|国风|手作|木珠|果核|手账|手帐|帆布包|市集|文旅|书签|明信片|徽章|冰箱贴/.test(text)) return "stationery_cultural";
-  if (/手机壳|挂绳|支架|数码|充电|耳机|数据线|平板|防摔/.test(text)) return "phone_accessory";
-  if (/大肠发圈|发圈|发夹|发簪|发绳|头绳|皮筋|鲨鱼夹|抓夹|发饰|扎发|丸子头|半扎发|低马尾|盘发/.test(text)) return "hair_accessory";
-  if (/杯|香薰|摆件|收纳|家居|桌面|宿舍好物|水杯|马克杯|镜子|抱枕|花瓶|灯/.test(text)) return "home_lifestyle";
-  if (/笔记本|贴纸|明信片|书签|城市纪念|徽章|冰箱贴/.test(text)) return "stationery_cultural";
-  if (/耳饰|珍珠耳饰|耳夹|耳环|项链|戒指|手链|手串|锁骨链|胸针|金属饰品|珍珠项链|不打耳洞/.test(text)) return "jewelry";
-  if (/低价日用|日用|湿巾|纸巾|清洁|洗脸巾|抹布|去污|一次性|拖鞋|收纳袋|搭售/.test(text)) return "daily_necessity";
-  return "unknown";
+  return inferProductIdentity(product).categoryKey;
 }
 
 function getPriceBand(price) {
@@ -505,21 +740,57 @@ function getChannelFit(product, categoryKey) {
   };
 }
 
-function getCategoryNarrative(product, categoryKey) {
+function getCategoryNarrative(product, categoryKey, productIdentity = null) {
   const name = product.name || "该产品";
+  const identityKey = productIdentity?.identityKey || categoryKey;
   const narratives = {
+    earring_accessory: `耳饰类产品的成交不只取决于款式好不好看，更取决于佩戴效果能否被图片快速证明。${name}如果缺少真人佩戴图，用户很难判断大小、风格和质感；如果材质说明不清楚，又容易产生过敏、掉色和廉价感疑虑。内容测款时应优先验证佩戴效果、近景做工和礼物包装是否能支撑溢价，小红书穿搭和礼物场景会比单纯白底图更适合种草。`,
+    wrist_accessory: `手链/手绳类产品的核心不是“挂在哪里”，而是戴在手腕上的搭配效果、舒适度和细节感。${name}应重点验证手腕佩戴图、编织绳或串珠细节、尺寸松紧和礼物属性；如果只用平铺图，用户很难判断戴上是否显精致、是否适合学生党日常搭配。首轮内容更适合用手腕近景、穿搭场景和低预算礼物角度验证收藏与询单。`,
+    cultural_charm: `文创挂饰/钥匙扣类产品面对的是更垂直的审美人群，成交理由通常来自故事感、材质细节和使用场景。${name}应围绕包包装饰、钥匙串、校园市集、文旅纪念和低预算礼物建立购买理由，而不是把它当作手腕佩戴类饰品。内容上要讲清楚挂在哪里、细节是否有手作感、送朋友是否不尴尬。`,
+    stationery_cultural: `文创纸品类产品的成交更依赖主题、系列化和收藏感。${name}不能只说“好看”，需要说清楚适合手帐拼贴、旅行纪念、校园市集、书桌收藏或低预算送礼的具体场景。复购可能弱于日用品，因此更适合通过系列套装、主题限定和收藏属性提升购买理由。`,
     jewelry: `饰品类产品的成交不只取决于款式好不好看，更取决于佩戴效果能否被图片快速证明。${name}如果缺少真人佩戴图，用户很难判断大小、风格和质感；如果材质说明不清楚，又容易产生过敏、掉色和廉价感疑虑。内容测款时应优先验证佩戴效果、近景做工和礼物包装是否能支撑溢价，小红书穿搭和礼物场景会比单纯白底图更适合种草。补货前建议先完成2-3套佩戴内容测试，再看收藏、询单和材质相关评论。`,
     hair_accessory: `发饰类产品单价低、决策快，适合做校园私域和短内容测款，但单件利润通常有限，不能只靠单品售卖。${name}更适合通过颜色组合、套装销售和宿舍/校园场景提升客单价；内容上要重点展示上头效果、不同发型适配和颜色矩阵，否则很容易被用户认为是普通低价发圈。首轮测款应先测试颜色偏好，再决定补哪几个色，并通过3件装、5件装或同色系组合提高客单价。`,
     home_lifestyle: `家居生活类产品的内容表现高度依赖真实使用场景和氛围感，用户需要看到它放在宿舍、办公桌或礼物场景里是否自然。${name}不能只看测算毛利率，还要核算包装、体积、易碎、运费和售后破损对真实利润的影响。内容素材要用真实环境降低退货风险，而不是只依赖精修图。`,
-    stationery_cultural: `文创类产品面对的是更垂直的审美人群，成交理由通常来自故事感、文化符号和场景叙事。${name}不能只用“好看”作为卖点，需要说清楚适合手帐、校园、市集、文旅或送礼的具体场景。复购可能弱于日用品，因此更适合通过系列化、收藏属性和主题限定提升购买理由。`,
+    stationery_category: `文创类产品面对的是更垂直的审美人群，成交理由通常来自故事感、文化符号和场景叙事。${name}不能只用“好看”作为卖点，需要说清楚适合手帐、校园、市集、文旅或送礼的具体场景。复购可能弱于日用品，因此更适合通过系列化、收藏属性和主题限定提升购买理由。`,
     phone_accessory: `手机周边类产品要优先控制机型适配和库存风险，热门款生命周期短，适合小批量快测快补。${name}需要把上机效果、孔位、按键、边框厚度和功能演示拍清楚，否则售后问题会集中在“不适配”“手感差”“孔位偏”。内容上适合短视频做强演示和个性化表达，库存上不要一次性铺满全机型。`,
     daily_necessity: `低价日用类产品不能只看单次毛利，真正的逻辑是复购、组合、走量和私域转化。${name}更适合作为引流品、搭售品或社群团购品，通过组合装、囤货装和使用前后对比提高转化。首轮测款应重点看真实复购、搭售率和群内成交效率，而不是只看一条内容的曝光。`,
     unknown: `当前信息还不足以稳定判断品类，建议先补充产品名称、材质、使用场景、竞品价格和目标渠道。只有明确品类后，才能进一步判断内容素材、渠道匹配和压货风险。`,
   };
-  return narratives[categoryKey] || narratives.unknown;
+  return narratives[identityKey] || narratives[categoryKey] || narratives.unknown;
 }
 
-function getImageContentPlan(categoryKey, channelFit) {
+function getImageContentPlan(categoryKey, channelFit, productIdentity = null) {
+  const identityKey = productIdentity?.identityKey || categoryKey;
+  if (identityKey === "wrist_accessory") {
+    return {
+      mustShoot: ["手腕佩戴图：自然光下展示戴在手腕的大小和松紧", "近景细节图：编织绳、串珠、扣头和结尾做工", "尺寸参照图：和手腕、掌心或硬币对比", "穿搭场景图：校园、通勤、日常手部动作", "礼物包装图：卡纸、袋子或小礼盒"],
+      bonusShots: ["不同手腕粗细佩戴效果", "同色系或情侣/闺蜜款组合", "手部动作短视频封面图"],
+      missingRisk: "不要把手绳拍成钥匙扣或包包挂件；缺少手腕佩戴图时，用户很难判断大小、松紧和搭配效果。",
+      coverAdvice: "首图建议用手腕佩戴近景 + 编织绳/珠子细节，让用户先看到戴上后的精致感。",
+      channelFocus: {
+        xhs: "小红书重点拍手腕佩戴、学生党礼物、小众饰品和低预算搭配。",
+        douyin: "抖音重点拍平铺到戴上手腕的前后对比，以及细节近景。",
+        private: "校园私域重点用实拍、价格、可选颜色和礼物场景降低决策成本。",
+        market: "摆摊/市集重点展示试戴、颜色组合和小礼物包装。",
+      },
+      preferredFocus: ["小红书重点拍手腕佩戴、学生党礼物、小众饰品和低预算搭配。", "抖音重点拍平铺到戴上手腕的前后对比，以及细节近景。", "校园私域重点用实拍、价格、可选颜色和礼物场景降低决策成本。"],
+    };
+  }
+  if (identityKey === "stationery_cultural") {
+    return {
+      mustShoot: ["主题故事图：城市、国风、旅行或节日主题", "使用场景图：手帐、笔记本、明信片墙或书桌", "系列化展示图：同主题不同款并排", "细节图：印刷、纹理、边缘、透明度或防水材质", "包装图：卡纸、信封、礼袋或套装外封"],
+      bonusShots: ["手帐拼贴前后对比", "校园/文旅市集陈列图", "送朋友或收藏展示图"],
+      missingRisk: "不要只拍单张纸品，要讲清楚主题、使用场景和系列化，否则用户很难形成收藏或送礼理由。",
+      coverAdvice: "首图建议用手帐/书桌场景 + 系列化小图，3秒内让用户看出主题和收藏感。",
+      channelFocus: {
+        xhs: "小红书重点讲主题故事、手帐拼贴、低预算礼物和收藏感。",
+        douyin: "抖音重点拍拼贴前后对比、开箱和系列快速展示。",
+        private: "校园私域重点做套装价、主题选择和同学实拍。",
+        market: "摆摊/市集重点做系列陈列、主题牌和现场翻看效果。",
+      },
+      preferredFocus: ["小红书重点讲主题故事、手帐拼贴、低预算礼物和收藏感。", "抖音重点拍拼贴前后对比、开箱和系列快速展示。", "校园私域重点做套装价、主题选择和同学实拍。"],
+    };
+  }
   const plans = {
     jewelry: {
       mustShoot: ["真人佩戴图：正脸、侧脸、近距离耳部或颈部效果", "近景细节图：材质、珍珠、金属光泽、接口和做工", "尺寸参照图：和手指、耳朵、硬币或掌心对比", "包装图：礼盒、卡纸、袋子，突出礼物属性"],
@@ -620,12 +891,17 @@ function getImageContentPlan(categoryKey, channelFit) {
   };
 }
 
-function getSamplingStrategy({ categoryKey, priceBand, moqAdvice, channelFit, status }) {
+function getSamplingStrategy({ categoryKey, priceBand, moqAdvice, channelFit, status, productIdentity = null }) {
+  const identityKey = productIdentity?.identityKey || categoryKey;
   const strategies = {
+    earring_accessory: ["验证佩戴效果是否能明显提升精致感", "检查材质质感、掉色和过敏反馈", "测试包装是否能支撑礼物溢价", "用小红书穿搭/礼物内容判断询单质量"],
+    wrist_accessory: ["验证手腕佩戴效果、松紧和尺寸适配", "检查编织绳、串珠、扣头和结尾做工", "测试低预算礼物和学生党日常搭配反馈", "用手腕近景和穿搭图判断收藏与询单"],
+    cultural_charm: ["验证挂包/钥匙串场景是否有记忆点", "检查木珠、果核、绳结和挂扣牢固度", "测试低预算礼物、校园市集和文旅纪念反馈", "用系列化陈列判断是否有收藏感"],
+    stationery_cultural: ["验证主题故事和系列化是否被用户理解", "测试手帐/书桌/旅行纪念场景的收藏反馈", "观察用户是否询问套装、材质和包装", "用小批量主题款判断后续开发方向"],
     jewelry: ["验证佩戴效果是否能明显提升精致感", "检查材质质感、掉色和过敏反馈", "测试包装是否能支撑礼物溢价", "用小红书穿搭/礼物内容判断询单质量"],
     hair_accessory: ["先测颜色偏好，决定首批补哪几个色", "验证上头效果和不同发型适配", "测试3件装/5件装能否提升客单价", "在宿舍/校园场景里观察拼单意愿"],
     home_lifestyle: ["验证真实使用场景是否有氛围感", "核算包装保护、破损和运费影响", "观察宿舍/办公室/礼物场景哪一个更容易成交", "先测小批量履约再考虑补货"],
-    stationery_cultural: ["验证文化符号和主题故事是否被用户理解", "测试系列化展示是否提升收藏感", "观察校园/市集/文旅场景的停留和询价", "用小批量主题款判断后续开发方向"],
+    stationery_category: ["验证文化符号和主题故事是否被用户理解", "测试系列化展示是否提升收藏感", "观察校园/市集/文旅场景的停留和询价", "用小批量主题款判断后续开发方向"],
     phone_accessory: ["先限定热门机型测试，不铺满全型号", "验证孔位、按键、边框和上机效果", "通过短视频收集用户机型和颜色需求", "根据评论区机型需求决定补货结构"],
     daily_necessity: ["验证复购和组合装转化，不只看单件毛利", "测试社群团购和搭售场景", "观察使用前后对比是否能促成下单", "控制履约成本，优先做走量小单"],
     unknown: ["先补齐品类、价格、渠道和竞品信息", "用小范围内容测试验证卖点是否被理解", "不要在信息不清楚时放大首单量"],
@@ -633,16 +909,21 @@ function getSamplingStrategy({ categoryKey, priceBand, moqAdvice, channelFit, st
   return {
     headline: status === "暂不考虑" ? "先降风险，再判断是否拿样" : status === "建议补货" ? "可以进入补货观察，但先复核验证点" : "适合用小批量完成关键验证",
     context: `${priceBand.label} · ${moqAdvice.label} · ${channelFit.best}`,
-    checkpoints: strategies[categoryKey] || strategies.unknown,
+    checkpoints: strategies[identityKey] || strategies[categoryKey] || strategies.unknown,
   };
 }
 
-function getTestDecisionStandards(categoryKey) {
+function getTestDecisionStandards(categoryKey, productIdentity = null) {
+  const identityKey = productIdentity?.identityKey || categoryKey;
   const categoryNote = {
+    earring_accessory: "耳饰类还要重点观察用户是否追问材质、是否过敏、是否有礼盒和佩戴尺寸。",
+    wrist_accessory: "手链/手绳类要额外观察用户是否追问手腕尺寸、松紧、编织绳耐用度和礼物包装；如果只被夸可爱但没人问价格，说明佩戴场景还不够强。",
+    cultural_charm: "文创挂饰类要关注评论里是否出现“想送人”“挂包好看”“有故事感”“价格能接受”等信号；如果只被夸好看但没人问用途和价格，说明购买理由还不够强。",
+    stationery_cultural: "文创纸品类要关注用户是否询问主题、套装、手帐使用效果和收藏价值；如果只有点赞没有收藏，说明系列化或场景图还不够清楚。",
     jewelry: "饰品类还要重点观察用户是否追问材质、是否过敏、是否有礼盒和佩戴尺寸。",
     hair_accessory: "发饰类要额外记录用户偏好的颜色、套装数量和上头效果反馈，颜色投票比单条点赞更有参考价值。",
     home_lifestyle: "家居生活类要同时记录用户对尺寸、运费、破损和真实场景的疑问，不能只看氛围图互动。",
-    stationery_cultural: "文创类要关注评论里是否出现“想送人”“挂包好看”“有故事感”“价格能接受”等信号；如果只被夸好看但没人问用途和价格，说明购买理由还不够强。",
+    stationery_category: "文创类要关注评论里是否出现“想送人”“挂包好看”“有故事感”“价格能接受”等信号；如果只被夸好看但没人问用途和价格，说明购买理由还不够强。",
     phone_accessory: "手机周边类要把询单机型单独统计，避免内容热度高但实际可售机型不匹配。",
     daily_necessity: "低价日用类要看复购意愿、组合装接受度和社群团购转化，而不是只看单条内容曝光。",
     unknown: "品类不明确时，先看用户是否能快速理解产品用途和价格，再决定是否继续补充信息。",
@@ -656,12 +937,45 @@ function getTestDecisionStandards(categoryKey) {
     "收藏高但评论弱：说明用户有兴趣但决策不急，可以补充实拍、价格说明或组合优惠后再测一次。",
     "材质、过敏、掉色、破损、尺寸等负面反馈明显：暂停补货，优先重新核验样品质量和供应商售后。",
     "成交转化稳定且测款成本可控：可以考虑小批量补货，而不是一次性大批量进货。",
-    categoryNote[categoryKey] || categoryNote.unknown,
+    categoryNote[identityKey] || categoryNote[categoryKey] || categoryNote.unknown,
   ];
 }
 
-function getSupplierQuestions(categoryKey) {
+function getSupplierQuestions(categoryKey, productIdentity = null) {
+  const identityKey = productIdentity?.identityKey || categoryKey;
   const questions = {
+    earring_accessory: [
+      "是否支持1-3件拿样？样品和大货是否一致？",
+      "MOQ是否可以混批颜色、款式或套装？",
+      "是否支持7天内补货？热卖款断货周期通常多久？",
+      "是否可以提供材质说明、防过敏说明或检测信息？",
+      "包装是否包含礼盒、卡纸或袋子？包装成本如何计算？",
+      "掉色、断裂、过敏等售后如何处理？",
+    ],
+    wrist_accessory: [
+      "是否支持1-3件拿样？手绳/手链样品和大货是否一致？",
+      "编织绳、珠子、扣头和结尾处是否有实拍细节？",
+      "手腕尺寸是否可调节？是否有不同长度或儿童/成人尺寸？",
+      "MOQ是否可以混批颜色、款式或组合套装？",
+      "是否容易掉珠、断绳、褪色或金属扣过敏？售后如何处理？",
+      "包装是否支持卡纸、礼袋或低预算礼物套装？",
+    ],
+    cultural_charm: [
+      "挂扣、钥匙圈、绳结和连接处是否牢固？是否有拉力或掉件售后规则？",
+      "木珠、果核、金属扣等材质参数是否清楚？大货和样品是否一致？",
+      "是否支持小批量定制或系列化组合？最低定制量是多少？",
+      "包装、卡片和礼袋是否支持定制？低预算礼物场景的包装成本如何计算？",
+      "图案版权和文旅/国风元素授权是否清楚？",
+      "节日款、文旅款或校园市集款是否有稳定补货周期？",
+    ],
+    stationery_category: [
+      "贴纸、卡片、明信片或书签的材质、厚度和印刷工艺是否清楚？",
+      "图案版权和城市/国风/文旅元素授权是否清楚？",
+      "是否可以做系列套装、主题组合或小批量定制？",
+      "包装卡纸、外封和礼袋是否支持定制？成本如何计算？",
+      "印刷色差、防水程度、边缘裁切和材质误差如何处理？",
+      "节日款、文旅款或校园市集款是否有稳定补货周期？",
+    ],
     jewelry: [
       "是否支持1-3件拿样？样品和大货是否一致？",
       "MOQ是否可以混批颜色、款式或套装？",
@@ -718,11 +1032,26 @@ function getSupplierQuestions(categoryKey) {
     ],
   };
 
-  return questions[categoryKey] || questions.unknown;
+  return questions[identityKey] || questions[categoryKey] || questions.unknown;
 }
 
-function getXhsContentPackage(product, categoryKey) {
+function getIdentityDifferentiation(productIdentity, fallback = []) {
+  const map = {
+    earring_accessory: ["补真人佩戴图和尺寸参照，证明上耳效果", "用礼物包装、卡纸或小礼盒提高低预算礼物感", "用材质说明和售后承诺降低过敏、掉色疑虑"],
+    wrist_accessory: ["用手腕佩戴图替代单纯平铺图，证明大小和松紧", "突出编织绳、珠子、扣头和结尾做工，降低廉价感", "做低预算礼物包装或闺蜜/情侣组合，提高购买理由"],
+    cultural_charm: ["用包包、钥匙串和书包场景证明挂饰用途", "给木珠、果核、绳结或主题元素补故事卡，强化文创感", "做系列化陈列和低预算礼物包装，提高收藏和送礼理由"],
+    stationery_cultural: ["做主题系列套装，提高收藏感和客单价", "用手帐拼贴、书桌和旅行纪念场景证明纸品用途", "补印刷、材质、边缘和包装细节，降低质感疑虑"],
+    hair_accessory: ["做3件/5件颜色套装，提升客单价", "用宿舍、校园群和姐妹拼单场景强化购买理由", "拍不同发量上头效果，减少用户担心不适配"],
+    phone_accessory: ["先集中热门机型，不一次性铺太多型号", "用短视频演示防摔、挂绳、支架等功能点", "评论区收集机型需求，再决定补货结构"],
+    home_lifestyle: ["用宿舍/办公室真实场景图增强代入感", "把尺寸、重量、包装保护说清楚，降低售后风险", "做套装或礼物版，给用户一个完整生活方式场景"],
+    daily_necessity: ["做组合装、宿舍拼单装或家庭补充装", "在私域和社群团购里验证复购，而不是只看单条内容流量", "把产品设计成搭售品，提高客单和订单稳定性"],
+  };
+  return map[productIdentity?.identityKey] || fallback;
+}
+
+function getXhsContentPackage(product, categoryKey, productIdentity = null) {
   const name = product.name || "这款小物";
+  const identityKey = productIdentity?.identityKey || categoryKey;
   const packages = {
     jewelry: {
       coverHooks: ["不打耳洞也能戴的温柔感耳夹", "这对珍珠耳夹，真的很适合春夏通勤", "低预算礼物感小配饰，戴上比平铺好看太多"],
@@ -876,7 +1205,7 @@ function getXhsContentPackage(product, categoryKey) {
     },
   };
 
-  return packages[categoryKey] || {
+  const fallbackPackage = {
     coverHooks: ["这个小物，实际用起来比想象中更有存在感", "低预算也能提升一点日常幸福感", "刷到会想点开看的实用小东西"],
     titles: [`${name}适合什么场景？先看真实使用效果`, "这个小物到底值不值得买，看完场景再决定", "低预算小东西，也要看实用和质感", "适合自用还是送人？这几个细节很关键", "别只看产品图，真实场景更有参考价值"],
     coverDesign: "首图先拍清楚产品的真实使用场景，再用小图补充尺寸、细节或对比，让用户在3秒内看懂用途。",
@@ -886,9 +1215,63 @@ function getXhsContentPackage(product, categoryKey) {
     tags: ["#低预算好物", "#实用小物", "#生活好物", "#礼物推荐", "#宿舍好物", "#小众好物", "#日常分享", "#种草清单"],
     merchantStrategy: "这组内容重点测试消费者是否能快速理解用途和购买理由。发布后看收藏、评论问题、私信询价和转化；如果反馈弱，优先补充真实场景、价格信息和更明确的使用结果。",
   };
+  packages.earring_accessory = packages.jewelry;
+  packages.cultural_charm = packages.stationery_cultural;
+  packages.wrist_accessory = {
+    coverHooks: ["这个手绳戴在手腕上，比平铺图可爱多了", "低预算学生党小礼物，戴着不夸张", "编织绳和小珠子，日常搭配刚刚好"],
+    titles: [
+      `${name}戴在手腕上才看得出细节`,
+      "低预算小手绳，送朋友也不尴尬",
+      "学生党日常可以戴的编织手链",
+      "别只看平铺图，手腕佩戴效果更重要",
+      "可爱但不幼稚的小众手腕配饰",
+    ],
+    coverDesign: "首图用手腕佩戴近景，旁边补编织绳、珠子和扣头细节，让用户一眼看出大小、松紧和日常搭配效果。",
+    pages: [
+      "第1页：手腕佩戴封面，用“戴上更好看”的结果吸引点击。",
+      "第2页：不同角度展示手腕佩戴效果和大小。",
+      "第3页：近拍编织绳、珠子、扣头和结尾做工。",
+      "第4页：校园、通勤、日常穿搭三个手部场景。",
+      "第5页：说明适合学生党、低预算礼物或闺蜜小礼物。",
+      "第6页：展示可选颜色、组合款或包装。",
+      "第7页：补充手腕尺寸、松紧和佩戴舒适度。",
+      "第8页：提问“自用还是送朋友”，引导评论和收藏。",
+    ],
+    body: "最近会更喜欢这种不夸张的小手绳，戴在手腕上比平铺图更有细节。编织绳和小珠子放在一起不会太复杂，日常上课、通勤或者送朋友都挺合适。选这种小配饰我会重点看手腕佩戴效果、松紧和做工，低预算也可以有一点仪式感。",
+    interactions: ["你们更喜欢自用还是送朋友？", "这个颜色适合校园还是通勤？", "想看细节图还是手腕佩戴图？", "你会更在意松紧、材质还是包装？", "如果出组合款，你想要哪几个颜色？"],
+    tags: ["#手绳", "#手链", "#腕饰", "#编织手链", "#低预算礼物", "#学生党礼物", "#小众饰品", "#日常搭配", "#手腕配饰"],
+    merchantStrategy: "这组内容重点测试消费者是否被手腕佩戴效果和低预算礼物感吸引。发布后观察收藏率、评论里的尺寸/松紧问题和私信询价；如果只有点赞没有询单，优先补充价格、包装和佩戴尺寸说明。",
+  };
+  packages.stationery_cultural = {
+    coverHooks: ["这套国风贴纸，贴进手帐里真的有故事感", "低预算文创纸品，送朋友也不敷衍", "喜欢旅行纪念和手帐的人会懂"],
+    titles: [
+      `${name}，做手帐和旅行纪念都挺有氛围`,
+      "国风城市贴纸套装，低预算也有收藏感",
+      "喜欢手帐的人，会懂这种文创纸品的细节",
+      "书桌上放一套主题贴纸，真的很想慢慢收集",
+      "校园市集看到这种纸品，我会停下来翻一翻",
+    ],
+    coverDesign: "首图用手帐拼贴或书桌场景，叠加系列化小图和印刷细节，让用户先看到主题、用途和收藏感。",
+    pages: [
+      "第1页：手帐/书桌场景封面，用主题氛围吸引点击。",
+      "第2页：展示整套纸品和不同图案。",
+      "第3页：近拍印刷、材质、透明度或边缘细节。",
+      "第4页：手帐、明信片墙、笔记本或书桌使用场景。",
+      "第5页：说明适合旅行纪念、校园市集、送朋友或自用收藏。",
+      "第6页：展示包装、卡纸或套装组合。",
+      "第7页：补充大小参照和系列化收藏感。",
+      "第8页：提问“你想用在哪个主题手帐里”，引导评论。",
+    ],
+    body: "有些文创纸品不是因为多贵才特别，而是因为主题和细节会让人想慢慢收集。这个系列放进手帐、笔记本或者书桌小角落都挺有氛围。喜欢国风、城市记忆、旅行纪念的朋友应该会懂，低预算送人也不会太随便。",
+    interactions: ["你会拿来做手帐还是收藏？", "更喜欢国风、城市还是旅行主题？", "低预算文创礼物会考虑这种吗？", "想看整套图案还是上手拼贴效果？", "你会为系列化和包装加分吗？"],
+    tags: ["#文创纸品", "#国风贴纸", "#手帐贴纸", "#旅行纪念", "#低预算礼物", "#校园市集", "#文创小物", "#手帐分享", "#小众礼物"],
+    merchantStrategy: "这组内容重点测试消费者是否被主题故事、系列化和手帐使用场景吸引。发布后看收藏率、评论里的主题偏好和套装询问；如果收藏高但询单弱，补充包装、价格和更多拼贴场景。",
+  };
+  return packages[identityKey] || packages[categoryKey] || fallbackPackage;
 }
 
-function getDouyinVideoPackage(product, categoryKey) {
+function getDouyinVideoPackage(product, categoryKey, productIdentity = null) {
+  const identityKey = productIdentity?.identityKey || categoryKey;
   const packages = {
     jewelry: {
       direction: "主打佩戴效果和低预算礼物感。",
@@ -970,7 +1353,35 @@ function getDouyinVideoPackage(product, categoryKey) {
     },
   };
 
-  return packages[categoryKey] || packages.daily_necessity;
+  packages.earring_accessory = packages.jewelry;
+  packages.cultural_charm = packages.stationery_cultural;
+  packages.wrist_accessory = {
+    direction: "主打手腕佩戴效果、细节质感和低预算礼物感。",
+    shots: [
+      { time: "0-2秒", focus: "强钩子", visual: "平铺图切到戴在手腕上的近景。", copy: "这个手绳，戴上比平铺图更有细节。", purpose: "用佩戴反差让用户停留。" },
+      { time: "3-6秒", focus: "展示最强效果", visual: "手腕自然摆动、拿书、拿杯子三个动作。", copy: "日常上课和通勤戴都不夸张。", purpose: "让用户代入真实佩戴场景。" },
+      { time: "7-11秒", focus: "细节质感", visual: "近拍编织绳、珠子、扣头和结尾处。", copy: "编织绳和珠子细节要近看，才知道会不会廉价。", purpose: "降低做工和材质疑虑。" },
+      { time: "12-16秒", focus: "尺寸/礼物", visual: "展示手腕松紧、可调节位置和小包装。", copy: "低预算送朋友，也可以有一点仪式感。", purpose: "补充购买理由。" },
+      { time: "17-20秒", focus: "互动引导", visual: "不同颜色或款式并排。", copy: "你会自用，还是送朋友？", purpose: "引导评论和选择偏好。" },
+    ],
+    coverTexts: ["戴上手腕才知道它有多可爱", "低预算小手绳也能很有心意", "平铺普通，戴上更有细节"],
+    shootingNotes: ["不要拍成挂件，一定要有手腕佩戴图。", "自然光下拍编织绳、珠子和扣头细节。", "要展示松紧、长度和不同手腕佩戴效果。", "礼物包装只作为补充，不要抢过佩戴效果。"],
+    merchantGoal: "这条视频主要测试消费者是否被手腕佩戴效果、低预算礼物感和做工细节吸引。发布后看完播率、收藏、评论里的尺寸/松紧问题和私信询价；如果播放高但询单少，补充价格、包装和可选颜色。",
+  };
+  packages.stationery_cultural = {
+    direction: "主打手帐/书桌使用场景、主题故事和系列收藏感。",
+    shots: [
+      { time: "0-2秒", focus: "强钩子", visual: "空白手帐页切到贴好主题贴纸后的效果。", copy: "一页手帐，有时候只差一套有主题的贴纸。", purpose: "用前后对比抓住注意力。" },
+      { time: "3-6秒", focus: "展示主题", visual: "快速铺开整套贴纸、卡片或书签。", copy: "国风、城市记忆和旅行感放在一起很适合收藏。", purpose: "突出主题和系列感。" },
+      { time: "7-11秒", focus: "细节质感", visual: "近拍印刷、透明度、边缘裁切和材质。", copy: "纸品细节要近看，才知道会不会显廉价。", purpose: "降低质感疑虑。" },
+      { time: "12-16秒", focus: "使用场景", visual: "切换手帐、笔记本、明信片墙和书桌。", copy: "做手帐、装饰书桌、送朋友都挺合适。", purpose: "扩大使用场景。" },
+      { time: "17-20秒", focus: "互动引导", visual: "不同主题系列并排展示。", copy: "你更喜欢国风、城市还是旅行主题？", purpose: "收集主题偏好。" },
+    ],
+    coverTexts: ["手帐有主题，真的会更想翻开", "低预算文创纸品也很有收藏感", "喜欢旅行纪念的人会懂"],
+    shootingNotes: ["不要只拍单张纸品，要拍手帐或书桌使用场景。", "印刷、边缘、透明度和防水材质要给近景。", "系列款要并排展示，收藏感会更强。", "可以拍包装和送朋友场景，但不要混成钥匙扣挂件。"],
+    merchantGoal: "这条视频主要测试消费者是否被主题故事、手帐使用效果和系列化吸引。发布后看完播率、收藏、评论区主题偏好和套装询价；如果互动高但询单弱，补充套装价格、包装和更多拼贴效果。",
+  };
+  return packages[identityKey] || packages[categoryKey] || packages.daily_necessity;
 }
 
 function uniqueWords(words, limit = 6) {
@@ -997,7 +1408,109 @@ function getProductMaterialWords(product) {
   return materialMap.filter(([key]) => text.includes(key)).map(([, value]) => value);
 }
 
-function getPlatformKeywordPlan(product, categoryKey) {
+function buildKeywordPlanFromIdentity(product, productIdentity) {
+  if (!productIdentity?.identityKey) return null;
+  const name = product?.name || productIdentity.displayName || "";
+  const materialWords = getProductMaterialWords(product || {});
+  const core = uniqueWords([name, ...(productIdentity.coreProductTerms || [])], 6);
+  const scene = uniqueWords(productIdentity.scenarioTerms || [], 6);
+  const style = uniqueWords(productIdentity.styleTerms || [], 6);
+  const attribute = uniqueWords([...(materialWords || []), ...(productIdentity.functionTerms || [])], 6);
+  const longTail = uniqueWords(productIdentity.longTailTerms || [], 6);
+  const platformCopy = {
+    earring_accessory: {
+      xhsPain: ["不打耳洞戴什么", "耳夹不痛推荐", "显脸小耳饰", "平铺普通戴上好看"],
+      dyPain: ["平铺普通戴上好看", "不打耳洞也能戴", "低预算变精致", "耳夹不痛"],
+      ecommercePain: ["无耳洞可戴", "不夹耳", "显脸小", "低预算礼物"],
+      titles: [
+        ["小红书", `${name || "这款耳夹"}，春夏通勤戴真的很温柔`],
+        ["抖音", `平铺普通，戴上才知道${name || "这对耳夹"}有多显气质`],
+        ["电商平台", `${name || "珍珠耳夹"}女不打耳洞温柔风学生党通勤耳饰礼物`],
+      ],
+    },
+    wrist_accessory: {
+      xhsPain: ["手腕戴什么好看", "低预算手链推荐", "送朋友小礼物", "手绳松紧怎么选"],
+      dyPain: ["平铺普通戴上好看", "手腕空空少点细节", "低预算礼物不尴尬", "小饰品戴上才知道"],
+      ecommercePain: ["低预算礼物", "手腕佩戴", "可调节", "学生党礼物"],
+      titles: [
+        ["小红书", `${name || "这款手绳"}戴在手腕上，比平铺图更有细节`],
+        ["抖音", `平铺普通，戴上手腕才知道${name || "这款手绳"}有多可爱`],
+        ["电商平台", `${name || "编织手绳"}学生党低预算礼物小众手链手腕配饰`],
+      ],
+    },
+    cultural_charm: {
+      xhsPain: ["送朋友什么不尴尬", "小众礼物推荐", "钥匙串太普通", "包包怎么装饰"],
+      dyPain: ["普通包太单调", "钥匙串太普通", "送礼不知道选什么", "小挂件怎么搭"],
+      ecommercePain: ["低预算礼物", "钥匙串装饰", "包包装饰", "小众不撞款"],
+      titles: [
+        ["小红书", `${name || "这个小挂件"}挂在帆布包上真的很有氛围`],
+        ["抖音", `普通包加一个${productIdentity.fallbackTerm || "小挂件"}，氛围感立刻不一样`],
+        ["电商平台", `${name || "文创钥匙扣"}包包挂件小众低预算礼物手作挂饰`],
+      ],
+    },
+    stationery_cultural: {
+      xhsPain: ["手帐贴什么好看", "低预算文创礼物", "旅行纪念怎么收集", "贴纸套装怎么选"],
+      dyPain: ["空白手帐太单调", "贴上之后氛围感不一样", "低预算文创礼物", "喜欢收藏的人会懂"],
+      ecommercePain: ["低预算礼物", "手帐装饰", "旅行纪念", "系列套装"],
+      titles: [
+        ["小红书", `${name || "这套文创纸品"}，做手帐和旅行纪念都挺有氛围`],
+        ["抖音", `空白手帐贴上${name || "这套贴纸"}，主题感立刻出来了`],
+        ["电商平台", `${name || "国风贴纸套装"}手帐文创纸品旅行纪念低预算礼物`],
+      ],
+    },
+    hair_accessory: {
+      xhsPain: ["扎头发不好看", "发量少怎么扎", "发圈不勒头", "平铺普通上头好看"],
+      dyPain: ["普通皮筋显土", "扎发没氛围", "发量少显秃", "颜色不会选"],
+      ecommercePain: ["不勒头", "显发量", "不掉发", "百搭颜色"],
+      titles: [
+        ["小红书", `${name || "这款发圈"}上头效果比平铺图好看太多`],
+        ["抖音", `扎头发好不好看，真的差一个${productIdentity.fallbackTerm || "发圈"}`],
+        ["电商平台", `${name || "大肠发圈"}女温柔风显发量不勒头学生党扎发套装`],
+      ],
+    },
+  };
+  const copy = platformCopy[productIdentity.identityKey] || {
+    xhsPain: ["真实使用效果", "低预算好物", "适合谁用", "不踩雷"],
+    dyPain: ["用了才知道", "解决小麻烦", "真实效果", "便宜但实用"],
+    ecommercePain: ["性价比", "实用", "多场景", "便宜"],
+    titles: [
+      ["小红书", `${name || "这个小物"}真实使用效果，比单看产品图更有参考`],
+      ["抖音", `${name || "这个小物"}用了才知道，到底解决了什么小麻烦`],
+      ["电商平台", `${name || "实用小物"}低预算多场景日用学生党好物`],
+    ],
+  };
+  return {
+    xhs: {
+      core,
+      scene,
+      pain: uniqueWords(copy.xhsPain, 6),
+      style,
+      attribute,
+      longTail,
+    },
+    douyin: {
+      core: uniqueWords([...(productIdentity.coreProductTerms || []), `${productIdentity.fallbackTerm || "小物"}推荐`], 6),
+      scene: uniqueWords([...(scene || []), "使用演示", "前后对比"], 6),
+      pain: uniqueWords(copy.dyPain, 6),
+      style: uniqueWords([...(style || []), "戴上才知道", "真实效果"], 6),
+      attribute,
+      longTail,
+    },
+    ecommerce: {
+      core,
+      scene: uniqueWords([...(scene || []), "学生党", "送朋友"], 6),
+      pain: uniqueWords(copy.ecommercePain, 6),
+      style,
+      attribute,
+      longTail,
+    },
+    titles: copy.titles,
+  };
+}
+
+function getPlatformKeywordPlan(product, categoryKey, productIdentity = null) {
+  const identityPlan = buildKeywordPlanFromIdentity(product, productIdentity);
+  if (identityPlan) return identityPlan;
   const name = product.name || "";
   const materialWords = getProductMaterialWords(product);
   const withName = (items) => uniqueWords(name ? [name, ...items] : items, 6);
@@ -1309,75 +1822,18 @@ function getCoreProductTerms(product, categoryKey) {
 }
 
 function buildProductIdentity(product, categoryKey) {
-  const nameText = `${product?.name || ""}`;
-  const supportingText = `${product?.category || ""} ${product?.material || ""} ${product?.keywords || ""} ${product?.channel || ""} ${product?.note || ""}`;
-  const text = `${nameText} ${supportingText}`;
-  const rawName = String(product?.name || "").trim();
-  const culturalEvidenceTerms = ["钥匙扣", "包包挂件", "挂件", "挂饰", "文创", "木珠", "果核", "手作", "帆布包", "钥匙串"];
-  const supportEvidenceCount = culturalEvidenceTerms.filter((term) => supportingText.includes(term)).length;
-  const nameEvidenceCount = culturalEvidenceTerms.filter((term) => nameText.includes(term)).length;
-  const hasCulturalPendantSignal = supportEvidenceCount >= 2 || nameEvidenceCount >= 1;
-  const hasWoodNutSignal = /木珠|果核|手作|绳结/.test(text);
-  const hasExplicitBraceletName = /手链/.test(nameText);
-  const canCorrectBraceletToPendant = supportEvidenceCount >= 2 && /钥匙扣|包包挂件|挂件|挂饰|文创|木珠|果核|手作|帆布包|钥匙串/.test(supportingText);
-
-  if (categoryKey === "stationery_cultural" && hasCulturalPendantSignal) {
-    const forbiddenIdentityTerms = ["手链", "发圈", "扎发", "上头效果", "大肠发圈", "低丸子头", "耳夹", "耳环"];
-    const displayName = rawName && (!hasAnyTerm(rawName, forbiddenIdentityTerms) || !hasExplicitBraceletName || !canCorrectBraceletToPendant)
-      ? rawName
-      : hasWoodNutSignal
-        ? "木珠果核手作挂饰"
-        : "文创挂饰";
-    return {
-      displayName,
-      categoryKey,
-      productTypeLabel: "文创挂饰 / 钥匙扣 / 包包挂件",
-      primaryUse: "挂在包上、钥匙串上或作为低预算文创小礼物",
-      allowedIdentityTerms: ["文创挂饰", "钥匙扣", "包包挂件", "木珠", "果核", "手作", "帆布包", "钥匙串", "低预算礼物", "自然感", "故事感"],
-      forbiddenIdentityTerms,
-    };
-  }
-
-  if (categoryKey === "hair_accessory") {
-    return {
-      displayName: rawName || "发饰 / 发圈",
-      categoryKey,
-      productTypeLabel: "发饰 / 发圈",
-      primaryUse: "用于扎发、搭配发型和校园宿舍日常穿搭",
-      allowedIdentityTerms: ["发圈", "发夹", "大肠发圈", "扎发", "上头效果", "颜色矩阵", "套装组合", "宿舍日常"],
-      forbiddenIdentityTerms: ["钥匙扣", "挂饰", "包包挂件", "手链", "耳夹", "果核", "木珠"],
-    };
-  }
-
-  if (categoryKey === "jewelry") {
-    return {
-      displayName: rawName || "饰品 / 耳饰 / 配饰",
-      categoryKey,
-      productTypeLabel: "饰品 / 耳饰 / 配饰",
-      primaryUse: "用于佩戴搭配、通勤约会或低预算礼物场景",
-      allowedIdentityTerms: ["耳夹", "耳环", "耳饰", "项链", "手链", "戒指", "珍珠", "不打耳洞", "佩戴图", "礼物包装"],
-      forbiddenIdentityTerms: ["发圈", "扎发", "钥匙扣", "包包挂件", "果核", "木珠"],
-    };
-  }
-
-  return {
-    displayName: rawName || getCategoryRule(categoryKey).fallbackTerm || "该产品",
-    categoryKey,
-    productTypeLabel: categoryTemplates[categoryKey]?.marketType || "小商品",
-    primaryUse: "围绕当前品类的真实使用场景做小范围内容验证",
-    allowedIdentityTerms: getCategoryRule(categoryKey).allowedTerms,
-    forbiddenIdentityTerms: getCategoryRule(categoryKey).bannedTerms,
-  };
+  return inferProductIdentity(product, categoryKey);
 }
 
 function createContentContext(product, hasImage, market, channelFit, priceBand, moqAdvice) {
-  const categoryKey = market?.categoryKey || inferCategoryKey(product);
+  const productIdentity = buildProductIdentity(product, market?.categoryKey);
+  const categoryKey = productIdentity.categoryKey || market?.categoryKey || inferCategoryKey(product);
   const rule = getCategoryRule(categoryKey);
-  const productIdentity = buildProductIdentity(product, categoryKey);
   const rawCoreTerms = getCoreProductTerms(product, categoryKey);
   const coreProductTerms = uniqueWords([
     productIdentity.displayName,
     productIdentity.productTypeLabel,
+    ...(productIdentity.coreProductTerms || []),
     ...rawCoreTerms.filter((term) => !hasAnyTerm(term, productIdentity.forbiddenIdentityTerms || [])),
     ...(productIdentity.allowedIdentityTerms || []).slice(0, 6),
   ], 12);
@@ -1396,16 +1852,17 @@ function createContentContext(product, hasImage, market, channelFit, priceBand, 
     keywords: product?.keywords || "",
     uploadedImage: Boolean(hasImage),
     productIdentity,
+    identityKey: productIdentity.identityKey,
     coreProductTerms,
-    allowedTerms: uniqueWords([...(rule.allowedTerms || []), ...(productIdentity.allowedIdentityTerms || [])], 32),
-    bannedTerms: uniqueWords([...(rule.bannedTerms || []), ...(productIdentity.forbiddenIdentityTerms || [])], 32),
-    sceneTerms: uniqueWords(rule.allowedTerms.filter((term) => /场景|宿舍|校园|通勤|约会|市集|文旅|帆布包|办公室|家庭|包包/.test(term)).concat(rule.allowedTerms.slice(0, 4)), 8),
-    sellingPoints: uniqueWords([...coreProductTerms, ...rule.allowedTerms.slice(0, 6)], 8),
+    allowedTerms: uniqueWords([...(rule.allowedTerms || []), ...(productIdentity.allowedTerms || []), ...(productIdentity.allowedIdentityTerms || [])], 48),
+    bannedTerms: uniqueWords([...(rule.bannedTerms || []), ...(productIdentity.bannedTerms || []), ...(productIdentity.forbiddenIdentityTerms || [])], 48),
+    sceneTerms: uniqueWords([...(productIdentity.scenarioTerms || []), ...rule.allowedTerms.filter((term) => /场景|宿舍|校园|通勤|约会|市集|文旅|帆布包|办公室|家庭|包包|手腕|钥匙|手机/.test(term))], 10),
+    sellingPoints: uniqueWords([...coreProductTerms, ...(productIdentity.styleTerms || []), ...(productIdentity.functionTerms || []), ...rule.allowedTerms.slice(0, 4)], 10),
     risks: [],
     platformFit: channelFit,
     priceBand,
     moqRisk: moqAdvice,
-    fallbackTerm: rule.fallbackTerm,
+    fallbackTerm: productIdentity.fallbackTerm || rule.fallbackTerm,
   };
 }
 
@@ -1426,8 +1883,10 @@ function dedupeRepeatedSentences(text) {
 function sanitizeStringByContext(contentContext, value, moduleName = "") {
   const rule = getCategoryRule(contentContext?.categoryKey);
   let text = String(value || "");
-  [...(rule.bannedTerms || [])].sort((a, b) => b.length - a.length).forEach((term) => {
-    if (term) text = text.replaceAll(term, rule.fallbackTerm);
+  const fallbackTerm = contentContext?.productIdentity?.fallbackTerm || rule.fallbackTerm || "该产品";
+  const bannedTerms = uniqueWords([...(rule.bannedTerms || []), ...(contentContext?.productIdentity?.bannedTerms || []), ...(contentContext?.productIdentity?.forbiddenIdentityTerms || [])], 80);
+  bannedTerms.sort((a, b) => b.length - a.length).forEach((term) => {
+    if (term) text = text.replaceAll(term, fallbackTerm);
   });
   if (moduleName === "report") text = dedupeRepeatedSentences(text);
   return text;
@@ -1516,7 +1975,7 @@ function analyzeProduct(product, hasImage) {
     category: contentContext.productIdentity.productTypeLabel,
   };
   const validateModule = (moduleName, generatedContent) => validateGeneratedContent(contentContext, generatedContent, moduleName).content;
-  const imagePlan = validateModule("imagePlan", getImageContentPlan(contentContext.categoryKey, contentContext.platformFit));
+  const imagePlan = validateModule("imagePlan", getImageContentPlan(contentContext.categoryKey, contentContext.platformFit, contentContext.productIdentity));
   const xhsPackage = validateModule("xhsPackage", getXhsContentPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity));
   const douyinPackage = validateModule("douyinPackage", getDouyinVideoPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity));
   const keywordPlan = validateModule("keywordPlan", getPlatformKeywordPlan(identityProduct, contentContext.categoryKey, contentContext.productIdentity));
@@ -1599,7 +2058,7 @@ function analyzeProduct(product, hasImage) {
     : `暂未上传产品图片，当前视觉判断主要基于文字信息。建议补充${imageExamples || "实拍图"}后，再校准封面吸引力、细节质感和内容测款判断。`;
 
   const contentRisk = validateGeneratedContent(contentContext, market.contentRisk, "risks").content;
-  const differentiation = validateModule("differentiation", market.differentiation);
+  const differentiation = validateModule("differentiation", getIdentityDifferentiation(contentContext.productIdentity, market.differentiation));
   const categoryTestActions = validateGeneratedContent(contentContext, market.testActions, "testStandards").content;
   const safeMarket = {
     ...market,
@@ -1607,7 +2066,7 @@ function analyzeProduct(product, hasImage) {
     differentiation,
     testActions: categoryTestActions,
   };
-  const categoryNarrative = validateGeneratedContent(contentContext, getCategoryNarrative(identityProduct, categoryKey), "categoryNarrative").content;
+  const categoryNarrative = validateGeneratedContent(contentContext, getCategoryNarrative(identityProduct, categoryKey, contentContext.productIdentity), "categoryNarrative").content;
 
   let risks = [];
   if (margin < 0.35) risks.push("毛利率偏低，后续广告、退换货和包装成本会挤压利润。建议重新核算售价或寻找更低拿货价。");
@@ -1648,9 +2107,9 @@ function analyzeProduct(product, hasImage) {
     `暂不建议渠道：${channelFit.avoid}。${channelFit.avoidReason}`,
   ]);
 
-  const samplingStrategy = validateModule("samplingStrategy", getSamplingStrategy({ categoryKey, priceBand, moqAdvice, channelFit, status }));
-  const testStandards = validateModule("testStandards", getTestDecisionStandards(categoryKey));
-  const supplierQuestions = validateModule("supplierQuestions", getSupplierQuestions(categoryKey));
+  const samplingStrategy = validateModule("samplingStrategy", getSamplingStrategy({ categoryKey, priceBand, moqAdvice, channelFit, status, productIdentity: contentContext.productIdentity }));
+  const testStandards = validateModule("testStandards", getTestDecisionStandards(categoryKey, contentContext.productIdentity));
+  const supplierQuestions = validateModule("supplierQuestions", getSupplierQuestions(categoryKey, contentContext.productIdentity));
   const biggestRisk = risks.find((risk) => !risk.includes("暂未上传产品图片")) || risks[0] || safeMarket.contentRisk;
   const executiveSummary = validateModule("executiveSummary", [
     status === "暂不考虑" ? "暂不建议直接下单，先降低首单量或补充关键信息。" : status === "建议补货" ? "可以进入补货观察，但仍需用真实测款数据复核。" : "建议先拿样或小批量测款，不建议直接大批量压货。",
@@ -2073,7 +2532,7 @@ function generateHtmlReport(product, result) {
 
     <section>
       <h2>三、品类判断</h2>
-      <div class="card"><p><strong>识别品类：</strong>${escapeHtml(result.categoryName || contentContext.categoryName)}（${escapeHtml(contentContext.categoryKey)}）</p><p>${escapeHtml(result.categoryNarrative || getCategoryNarrative(identityProduct, contentContext.categoryKey))}</p></div>
+      <div class="card"><p><strong>识别品类：</strong>${escapeHtml(result.categoryName || contentContext.categoryName)}（${escapeHtml(contentContext.productIdentity?.identityKey || contentContext.categoryKey)}）</p><p>${escapeHtml(result.categoryNarrative || getCategoryNarrative(identityProduct, contentContext.categoryKey, contentContext.productIdentity))}</p></div>
     </section>
 
     <section>
