@@ -142,12 +142,92 @@ const statusOptions = ["全部", "准备拿样", "正在测款", "建议补货",
 const feedbackFormUrl = "https://v.wjx.cn/vm/r7Utha0.aspx";
 
 function n(value) {
-  const parsed = Number(value);
+  const parsed = parseNumberValue(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function money(value) {
   return Number.isFinite(value) ? value.toFixed(2) : "0.00";
+}
+
+function moneyDisplay(value) {
+  if (!Number.isFinite(value)) return "0";
+  return Number(value.toFixed(2)).toString();
+}
+
+function parseNumberValue(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const text = String(value ?? "").replace(/,/g, "").trim();
+  if (!text) return 0;
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function parsePriceRangeValue(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const text = String(value ?? "").replace(/,/g, "").trim();
+  if (!text) return 0;
+  const matches = text.match(/\d+(?:\.\d+)?/g) || [];
+  const numbers = matches.map(Number).filter(Number.isFinite);
+  if (!numbers.length) return 0;
+  if (numbers.length >= 2) return (numbers[0] + numbers[1]) / 2;
+  return numbers[0];
+}
+
+function pickFirstNumber(...values) {
+  for (const value of values) {
+    const parsed = parseNumberValue(value);
+    if (parsed > 0) return parsed;
+  }
+  return 0;
+}
+
+function getEffectivePrice(product = {}, reportContext = {}) {
+  const userPrice = pickFirstNumber(product.price, product.suggestedPrice, product.sellingPrice, product.recommendedPrice);
+  const contextPrice = pickFirstNumber(reportContext.price, reportContext.suggestedPrice, reportContext.recommendedPrice);
+  const competitorPrice = parsePriceRangeValue(product.competitorPrice || reportContext.competitorPrice);
+  const estimatedPrice = userPrice ? 0 : contextPrice || competitorPrice;
+  const price = userPrice || estimatedPrice || 0;
+  const cost = pickFirstNumber(product.cost, product.purchasePrice, product.sourcePrice, product.wholesalePrice, reportContext.cost);
+  const grossProfit = price > 0 && cost > 0 ? price - cost : 0;
+  const grossMargin = price > 0 && cost > 0 ? grossProfit / price : 0;
+
+  return {
+    price,
+    cost,
+    competitorPrice,
+    hasUserPrice: userPrice > 0,
+    hasEstimatedPrice: !userPrice && estimatedPrice > 0,
+    priceSource: userPrice > 0 ? "user" : contextPrice > 0 ? "context" : competitorPrice > 0 ? "competitor_estimate" : "missing",
+    grossProfit,
+    grossMargin,
+  };
+}
+
+function formatEffectivePrice(priceInfo, fallback = "待补充") {
+  if (!priceInfo?.price) return fallback;
+  return `¥${moneyDisplay(priceInfo.price)}${priceInfo.hasEstimatedPrice ? "（估算）" : ""}`;
+}
+
+function formatEffectiveCost(priceInfo, fallback = "待补充") {
+  if (!priceInfo?.cost) return fallback;
+  return `¥${money(priceInfo.cost)}`;
+}
+
+function getProfitPriceDescription(priceInfo, priceBand) {
+  const hasPrice = priceInfo?.price > 0;
+  const hasCost = priceInfo?.cost > 0;
+  if (hasPrice && hasCost) {
+    const sourceText = priceInfo.hasEstimatedPrice ? "（根据现有信息估算）" : "";
+    return `当前建议售价约 ¥${moneyDisplay(priceInfo.price)}${sourceText}，单件成本约 ¥${money(priceInfo.cost)}，预估单件毛利约 ¥${money(priceInfo.grossProfit)}，毛利率约 ${(priceInfo.grossMargin * 100).toFixed(1)}%。${priceBand.advice}`;
+  }
+  if (hasPrice && !hasCost) {
+    return "成本待补充：当前已有建议售价，但缺少单件成本，暂时无法准确判断毛利空间。";
+  }
+  if (!hasPrice && hasCost) {
+    return "价格待补充：当前已有单件成本，但缺少建议售价，暂时无法判断利润空间。";
+  }
+  return "价格与成本待补充：建议先补充建议售价和单件成本，再判断利润空间。";
 }
 
 function clamp(value, min, max) {
@@ -1829,6 +1909,7 @@ function createContentContext(product, hasImage, market, channelFit, priceBand, 
   const productIdentity = buildProductIdentity(product, market?.categoryKey);
   const categoryKey = productIdentity.categoryKey || market?.categoryKey || inferCategoryKey(product);
   const rule = getCategoryRule(categoryKey);
+  const effectivePrice = getEffectivePrice(product);
   const rawCoreTerms = getCoreProductTerms(product, categoryKey);
   const coreProductTerms = uniqueWords([
     productIdentity.displayName,
@@ -1845,8 +1926,8 @@ function createContentContext(product, hasImage, market, channelFit, priceBand, 
     material: product?.material || "",
     audience: product?.audience || "",
     channel: product?.channel || "",
-    price: n(product?.price),
-    cost: n(product?.cost),
+    price: effectivePrice.price,
+    cost: effectivePrice.cost,
     moq: n(product?.moq),
     supplier: product?.supplier || "",
     keywords: product?.keywords || "",
@@ -1862,6 +1943,7 @@ function createContentContext(product, hasImage, market, channelFit, priceBand, 
     platformFit: channelFit,
     priceBand,
     moqRisk: moqAdvice,
+    effectivePrice,
     fallbackTerm: productIdentity.fallbackTerm || rule.fallbackTerm,
   };
 }
@@ -1963,8 +2045,9 @@ function analyzeProduct(product, hasImage) {
   const market = inferMarketInfo(product);
   const categoryKey = market.categoryKey;
   const channelFit = getChannelFit(product, categoryKey);
-  const cost = n(product.cost);
-  const price = n(product.price);
+  const effectivePrice = getEffectivePrice(product);
+  const cost = effectivePrice.cost;
+  const price = effectivePrice.price;
   const moq = n(product.moq);
   const priceBand = getPriceBand(price);
   const moqAdvice = getMoqAdvice(moq);
@@ -2003,9 +2086,10 @@ function analyzeProduct(product, hasImage) {
   const packaging = categoryPackaging[categoryKey] ?? 0.8;
   const logisticsCost = categoryLogistics[categoryKey] ?? 1.2;
   const platformFee = price * 0.05;
-  const unitCost = cost + packaging + logisticsCost + platformFee;
-  const profit = price - unitCost;
-  const margin = price > 0 ? profit / price : 0;
+  const extraCost = price > 0 && cost > 0 ? packaging + logisticsCost + platformFee : 0;
+  const unitCost = cost;
+  const profit = effectivePrice.grossProfit;
+  const margin = effectivePrice.grossMargin;
   const stockCost = cost * moq;
 
   const text = `${product.name} ${product.category} ${product.material} ${product.audience} ${product.channel} ${product.keywords} ${product.note}`;
@@ -2019,11 +2103,11 @@ function analyzeProduct(product, hasImage) {
     (categoryKey === "daily_necessity" && margin < 0.45 ? 8 : 0) +
     (categoryKey === "jewelry" && !/925|银|钛钢|合金|珍珠|材质/.test(`${product.material} ${product.note}`) ? 6 : 0);
 
-  const profitScore = clamp(margin * 145, 30, 96);
+  const profitScore = price > 0 && cost > 0 ? clamp(margin * 145, 30, 96) : 35;
   const contentScore = clamp(48 + hotScore + (hasImage ? 9 : 0) + (declaredChannelFit ? 7 : 0), 38, 96);
   const supplyScore = clamp(92 - (moq > 300 ? 28 : moq > 150 ? 18 : moq > 80 ? 10 : 2) + ((product.supplier || "").includes("补货") ? 6 : 0), 35, 95);
   const riskScore = clamp(82 - (product.competitorPrice ? 0 : 8) - categoryRiskPenalty - (moq > 300 ? 10 : 0), 35, 92);
-  const infoScore = clamp(45 + [product.name, product.category, product.cost, product.price, product.moq, product.audience, product.channel, product.supplier].filter(Boolean).length * 6 + (hasImage ? 7 : 0), 35, 98);
+  const infoScore = clamp(45 + [product.name, product.category, cost, price, product.moq, product.audience, product.channel, product.supplier].filter(Boolean).length * 6 + (hasImage ? 7 : 0), 35, 98);
 
   const totalScore = Math.round(
     profitScore * 0.24 +
@@ -2069,7 +2153,10 @@ function analyzeProduct(product, hasImage) {
   const categoryNarrative = validateGeneratedContent(contentContext, getCategoryNarrative(identityProduct, categoryKey, contentContext.productIdentity), "categoryNarrative").content;
 
   let risks = [];
-  if (margin < 0.35) risks.push("毛利率偏低，后续广告、退换货和包装成本会挤压利润。建议重新核算售价或寻找更低拿货价。");
+  if (price > 0 && cost > 0 && margin < 0.35) risks.push("毛利率偏低，后续广告、退换货和包装成本会挤压利润。建议重新核算售价或寻找更低拿货价。");
+  if (price > 0 && !cost) risks.push("当前已有建议售价，但缺少单件成本，暂时无法准确判断毛利空间。");
+  if (!price && cost > 0) risks.push("当前已有单件成本，但缺少建议售价，暂时无法判断利润空间。");
+  if (!price && !cost) risks.push("价格与成本都待补充，建议先补充建议售价和拿货成本后再判断利润空间。");
   if (moq > 150) risks.push(`MOQ处于${moqAdvice.label}，${moqAdvice.advice}`);
   if (!(product.supplier || "").includes("补货")) risks.push("供应商补货周期不明确，爆单后可能出现断货风险。");
   if (!product.competitorPrice) risks.push("缺少同类竞品价格，建议补充1688/淘宝/小红书同款价格区间。");
@@ -2095,7 +2182,11 @@ function analyzeProduct(product, hasImage) {
   const xhsStructure = xhsPackage.pages;
 
   const fitReasons = validateModule("fitReasons", [
-    margin >= 0.35 ? `毛利率约${Math.round(margin * 100)}%，有一定空间覆盖包装、物流和平台费用。` : "毛利率偏低，暂时不适合作为高投入主推款。",
+    price > 0 && cost > 0
+      ? margin >= 0.35
+        ? `毛利率约${(margin * 100).toFixed(1)}%，有一定空间覆盖后续包装、物流和平台费用。`
+        : "毛利率偏低，暂时不适合作为高投入主推款。"
+      : getProfitPriceDescription(effectivePrice, priceBand),
     stockCost <= 1800 ? `首批压货约¥${money(stockCost)}，仍处在可小批量测试范围。` : `首批压货约¥${money(stockCost)}，对新手压力偏高。`,
     `渠道验证路径相对清楚，可优先围绕${channelFit.best}做首轮反馈收集。`,
     `当前信息足以形成一轮最小测试，但补货前仍需要看真实询单和成交数据。`,
@@ -2113,13 +2204,13 @@ function analyzeProduct(product, hasImage) {
   const biggestRisk = risks.find((risk) => !risk.includes("暂未上传产品图片")) || risks[0] || safeMarket.contentRisk;
   const executiveSummary = validateModule("executiveSummary", [
     status === "暂不考虑" ? "暂不建议直接下单，先降低首单量或补充关键信息。" : status === "建议补货" ? "可以进入补货观察，但仍需用真实测款数据复核。" : "建议先拿样或小批量测款，不建议直接大批量压货。",
-    `核心理由：${priceBand.label}的售价区间与${channelFit.best}较匹配，首批压货约¥${money(stockCost)}。`,
+    `核心理由：${price > 0 ? `${priceBand.label}的售价区间` : "当前价格信息"}与${channelFit.best}的验证路径较匹配，首批压货约¥${money(stockCost)}。`,
     `最大风险：${biggestRisk}`,
     "下一步：完成一轮最小内容测试，并把反馈回填到测款复盘。",
   ]);
 
   const scoringItems = [
-    { title: "利润与价格带", score: Math.round(profitScore), description: `${priceBand.label}：${priceBand.advice} 当前预估毛利率约${Math.round(margin * 100)}%。` },
+    { title: "利润与价格带", score: Math.round(profitScore), description: getProfitPriceDescription(effectivePrice, priceBand) },
     { title: "内容潜力", score: Math.round(contentScore), description: hasImage ? "已有图片输入，可进一步判断封面吸引力、细节完整度和内容素材丰富度。" : "暂缺图片输入，内容潜力主要来自文本信息，建议补图后再校准判断。" },
     { title: "渠道适配", score: Math.round(channelScore), description: `最适合渠道：${channelFit.best}。${channelFit.reason} 评分原因：${channelFit.scoreReason}` },
     { title: "MOQ与供应", score: Math.round(supplyScore), description: `${moqAdvice.label}：${moqAdvice.advice} ${(product.supplier || "").includes("补货") ? "供应商补货信息较清楚。" : "还需要确认补货周期和混批政策。"}` },
@@ -2136,8 +2227,8 @@ function analyzeProduct(product, hasImage) {
 一、产品基础信息
 产品名称：${contentContext.productIdentity.displayName || "未填写"}
 产品类型：${contentContext.productIdentity.productTypeLabel || safeMarket.marketType || "未填写"}
-拿货价：${product.cost || "未填写"} 元
-建议售价：${product.price || "未填写"} 元
+拿货价：${cost > 0 ? money(cost) : "未填写"} 元
+建议售价：${price > 0 ? `${moneyDisplay(price)} 元${effectivePrice.hasEstimatedPrice ? "（估算）" : ""}` : "未填写"}
 MOQ：${product.moq || "未填写"} 件
 材质：${product.material || "未填写"}
 目标人群：${product.audience || "未填写"}
@@ -2153,11 +2244,11 @@ MOQ：${product.moq || "未填写"} 件
 ${executiveSummary.map((item, index) => `${index + 1}. ${item}`).join(String.fromCharCode(10))}
 
 三、利润测算
-单件综合成本：${money(unitCost)} 元
+单件成本：${money(unitCost)} 元
 预估单件利润：${money(profit)} 元
 预估毛利率：${Math.round(margin * 100)}%
 首批压货资金：${money(stockCost)} 元
-说明：测算默认平台费率5%，实际经营时需根据渠道重新校正。
+说明：当前毛利按用户填写的建议售价与单件成本计算；包装、物流、平台费和售后成本仍需按实际渠道另行校正。
 
 四、品类判断
 识别品类：${safeMarket.categoryName}（${categoryKey}）
@@ -2263,6 +2354,7 @@ ${scoringItems.map((item, index) => `${index + 1}. ${item.title}：${item.score}
     samplingStrategy,
     priceBand,
     moqAdvice,
+    effectivePrice,
     unitCost,
     profit,
     margin,
@@ -2422,7 +2514,9 @@ function getScoreValue(result, keyword, fallback = "") {
 function generateHtmlReport(product, result) {
   const fallbackMarket = result.market || inferMarketInfo(product);
   const fallbackChannelFit = result.channelFit || getChannelFit(product, fallbackMarket.categoryKey);
-  const contentContext = result.contentContext || createContentContext(product, Boolean(product?.imagePreview), fallbackMarket, fallbackChannelFit, result.priceBand || getPriceBand(n(product.price)), result.moqAdvice || getMoqAdvice(n(product.moq)));
+  const fallbackEffectivePrice = result.effectivePrice || getEffectivePrice(product);
+  const contentContext = result.contentContext || createContentContext(product, Boolean(product?.imagePreview), fallbackMarket, fallbackChannelFit, result.priceBand || getPriceBand(fallbackEffectivePrice.price), result.moqAdvice || getMoqAdvice(n(product.moq)));
+  const effectivePrice = result.effectivePrice || contentContext.effectivePrice || getEffectivePrice(product);
   const identityProduct = {
     ...product,
     name: contentContext.productIdentity.displayName,
@@ -2438,8 +2532,8 @@ function generateHtmlReport(product, result) {
   const basicRows = [
     ["产品名称", contentContext.productIdentity?.displayName || product.name || "未填写"],
     ["产品类型", contentContext.productIdentity?.productTypeLabel || product.category || result.market?.marketType || "未填写"],
-    ["拿货价", product.cost ? `¥${product.cost}` : "未填写"],
-    ["建议售价", product.price ? `¥${product.price}` : "未填写"],
+    ["拿货价", effectivePrice.cost ? `¥${money(effectivePrice.cost)}` : "未填写"],
+    ["建议售价", formatEffectivePrice(effectivePrice, "未填写")],
     ["MOQ", product.moq ? `${product.moq} 件` : "未填写"],
     ["材质", product.material || "未填写"],
     ["目标人群", product.audience || "未填写"],
@@ -2522,12 +2616,12 @@ function generateHtmlReport(product, result) {
     <section>
       <h2>二、利润测算</h2>
       ${htmlTable(["指标", "数值"], [
-        ["单件综合成本", `¥${money(result.unitCost)}`],
+        ["单件成本", `¥${money(result.unitCost)}`],
         ["预估单件利润", `¥${money(result.profit)}`],
         ["预估毛利率", `${Math.round(result.margin * 100)}%`],
         ["首批压货资金", `¥${money(result.stockCost)}`],
       ])}
-      <p class="footer">说明：测算默认平台费率 5%，实际经营时需根据渠道重新校正。</p>
+      <p class="footer">说明：当前毛利按建议售价与单件成本计算；包装、物流、平台费和售后成本仍需按实际渠道另行校正。</p>
     </section>
 
     <section>
@@ -2717,10 +2811,11 @@ function App() {
         category: result?.productIdentity?.productTypeLabel || product?.category || "未分类",
         score: Number(result?.totalScore ?? 0) || 0,
         advice: result?.level || "暂无建议",
-        price: product?.price || "",
+        price: result?.effectivePrice?.price ? formatEffectivePrice(result.effectivePrice) : product?.price || "",
         competitor_price: product?.competitorPrice || "",
         product: {
           ...product,
+          price: product?.price || (result?.effectivePrice?.hasEstimatedPrice ? String(result.effectivePrice.price) : product?.price),
           imagePreview: smallImage,
         },
         result: {
@@ -2732,6 +2827,9 @@ function App() {
           scoringItems: result?.scoringItems || [],
           explanations: result?.explanations || [],
           margin: result?.margin ?? 0,
+          profit: result?.profit ?? 0,
+          unitCost: result?.unitCost ?? 0,
+          effectivePrice: result?.effectivePrice || null,
           stockCost: result?.stockCost ?? 0,
           contentPotentialScore: result?.contentPotentialScore ?? 0,
           channelFit: result?.channelFit || null,
@@ -2924,7 +3022,7 @@ function App() {
         category: demoResult.productIdentity?.productTypeLabel || demo.category,
         score: demoResult.totalScore,
         advice: demoResult.level,
-        price: demo.price,
+        price: demoResult.effectivePrice?.price ? formatEffectivePrice(demoResult.effectivePrice) : demo.price,
         competitor_price: demo.competitorPrice,
         product: { ...demo, imagePreview: "" },
         result: {
@@ -2937,6 +3035,9 @@ function App() {
           explanations: demoResult.explanations,
           productIdentity: demoResult.productIdentity,
           margin: demoResult.margin,
+          profit: demoResult.profit,
+          unitCost: demoResult.unitCost,
+          effectivePrice: demoResult.effectivePrice,
           stockCost: demoResult.stockCost,
           contentPotentialScore: demoResult.contentPotentialScore,
           channelFit: demoResult.channelFit,
@@ -3406,7 +3507,7 @@ function ResultView({ product, image, result, analyzed, setMode, copyReport, cop
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Card label="单件利润" value={`¥${money(result.profit)}`} />
               <Card label="单件成本" value={`¥${money(result.unitCost)}`} />
-              <Card label="建议售价" value={`¥${product.price || 0}`} />
+              <Card label="建议售价" value={formatEffectivePrice(result.effectivePrice)} />
               <Card label="竞品价格" value={product.competitorPrice || "待补充"} />
             </div>
             {image && <img src={image} alt="产品图" className="mt-5 max-h-80 w-full rounded-3xl object-contain bg-black/30" />}
@@ -3512,6 +3613,7 @@ function StructuredReport({ product, result }) {
   const xhs = result.xhsPackage;
   const douyin = result.douyinPackage;
   const keywordPlan = result.keywordPlan;
+  const effectivePrice = result.effectivePrice || getEffectivePrice(product);
   const summaryMetrics = [
     ["综合评分", `${result.totalScore}/100`],
     ["状态", `状态：${result.status}`],
@@ -3525,8 +3627,8 @@ function StructuredReport({ product, result }) {
   const basics = [
     ["产品名称", result.productIdentity?.displayName || product.name || "未填写"],
     ["产品类型", result.productIdentity?.productTypeLabel || product.category || result.market?.marketType || "未填写"],
-    ["拿货价", `${product.cost || "未填写"} 元`],
-    ["建议售价", `${product.price || "未填写"} 元`],
+    ["拿货价", effectivePrice.cost ? `${money(effectivePrice.cost)} 元` : "未填写"],
+    ["建议售价", effectivePrice.price ? `${moneyDisplay(effectivePrice.price)} 元${effectivePrice.hasEstimatedPrice ? "（估算）" : ""}` : "未填写"],
     ["MOQ", `${product.moq || "未填写"} 件`],
     ["材质", product.material || "未填写"],
     ["目标人群", product.audience || "未填写"],
@@ -3574,12 +3676,12 @@ function StructuredReport({ product, result }) {
 
       <ReportSection number="三" title="利润测算">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <ReportMetric label="单件综合成本" value={`¥${money(result.unitCost)}`} />
+          <ReportMetric label="单件成本" value={`¥${money(result.unitCost)}`} />
           <ReportMetric label="预估单件利润" value={`¥${money(result.profit)}`} />
           <ReportMetric label="预估毛利率" value={`${Math.round(result.margin * 100)}%`} />
           <ReportMetric label="首批压货资金" value={`¥${money(result.stockCost)}`} />
         </div>
-        <p className="mt-4 rounded-2xl bg-black/25 p-4 text-sm leading-7 text-slate-300">测算默认平台费率5%，实际经营时需根据渠道重新校正。</p>
+        <p className="mt-4 rounded-2xl bg-black/25 p-4 text-sm leading-7 text-slate-300">当前毛利按建议售价与单件成本计算；包装、物流、平台费和售后成本仍需按实际渠道另行校正。</p>
       </ReportSection>
 
       <ReportSection number="四" title="品类判断">
