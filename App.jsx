@@ -474,7 +474,7 @@ const productIdentityProfiles = {
   wrist_accessory: {
     categoryKey: "jewelry",
     label: "饰品 / 手链 / 手绳",
-    fallbackTerm: "手链手绳",
+    fallbackTerm: "手腕饰品",
     priority: 80,
     categoryHints: ["手链", "手绳", "腕饰", "手串"],
     strongTerms: ["手链", "手绳", "腕饰", "手串", "编织手链", "编织手绳", "串珠手链", "手腕佩戴", "戴手上", "戴在手腕", "手腕搭配", "编织绳", "串珠", "珠子"],
@@ -845,7 +845,7 @@ function getImageContentPlan(categoryKey, channelFit, productIdentity = null) {
     return {
       mustShoot: ["手腕佩戴图：自然光下展示戴在手腕的大小和松紧", "近景细节图：编织绳、串珠、扣头和结尾做工", "尺寸参照图：和手腕、掌心或硬币对比", "穿搭场景图：校园、通勤、日常手部动作", "礼物包装图：卡纸、袋子或小礼盒"],
       bonusShots: ["不同手腕粗细佩戴效果", "同色系或情侣/闺蜜款组合", "手部动作短视频封面图"],
-      missingRisk: "不要把手绳拍成钥匙扣或包包挂件；缺少手腕佩戴图时，用户很难判断大小、松紧和搭配效果。",
+      missingRisk: "不要只拍平铺图，建议补充手腕佩戴图和细节图，否则用户很难判断大小、松紧和搭配效果。",
       coverAdvice: "首图建议用手腕佩戴近景 + 编织绳/珠子细节，让用户先看到戴上后的精致感。",
       channelFocus: {
         xhs: "小红书重点拍手腕佩戴、学生党礼物、小众饰品和低预算搭配。",
@@ -1962,16 +1962,81 @@ function dedupeRepeatedSentences(text) {
     .join("");
 }
 
+function getNaturalReplacementTerm(contentContext, bannedTerm = "") {
+  const identityKey = contentContext?.identityKey || contentContext?.productIdentity?.identityKey;
+  const term = String(bannedTerm || "");
+
+  if (identityKey === "wrist_accessory") {
+    if (/钥匙|挂件|挂饰|挂包|包包|帆布包|文创挂件/.test(term)) return "手腕佩戴效果";
+    if (/发圈|扎发|上头|丸子头|发量|皮筋|不勒头/.test(term)) return "手腕佩戴效果";
+    if (/耳夹|耳洞|耳饰|耳环/.test(term)) return "手腕饰品";
+    return "手腕饰品";
+  }
+
+  if (identityKey === "cultural_charm") {
+    if (/手链|手绳|腕饰|手腕/.test(term)) return "包包装饰效果";
+    if (/发圈|扎发|上头|丸子头/.test(term)) return "挂饰搭配效果";
+    if (/耳夹|耳洞|耳饰|耳环/.test(term)) return "文创挂饰";
+    return contentContext?.productIdentity?.fallbackTerm || "文创挂饰";
+  }
+
+  if (identityKey === "hair_accessory") {
+    if (/钥匙|挂件|挂饰|挂包|包包/.test(term)) return "上头效果";
+    if (/手链|手绳|腕饰|手腕/.test(term)) return "发饰";
+    if (/耳夹|耳洞|耳饰|耳环/.test(term)) return "发饰";
+    return contentContext?.productIdentity?.fallbackTerm || "发饰";
+  }
+
+  if (identityKey === "earring_accessory" || contentContext?.categoryKey === "jewelry") {
+    if (/发圈|扎发|上头|丸子头/.test(term)) return "佩戴效果";
+    if (/钥匙|挂件|挂饰|挂包|包包/.test(term)) return "饰品";
+    if (/手链|手绳|腕饰|手腕/.test(term)) return "饰品";
+    return contentContext?.productIdentity?.fallbackTerm || "饰品";
+  }
+
+  return contentContext?.productIdentity?.fallbackTerm || getCategoryRule(contentContext?.categoryKey).fallbackTerm || "该产品";
+}
+
+function normalizeGeneratedText(value) {
+  let text = String(value || "");
+
+  const wristCoverFallback = "不要只拍平铺图，建议补充手腕佩戴图和细节图，否则用户很难判断大小、松紧和搭配效果。";
+  text = text
+    .replace(/不要把手绳拍成(?:手链手绳|手腕饰品|手腕佩戴效果)(?:\s*(?:或|和|、|\/)\s*(?:手链手绳|手腕饰品|手腕佩戴效果))*[^。；;\n]*(?:[。；;]|$)/g, wristCoverFallback)
+    .replace(/不要把手链拍成(?:手链手绳|手腕饰品|手腕佩戴效果)(?:\s*(?:或|和|、|\/)\s*(?:手链手绳|手腕饰品|手腕佩戴效果))*[^。；;\n]*(?:[。；;]|$)/g, wristCoverFallback)
+    .replace(/不要把手腕饰品拍成手腕饰品[^。；;\n]*(?:[。；;]|$)/g, wristCoverFallback)
+    .replace(/手链手绳(?:\s*(?:或|和|、|\/)\s*手链手绳)+/g, "手链 / 手绳")
+    .replace(/手腕饰品(?:\s*(?:或|和|、|\/)\s*手腕饰品)+/g, "手腕饰品")
+    .replace(/手腕佩戴效果(?:\s*(?:或|和|、|\/)\s*手腕佩戴效果)+/g, "手腕佩戴效果")
+    .replace(/手链手绳类/g, "手链 / 手绳类")
+    .replace(/手链手绳/g, "手链 / 手绳");
+
+  for (let i = 0; i < 3; i += 1) {
+    text = text
+      .replace(/([\u4e00-\u9fa5A-Za-z0-9]{2,10})\s*(或|和|、|\/)\s*\1/g, "$1")
+      .replace(/([\u4e00-\u9fa5A-Za-z0-9]{2,10})(，\1)+/g, "$1")
+      .replace(/([\u4e00-\u9fa5A-Za-z0-9]{2,10})(、\1)+/g, "$1");
+  }
+
+  return text
+    .replace(/\s*\/\s*\/\s*/g, " / ")
+    .replace(/、{2,}/g, "、")
+    .replace(/，，+/g, "，")
+    .replace(/。。+/g, "。")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function sanitizeStringByContext(contentContext, value, moduleName = "") {
   const rule = getCategoryRule(contentContext?.categoryKey);
   let text = String(value || "");
-  const fallbackTerm = contentContext?.productIdentity?.fallbackTerm || rule.fallbackTerm || "该产品";
   const bannedTerms = uniqueWords([...(rule.bannedTerms || []), ...(contentContext?.productIdentity?.bannedTerms || []), ...(contentContext?.productIdentity?.forbiddenIdentityTerms || [])], 80);
   bannedTerms.sort((a, b) => b.length - a.length).forEach((term) => {
-    if (term) text = text.replaceAll(term, fallbackTerm);
+    if (term) text = text.replaceAll(term, getNaturalReplacementTerm(contentContext, term));
   });
+  text = normalizeGeneratedText(text);
   if (moduleName === "report") text = dedupeRepeatedSentences(text);
-  return text;
+  return normalizeGeneratedText(text);
 }
 
 function sanitizeGeneratedObject(contentContext, value, moduleName = "") {
