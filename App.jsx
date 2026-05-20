@@ -2489,6 +2489,200 @@ function getRecordReport(record) {
   return validateGeneratedContent(contentContext, record?.report || "暂无报告内容", "report").content;
 }
 
+function formatRecordDate(value) {
+  if (!value) return "未填写";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function formatWordMoney(value, fallback = "暂无") {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return `¥${money(parsed)}`;
+}
+
+function getReviewRows(review = {}) {
+  const views = n(review.views);
+  const likes = n(review.likes);
+  const saves = n(review.saves);
+  const comments = n(review.comments);
+  const inquiries = n(review.inquiries);
+  const orders = n(review.orders);
+  const cost = n(review.cost);
+  const engagementRate = views ? ((likes + saves + comments) / views) * 100 : 0;
+  const inquiryRate = views ? (inquiries / views) * 100 : 0;
+  const conversionRate = inquiries ? (orders / inquiries) * 100 : 0;
+
+  return [
+    ["浏览量", views || "未填写"],
+    ["点赞", likes || "未填写"],
+    ["收藏", saves || "未填写"],
+    ["评论", comments || "未填写"],
+    ["询单", inquiries || "未填写"],
+    ["成交", orders || "未填写"],
+    ["测款成本", cost ? `¥${money(cost)}` : "未填写"],
+    ["互动率", views ? `${engagementRate.toFixed(1)}%` : "暂无"],
+    ["询单率", views ? `${inquiryRate.toFixed(1)}%` : "暂无"],
+    ["询单转化率", inquiries ? `${conversionRate.toFixed(1)}%` : "暂无"],
+  ];
+}
+
+function hasReviewData(review = {}) {
+  return Object.values(review || {}).some((value) => String(value ?? "").trim());
+}
+
+function getWordContentAdvice(result = {}) {
+  const items = [
+    result.samplingStrategy?.headline,
+    ...(result.samplingStrategy?.checkpoints || []).slice(0, 3),
+    ...(result.nextTestActions || []).slice(0, 2),
+    result.xhsPackage?.coverDesign,
+    result.xhsPackage?.merchantStrategy,
+    result.douyinPackage?.direction,
+    result.douyinPackage?.merchantGoal,
+  ].filter(Boolean);
+
+  return items.length ? items : ["暂无"];
+}
+
+function generateProductLibraryWordDocument(records = []) {
+  const exportedAt = new Date().toLocaleString("zh-CN", { hour12: false });
+  const productSections = records.map((record, index) => {
+    const product = record?.product || {};
+    const analyzedResult = record?.product ? analyzeProduct(product, Boolean(product.imagePreview)) : null;
+    const savedResult = record?.result || {};
+    const result = analyzedResult || savedResult;
+    const metrics = getRecordMetrics(record);
+    const review = savedResult.review || record?.review || {};
+    const effectivePrice = analyzedResult?.effectivePrice || savedResult.effectivePrice || getEffectivePrice(product);
+    const risks = safeArray(analyzedResult?.risks || savedResult.risks);
+    const logisticsRisk = [
+      product.logistics,
+      product.supplier,
+      risks.slice(0, 2).join("；"),
+    ].filter(Boolean).join("；") || "未填写";
+    const margin = Number(analyzedResult?.margin ?? savedResult.margin ?? metrics.margin);
+    const profit = Number(analyzedResult?.profit ?? savedResult.profit);
+    const stockCost = Number(analyzedResult?.stockCost ?? savedResult.stockCost ?? metrics.stockCost);
+    const rows = [
+      ["产品名称", metrics.displayName || record?.product_name || product.name || "未命名产品"],
+      ["产品类型 / 品类", metrics.productTypeLabel || record?.category || product.category || "未分类"],
+      ["拿货价", product.cost || (effectivePrice.cost ? `¥${money(effectivePrice.cost)}` : "未填写")],
+      ["建议售价", record?.price || product.price || formatEffectivePrice(effectivePrice, "未填写")],
+      ["MOQ 最小起订量", product.moq || "未填写"],
+      ["材质", product.material || "未填写"],
+      ["目标人群", product.audience || "未填写"],
+      ["销售渠道", product.channel || "未填写"],
+      ["竞品价格", record?.competitor_price || product.competitorPrice || "未填写"],
+      ["物流 / 供应风险", logisticsRisk],
+      ["综合评分", metrics.score ? `${Math.round(metrics.score)}/100` : "暂无"],
+      ["AI 进货建议", result.level || record?.advice || metrics.status || "暂无"],
+      ["预计毛利率", Number.isFinite(margin) ? `${Math.round(margin * 100)}%` : "暂无"],
+      ["单件利润", Number.isFinite(profit) ? formatWordMoney(profit) : "暂无"],
+      ["首批压货资金", Number.isFinite(stockCost) ? formatWordMoney(stockCost) : "暂无"],
+      ["保存时间 / 创建时间", formatRecordDate(record?.created_at)],
+    ];
+
+    return `
+      <section class="product-card">
+        <h2>${index + 1}. ${escapeHtml(metrics.displayName || record?.product_name || product.name || "未命名产品")}</h2>
+        ${htmlTable(["字段", "内容"], rows)}
+        <h3>内容测款建议</h3>
+        ${htmlList(getWordContentAdvice(result), false)}
+        <h3>测款复盘数据</h3>
+        ${hasReviewData(review) ? htmlTable(["指标", "数据"], getReviewRows(review)) : '<p class="muted">暂无测款复盘数据。</p>'}
+      </section>
+      <hr>
+    `;
+  }).join("");
+
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>TradePilot AI｜产品库复盘报告</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 28px;
+      color: #14221b;
+      font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif;
+      line-height: 1.7;
+      background: #ffffff;
+    }
+    h1 {
+      margin: 0 0 12px;
+      color: #0f3f2d;
+      font-size: 28px;
+      font-weight: 800;
+    }
+    h2 {
+      margin: 0 0 14px;
+      color: #11633f;
+      font-size: 20px;
+      font-weight: 800;
+    }
+    h3 {
+      margin: 18px 0 8px;
+      color: #164d38;
+      font-size: 16px;
+      font-weight: 800;
+    }
+    p { margin: 8px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 14px;
+    }
+    th, td {
+      border: 1px solid #cbd5d0;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+    th {
+      background: #e7f5ee;
+      color: #0f3f2d;
+      font-weight: 800;
+    }
+    ul { margin: 8px 0 14px 22px; padding: 0; }
+    li { margin: 4px 0; }
+    .summary {
+      margin-bottom: 22px;
+      padding: 16px 18px;
+      border: 1px solid #b7d8ca;
+      background: #f3fbf7;
+    }
+    .product-card {
+      margin: 22px 0;
+      padding: 18px;
+      border: 1px solid #b7d8ca;
+      background: #fbfffd;
+      page-break-inside: avoid;
+    }
+    .strong { font-weight: 800; color: #0f3f2d; }
+    .muted { color: #64756d; }
+    hr {
+      border: none;
+      border-top: 1px solid #d8e4df;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>TradePilot AI｜产品库复盘报告</h1>
+  <div class="summary">
+    <p><span class="strong">导出时间：</span>${escapeHtml(exportedAt)}</p>
+    <p><span class="strong">产品记录数量：</span>${escapeHtml(records.length)}</p>
+    <p><span class="strong">说明：</span>本报告由 TradePilot AI 根据本地产品库记录生成，用于选品复盘、候选产品对比和团队讨论。</p>
+  </div>
+  ${productSections || '<p class="muted">暂无产品记录。</p>'}
+</body>
+</html>`;
+}
+
 function getPkRecommendation(left, right) {
   if (!left || !right) return "请选择两个产品后生成优先级建议。";
   const leftMetrics = getRecordMetrics(left);
@@ -2886,6 +3080,25 @@ function App() {
     } catch (error) {
       alert("产品库备份导出失败：" + error.message);
     }
+  }
+
+  function exportProductLibraryDocument() {
+    const records = Array.isArray(historyRecords) ? historyRecords : [];
+
+    if (records.length === 0) {
+      alert("当前暂无可导出的产品记录");
+      return;
+    }
+
+    const html = generateProductLibraryWordDocument(records);
+    const blob = new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "tradepilot_product_library_report.doc";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setHistoryMessage("产品库文档已导出。");
   }
 
   async function importRecordsBackup(event) {
@@ -3335,6 +3548,7 @@ function App() {
             onRefresh={loadHistoryRecords}
             onLoadDemo={loadDemoRecords}
             onExportBackup={exportRecordsBackup}
+            onExportDocument={exportProductLibraryDocument}
             onImportBackup={importRecordsBackup}
             search={historySearch}
             setSearch={setHistorySearch}
@@ -4348,7 +4562,7 @@ function ReviewView({ product, result, review, setReview, saveCurrentReport, sav
   );
 }
 
-function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, onExportBackup, onImportBackup, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
+function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, onExportBackup, onExportDocument, onImportBackup, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
   const normalizedSearch = search.trim().toLowerCase();
   const filteredRecords = records
     .filter((record) => {
@@ -4377,6 +4591,7 @@ function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh
         <div className="flex flex-col gap-2 sm:flex-row">
           <button onClick={onRefresh} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">刷新产品库</button>
           <button onClick={onExportBackup} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-100">导出产品库备份</button>
+          <button onClick={onExportDocument} className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-3 font-black text-amber-100">导出产品库文档</button>
           <label className="cursor-pointer rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-center font-black text-cyan-100">
             导入产品库备份
             <input type="file" accept="application/json,.json" className="hidden" onChange={onImportBackup} />
