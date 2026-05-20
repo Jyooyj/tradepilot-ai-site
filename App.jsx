@@ -2987,7 +2987,8 @@ function App() {
     };
 
     try {
-      const response = await fetch("/api/analyze-image", {
+      const analyzeImageUrl = import.meta.env.VITE_ANALYZE_IMAGE_URL || "/api/analyze-image";
+      const response = await fetch(analyzeImageUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
