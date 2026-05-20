@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from "react";
 
+const ANALYZE_IMAGE_ENDPOINT =
+  import.meta.env.VITE_ANALYZE_IMAGE_URL || "/api/analyze-image";
+
 const initialProduct = {
   name: "蝴蝶结珍珠耳夹",
   category: "饰品 / 小商品",
@@ -2863,6 +2866,82 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
+  function exportRecordsBackup() {
+    try {
+      const records = JSON.parse(localStorage.getItem("tradepilot_local_records") || "[]");
+
+      if (!Array.isArray(records) || records.length === 0) {
+        alert("当前暂无可导出的产品记录");
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "tradepilot_records_backup.json";
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setHistoryMessage("产品库备份已导出。");
+    } catch (error) {
+      alert("产品库备份导出失败：" + error.message);
+    }
+  }
+
+  async function importRecordsBackup(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const importedRecords = JSON.parse(text);
+
+      if (!Array.isArray(importedRecords)) {
+        throw new Error("invalid_backup_format");
+      }
+
+      let oldRecords = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem("tradepilot_local_records") || "[]");
+        oldRecords = Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        oldRecords = [];
+      }
+
+      const existingIds = new Set(
+        oldRecords
+          .map((record) => record?.id)
+          .filter((id) => id !== undefined && id !== null)
+          .map(String)
+      );
+      const importedIds = new Set();
+      const uniqueImportedRecords = importedRecords.reduce((records, record, index) => {
+        if (!record || typeof record !== "object" || Array.isArray(record)) return records;
+
+        const id = record.id !== undefined && record.id !== null && String(record.id).trim()
+          ? String(record.id)
+          : `imported-${Date.now()}-${index}`;
+
+        if (existingIds.has(id) || importedIds.has(id)) return records;
+
+        importedIds.add(id);
+        records.push({ ...record, id });
+        return records;
+      }, []);
+
+      const nextRecords = [...uniqueImportedRecords, ...oldRecords];
+      localStorage.setItem("tradepilot_local_records", JSON.stringify(nextRecords));
+      setHistoryRecords(nextRecords);
+      setHistoryMessage("产品库备份导入成功");
+      alert("产品库备份导入成功");
+    } catch (error) {
+      setHistoryMessage("备份文件格式不正确，请选择 TradePilot 导出的 JSON 文件");
+      alert("备份文件格式不正确，请选择 TradePilot 导出的 JSON 文件");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
   async function saveCurrentReport() {
     try {
       setSaveMessage("正在保存到我的产品库...");
@@ -2968,6 +3047,11 @@ function App() {
       return;
     }
 
+    if (getTextByteSize(image) > IMAGE_COMPRESSION_OPTIONS.maxDataUrlBytes) {
+      alert("图片仍然过大，请换用截图或更小尺寸图片。");
+      return;
+    }
+
     setAiLoading(true);
 
     const controller = new AbortController();
@@ -2987,8 +3071,7 @@ function App() {
     };
 
     try {
-      const analyzeImageUrl = import.meta.env.VITE_ANALYZE_IMAGE_URL || "/api/analyze-image";
-      const response = await fetch(analyzeImageUrl, {
+      const response = await fetch(ANALYZE_IMAGE_ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -3016,6 +3099,11 @@ function App() {
 
       if (!response.ok) {
         console.error("AI识别接口错误：", data);
+        const apiMessage = data.error || data.message || "";
+        if (/EXCEED_MAX_PAYLOAD_SIZE|payload|请求体|too large/i.test(apiMessage)) {
+          alert("图片仍然过大，请换用截图或更小尺寸图片。");
+          return;
+        }
         alert(data.error || data.message || "AI识别失败，请检查模型权限或稍后重试。");
         return;
       }
@@ -3246,6 +3334,8 @@ function App() {
             onRestore={restoreRecord}
             onRefresh={loadHistoryRecords}
             onLoadDemo={loadDemoRecords}
+            onExportBackup={exportRecordsBackup}
+            onImportBackup={importRecordsBackup}
             search={historySearch}
             setSearch={setHistorySearch}
             statusFilter={historyStatus}
@@ -3421,50 +3511,140 @@ function Info({ title, items }) {
   );
 }
 
+const IMAGE_COMPRESSION_OPTIONS = {
+  maxWidth: 900,
+  maxHeight: 900,
+  targetDataUrlBytes: 450 * 1024,
+  maxDataUrlBytes: 900 * 1024,
+  compressionSteps: [
+    { maxWidth: 900, maxHeight: 900, qualities: [0.68] },
+    { maxWidth: 720, maxHeight: 720, qualities: [0.52] },
+    { maxWidth: 512, maxHeight: 512, qualities: [0.36] },
+    { maxWidth: 384, maxHeight: 384, qualities: [0.3] },
+    { maxWidth: 320, maxHeight: 320, qualities: [0.24] },
+  ],
+};
+
+function getTextByteSize(value) {
+  try {
+    return new Blob([String(value || "")]).size;
+  } catch (error) {
+    return String(value || "").length;
+  }
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("图片读取失败，请换一张图片再试。"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("图片解析失败，请换一张图片再试。"));
+    img.src = dataUrl;
+  });
+}
+
+function getScaledImageSize(image, maxWidth, maxHeight) {
+  const scale = Math.min(1, maxWidth / image.width, maxHeight / image.height);
+  return {
+    width: Math.max(1, Math.round(image.width * scale)),
+    height: Math.max(1, Math.round(image.height * scale)),
+  };
+}
+
+function renderImageToJpegDataUrl(image, width, height, quality) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(image, 0, 0, width, height);
+
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+async function compressImageToDataUrl(file, options = {}) {
+  const config = { ...IMAGE_COMPRESSION_OPTIONS, ...options };
+  const sourceDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageFromDataUrl(sourceDataUrl);
+  let best = null;
+
+  const compressionSteps = config.compressionSteps || [
+    { maxWidth: config.maxWidth || 900, maxHeight: config.maxHeight || 900, qualities: [0.68] },
+    { maxWidth: 720, maxHeight: 720, qualities: [0.52] },
+    { maxWidth: 512, maxHeight: 512, qualities: [0.36] },
+    { maxWidth: 384, maxHeight: 384, qualities: [0.3] },
+    { maxWidth: 320, maxHeight: 320, qualities: [0.24] },
+  ];
+
+  for (const step of compressionSteps) {
+    const { width, height } = getScaledImageSize(image, step.maxWidth, step.maxHeight);
+
+    for (const quality of step.qualities) {
+      const roundedQuality = Number(quality.toFixed(2));
+      const dataUrl = renderImageToJpegDataUrl(image, width, height, roundedQuality);
+      const bytes = getTextByteSize(dataUrl);
+      const candidate = {
+        dataUrl,
+        width,
+        height,
+        quality: roundedQuality,
+        bytes,
+        originalBytes: file.size || getTextByteSize(sourceDataUrl),
+        tooLarge: bytes > config.maxDataUrlBytes,
+      };
+
+      if (!best || candidate.bytes < best.bytes) best = candidate;
+      if (bytes <= config.targetDataUrlBytes) return candidate;
+    }
+  }
+
+  if (best && best.bytes <= config.maxDataUrlBytes) {
+    return { ...best, tooLarge: false };
+  }
+
+  return best || {
+    dataUrl: sourceDataUrl,
+    width: image.width,
+    height: image.height,
+    quality: 1,
+    bytes: getTextByteSize(sourceDataUrl),
+    originalBytes: file.size || getTextByteSize(sourceDataUrl),
+    tooLarge: true,
+  };
+}
+
 function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode, analyzeImageWithAI, aiLoading }) {
-function handleImage(e) {
+  async function handleImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
+    if (!file.type.startsWith("image/")) {
+      alert("请上传 JPG、PNG、WebP 等图片文件。");
+      return;
+    }
 
-    reader.onload = () => {
-      const img = new Image();
+    try {
+      const compressed = await compressImageToDataUrl(file);
+      setImage(compressed.dataUrl);
+      setProduct(blankProduct);
+      setAnalyzed(false);
 
-      img.onload = () => {
-        const maxSize = 1000;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height && width > maxSize) {
-          height = Math.round((height * maxSize) / width);
-          width = maxSize;
-        } else if (height >= width && height > maxSize) {
-          width = Math.round((width * maxSize) / height);
-          height = maxSize;
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const compressedImage = canvas.toDataURL("image/jpeg", 0.72);
-        setImage(compressedImage);
-        setProduct(blankProduct);
-        setAnalyzed(false);
-      };
-
-      img.onerror = () => {
-        alert("图片读取失败，请换一张图片再试。");
-      };
-
-      img.src = String(reader.result);
-    };
-
-    reader.readAsDataURL(file);
+      if (compressed.tooLarge) {
+        alert("图片仍然过大，请换用截图或更小尺寸图片。");
+      }
+    } catch (error) {
+      alert(error.message || "图片读取失败，请换一张图片再试。");
+    }
   }
 
   function analyze() {
@@ -3493,6 +3673,7 @@ function handleImage(e) {
           上传图片
           <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
         </label>
+        <p className="mt-2 text-xs leading-6 text-slate-400">图片已自动压缩后用于识别，不影响报告生成。</p>
 
         <button onClick={analyzeImageWithAI} disabled={aiLoading} className="mt-3 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black disabled:opacity-60">
           {aiLoading ? "AI正在识别图片..." : "AI识别图片并自动填写"}
@@ -4167,7 +4348,7 @@ function ReviewView({ product, result, review, setReview, saveCurrentReport, sav
   );
 }
 
-function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
+function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, onExportBackup, onImportBackup, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
   const normalizedSearch = search.trim().toLowerCase();
   const filteredRecords = records
     .filter((record) => {
@@ -4193,7 +4374,18 @@ function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh
           <h2 className="text-3xl font-black text-white">我的产品库</h2>
           <p className="mt-2 text-sm leading-7 text-slate-400">保存进货判断、测款结论和完整报告，形成长期选品资产。</p>
         </div>
-        <button onClick={onRefresh} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">刷新产品库</button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button onClick={onRefresh} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">刷新产品库</button>
+          <button onClick={onExportBackup} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-100">导出产品库备份</button>
+          <label className="cursor-pointer rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-center font-black text-cyan-100">
+            导入产品库备份
+            <input type="file" accept="application/json,.json" className="hidden" onChange={onImportBackup} />
+          </label>
+        </div>
+      </div>
+
+      <div className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
+        游客模式下，产品库保存在当前浏览器中。建议定期导出备份；更换浏览器、设备或清理缓存后，可通过导入备份恢复记录。
       </div>
 
       <div className="mb-5 grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
