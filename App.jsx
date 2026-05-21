@@ -3,6 +3,12 @@ import React, { useMemo, useState } from "react";
 const ANALYZE_IMAGE_ENDPOINT =
   import.meta.env.VITE_ANALYZE_IMAGE_URL || "/api/analyze-image";
 
+const IMAGE_RECOGNITION_FALLBACK_MESSAGE =
+  "图片识别暂时失败，可能是图片过大、网络不稳定或模型返回异常。你可以保留图片预览，手动填写产品信息后继续生成进货报告，产品库、候选产品 PK 和测款复盘仍可正常使用。";
+
+const IMAGE_TOO_LARGE_FALLBACK_MESSAGE =
+  "图片仍然过大，建议使用截图或更小尺寸图片；也可以手动填写产品信息继续生成报告。";
+
 const initialProduct = {
   name: "蝴蝶结珍珠耳夹",
   category: "饰品 / 小商品",
@@ -3256,12 +3262,12 @@ function App() {
 
   async function analyzeImageWithAI() {
     if (!image) {
-      alert("请先上传产品图片");
+      alert("请先上传产品图片；如果暂时没有图片，也可以直接手动填写产品信息并生成进货报告。");
       return;
     }
 
     if (getTextByteSize(image) > IMAGE_COMPRESSION_OPTIONS.maxDataUrlBytes) {
-      alert("图片仍然过大，请换用截图或更小尺寸图片。");
+      alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
       return;
     }
 
@@ -3306,7 +3312,7 @@ function App() {
         data = JSON.parse(text);
       } catch (error) {
         console.error("接口返回不是 JSON：", text);
-        alert("AI识别失败：接口返回格式异常。请稍后重试，或先手动填写产品信息生成报告。");
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
         return;
       }
 
@@ -3314,14 +3320,26 @@ function App() {
         console.error("AI识别接口错误：", data);
         const apiMessage = data.error || data.message || "";
         if (/EXCEED_MAX_PAYLOAD_SIZE|payload|请求体|too large/i.test(apiMessage)) {
-          alert("图片仍然过大，请换用截图或更小尺寸图片。");
+          alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
           return;
         }
-        alert(data.error || data.message || "AI识别失败，请检查模型权限或稍后重试。");
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
         return;
       }
 
       const aiProduct = data?.product || {};
+
+      const hasAiProductInfo = Object.values(aiProduct).some((value) => {
+        if (Array.isArray(value)) return value.length > 0;
+        if (value && typeof value === "object") return Object.keys(value).length > 0;
+        return String(value ?? "").trim();
+      });
+
+      if (!hasAiProductInfo) {
+        setAiInsight(data);
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
+        return;
+      }
 
       setAiInsight(data);
 
@@ -3348,10 +3366,10 @@ function App() {
       clearTimeout(timer);
 
       if (error.name === "AbortError") {
-        alert("AI识别超时：模型响应较慢。你可以换一张更清晰的图片，或先手动填写信息生成报告。");
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
       } else {
         console.error(error);
-        alert("AI识别失败：" + error.message);
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
       }
     } finally {
       clearTimeout(timer);
@@ -3850,14 +3868,13 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
     try {
       const compressed = await compressImageToDataUrl(file);
       setImage(compressed.dataUrl);
-      setProduct(blankProduct);
       setAnalyzed(false);
 
       if (compressed.tooLarge) {
-        alert("图片仍然过大，请换用截图或更小尺寸图片。");
+        alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
       }
     } catch (error) {
-      alert(error.message || "图片读取失败，请换一张图片再试。");
+      alert(error.message ? `${error.message}；也可以手动填写产品信息继续生成报告。` : "图片读取失败，请换一张图片再试；也可以手动填写产品信息继续生成报告。");
     }
   }
 
@@ -3888,6 +3905,9 @@ function OperateView({ product, update, image, setImage, result, setProduct, set
           <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
         </label>
         <p className="mt-2 text-xs leading-6 text-slate-400">图片已自动压缩后用于识别，不影响报告生成。</p>
+        <p className="mt-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-xs leading-6 text-cyan-100">
+          图片识别是加速入口，不是唯一入口。识别失败时，可手动填写产品名称、拿货价、建议售价、MOQ、材质、目标人群和销售渠道，系统仍可生成完整进货决策报告。
+        </p>
 
         <button onClick={analyzeImageWithAI} disabled={aiLoading} className="mt-3 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black disabled:opacity-60">
           {aiLoading ? "AI正在识别图片..." : "AI识别图片并自动填写"}
