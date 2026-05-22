@@ -1,4 +1,5 @@
-import { demoProducts } from "./constants/demoData";
+import React, { useMemo, useState } from "react";
+import { demoProducts } from "./src/constants/demoData";
 import {
   IMAGE_COMPRESSION_OPTIONS,
   IMAGE_RECOGNITION_FALLBACK_MESSAGE,
@@ -7,7 +8,7 @@ import {
   flowSteps,
   painPoints,
   statusOptions,
-} from "./constants/uiContent";
+} from "./src/constants/uiContent";
 
 const ANALYZE_IMAGE_ENDPOINT =
   import.meta.env.VITE_ANALYZE_IMAGE_URL || "/api/analyze-image";
