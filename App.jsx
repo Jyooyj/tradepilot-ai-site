@@ -1,13 +1,17 @@
 import React, { useMemo, useState } from "react";
+import { demoProducts } from "./src/constants/demoData";
+import {
+  IMAGE_COMPRESSION_OPTIONS,
+  IMAGE_RECOGNITION_FALLBACK_MESSAGE,
+  IMAGE_TOO_LARGE_FALLBACK_MESSAGE,
+  feedbackFormUrl,
+  flowSteps,
+  painPoints,
+  statusOptions,
+} from "./src/constants/uiContent";
 
 const ANALYZE_IMAGE_ENDPOINT =
   import.meta.env.VITE_ANALYZE_IMAGE_URL || "/api/analyze-image";
-
-const IMAGE_RECOGNITION_FALLBACK_MESSAGE =
-  "图片识别暂时失败，可能是图片过大、网络不稳定或模型返回异常。你可以保留图片预览，手动填写产品信息后继续生成进货报告，产品库、候选产品 PK 和测款复盘仍可正常使用。";
-
-const IMAGE_TOO_LARGE_FALLBACK_MESSAGE =
-  "图片仍然过大，建议使用截图或更小尺寸图片；也可以手动填写产品信息继续生成报告。";
 
 const initialProduct = {
   name: "蝴蝶结珍珠耳夹",
@@ -41,114 +45,6 @@ const blankProduct = {
   note: "",
 };
 
-const demoProducts = [
-  {
-    name: "蝴蝶结珍珠耳夹",
-    category: "饰品 / 耳饰",
-    cost: "3.8",
-    price: "19.9",
-    moq: "100",
-    material: "合金 + 仿珍珠",
-    audience: "18-25岁女生、学生党、通勤人群、礼物消费人群",
-    channel: "小红书 / 抖音 / 校园私域",
-    supplier: "支持混批，7天补货，可提供礼盒包装",
-    keywords: "法式、温柔风、不打耳洞、春夏氛围感、礼物推荐",
-    competitorPrice: "15.9-29.9元",
-    logistics: "小件轻货，包装成本低",
-    note: "适合做小红书穿搭场景和礼物场景测款。",
-  },
-  {
-    name: "奶油色大肠发圈",
-    category: "发饰 / 女生日用小商品",
-    cost: "2.1",
-    price: "12.9",
-    moq: "200",
-    material: "绒感布料 / 弹力发绳",
-    audience: "16-28岁女生、学生党、宿舍人群、通勤女性",
-    channel: "小红书 / 抖音 / 校园社群",
-    supplier: "支持混批，10天补货，颜色可选",
-    keywords: "氛围感发圈、宿舍好物、低成本变精致、显发量",
-    competitorPrice: "8.8-25.9元",
-    logistics: "轻货，适合组合销售",
-    note: "单价低但同质化强，建议做套装和颜色组合测款。",
-  },
-  {
-    name: "宿舍桌面香薰摆件",
-    category: "家居生活 / 宿舍好物",
-    cost: "12.5",
-    price: "49.9",
-    moq: "120",
-    material: "玻璃瓶 + 香薰精油 + 木盖",
-    audience: "大学生、宿舍党、办公室人群、礼物消费人群",
-    channel: "小红书 / 校园私域 / 摆摊市集",
-    supplier: "支持混批，15天补货，需要防震包装",
-    keywords: "宿舍氛围感、桌面改造、礼物、治愈、生活方式",
-    competitorPrice: "39.9-89.9元",
-    logistics: "玻璃瓶易碎，包装和运费成本较高",
-    note: "适合拍宿舍桌面改造和氛围图，但要重点核算破损和运费。",
-  },
-  {
-    name: "国风城市贴纸套装",
-    category: "文创 / 贴纸 / 旅行纪念",
-    cost: "4.6",
-    price: "18.8",
-    moq: "60",
-    material: "防水PET贴纸 + 卡纸包装",
-    audience: "大学生、手帐爱好者、景区游客、文创市集人群",
-    channel: "小红书 / 校园市集 / 文旅摊位",
-    supplier: "支持混批，7天补货，可定制城市主题",
-    keywords: "国风、城市记忆、手帐、文旅、市集、收藏",
-    competitorPrice: "12.9-29.9元",
-    logistics: "轻货，包装成本低，适合组合装",
-    note: "适合做节日市集和校园社团活动场景测款。",
-  },
-  {
-    name: "透明防摔手机壳挂绳套装",
-    category: "数码周边 / 手机壳 / 挂绳",
-    cost: "6.2",
-    price: "29.9",
-    moq: "300",
-    material: "TPU透明壳 + 尼龙挂绳",
-    audience: "学生党、通勤人群、喜欢个性化手机配件的人群",
-    channel: "抖音 / 摆摊市集 / 1688批发复购",
-    supplier: "支持补货，但不同机型需分开备货",
-    keywords: "防摔、挂绳、通勤、解放双手、手机配件",
-    competitorPrice: "19.9-39.9元",
-    logistics: "轻货，机型库存需要拆分管理",
-    note: "适合短视频演示，但首单机型太多会带来滞销风险。",
-  },
-  {
-    name: "便携去污湿巾组合装",
-    category: "低价日用 / 清洁小商品",
-    cost: "1.2",
-    price: "8.8",
-    moq: "500",
-    material: "无纺布湿巾 / 独立包装",
-    audience: "校园宿舍、办公室、宝妈、社群团购用户",
-    channel: "校园私域 / 社群团购 / 1688批发复购",
-    supplier: "支持稳定补货，起订量较高",
-    keywords: "低价引流、宿舍清洁、办公室、组合装、复购",
-    competitorPrice: "6.9-12.9元",
-    logistics: "小件但走量，适合搭售",
-    note: "单件利润薄，更适合作为社群引流和组合销售。",
-  },
-];
-
-const flowSteps = [
-  ["上传产品图", "用样品图或供应商图先判断视觉卖点。"],
-  ["AI识别推断", "补全品类、材质、人群和内容关键词。"],
-  ["利润测算", "估算单件成本、毛利率和首批压货资金。"],
-  ["风险判断", "提示MOQ、补货周期、同质化和物流风险。"],
-  ["内容测款", "生成小红书图文方向和抖音短视频脚本。"],
-  ["产品库", "把每次判断保存为可比较的产品记录。"],
-  ["候选PK", "对比评分、利润、风险和渠道适配。"],
-  ["测款复盘", "用真实互动、询单和成交数据决定补货。"],
-];
-
-const painPoints = ["凭感觉拿货", "MOQ压货", "利润算不清", "爆款潜力难判断", "内容测款没方向", "进货后缺少复盘"];
-
-const statusOptions = ["全部", "准备拿样", "正在测款", "建议补货", "暂不考虑"];
-const feedbackFormUrl = "https://v.wjx.cn/vm/r7Utha0.aspx";
 
 function n(value) {
   const parsed = parseNumberValue(value);
@@ -3742,20 +3638,6 @@ function Info({ title, items }) {
     </div>
   );
 }
-
-const IMAGE_COMPRESSION_OPTIONS = {
-  maxWidth: 900,
-  maxHeight: 900,
-  targetDataUrlBytes: 450 * 1024,
-  maxDataUrlBytes: 900 * 1024,
-  compressionSteps: [
-    { maxWidth: 900, maxHeight: 900, qualities: [0.68] },
-    { maxWidth: 720, maxHeight: 720, qualities: [0.52] },
-    { maxWidth: 512, maxHeight: 512, qualities: [0.36] },
-    { maxWidth: 384, maxHeight: 384, qualities: [0.3] },
-    { maxWidth: 320, maxHeight: 320, qualities: [0.24] },
-  ],
-};
 
 function getTextByteSize(value) {
   try {
