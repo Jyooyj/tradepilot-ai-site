@@ -44,7 +44,6 @@ export function normalizeManualMarketEvidence(product = {}) {
       evidence.wholesalePriceReference,
       evidence.retailPriceReference,
       evidence.contentHeatReference,
-      evidence.marketReferenceLinks,
       evidence.manualMarketNote,
     ].some(hasValue) || isObserved(evidence.competitorDensity) || isObserved(evidence.contentHomogeneity),
   };
@@ -55,7 +54,6 @@ function getCompleteness(evidence) {
     evidence.wholesalePriceReference,
     evidence.retailPriceReference,
     evidence.contentHeatReference,
-    evidence.marketReferenceLinks,
     evidence.manualMarketNote,
   ].filter(hasValue).length
     + (isObserved(evidence.competitorDensity) ? 1 : 0)
@@ -71,7 +69,6 @@ function buildPositiveSignals(evidence) {
 
   if (evidence.wholesalePriceReference && evidence.retailPriceReference) signals.push("价格证据较完整");
   if (evidence.contentHeatReference) signals.push("已补充内容热度观察");
-  if (evidence.marketReferenceLinks) signals.push("已补充可追溯参考链接");
   if (isObserved(evidence.competitorDensity)) signals.push(`同类竞品数量观察：${evidence.competitorDensity}`);
   if (isObserved(evidence.contentHomogeneity)) signals.push(`内容同质化程度观察：${evidence.contentHomogeneity}`);
 
@@ -111,10 +108,6 @@ function buildAnalysisConclusions(evidence) {
     conclusions.push("内容同质化较低，有机会通过差异化内容切入，但仍需验证搜索需求。");
   } else if (evidence.contentHomogeneity === "中") {
     conclusions.push("内容同质化处于中等水平，建议在封面、标题和场景演示上做区分。");
-  }
-
-  if (evidence.marketReferenceLinks) {
-    conclusions.push("已补充参考链接，后续可用于人工复核价格和内容表现。");
   }
 
   return unique(conclusions);
@@ -187,7 +180,7 @@ export function evaluateManualMarketEvidence(product = {}, baseResult = {}) {
     nextActions,
     positiveSignals,
     scoreAdjustment,
-    sourceNotice: "人工市场证据由用户手动填写，系统不会将其声明为平台真实 API 数据，也不会伪造销量、热度、点赞、播放或价格。",
+    sourceNotice: "人工市场证据由用户手动填写，系统不会自动打开或解析外部参考链接，也不会将用户填写内容声明为平台真实 API 数据。",
     baseScore: baseResult?.totalScore ?? baseResult?.score ?? null,
   };
 }

@@ -21,11 +21,6 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function toNumber(value) {
-  const parsed = Number(String(value ?? "").replace(/[^\d.]/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function splitTerms(value) {
   return normalizeText(value)
     .split(alibabaPriceSearchRules.separatorPattern)
@@ -35,6 +30,7 @@ function splitTerms(value) {
 
 export function parsePriceRange(input) {
   const text = normalizeText(input);
+  const rangeText = text.replace(/[，,]/g, "");
   const numbers = (text.match(/\d+(?:\.\d+)?/g) || [])
     .map(Number)
     .filter((value) => Number.isFinite(value));
@@ -56,7 +52,24 @@ export function parsePriceRange(input) {
     max,
     average: (min + max) / 2,
     isValid: true,
+    isRange: min !== max || /[-~—–至到]/.test(rangeText),
+    raw: text,
   };
+}
+
+function formatMoneyValue(value) {
+  if (!Number.isFinite(Number(value))) return "待补充";
+  return `¥${Number(value).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}`;
+}
+
+function formatPriceRange(range) {
+  if (!range?.isValid) return "待补充";
+  if (range.min === range.max) return formatMoneyValue(range.min);
+  return `${formatMoneyValue(range.min)} - ${formatMoneyValue(range.max)}`;
+}
+
+function getComparablePrice(range) {
+  return range?.isValid && Number.isFinite(range.average) ? range.average : null;
 }
 
 export function buildAlibabaSearchQuery(product = {}) {
@@ -141,8 +154,8 @@ function getRiskWarnings({ sourceType, range, wholesaleRange, pricePosition, cos
 function getScoreAdjustment({ pricePosition, range, product }) {
   if (!range?.isValid) return -1;
 
-  const price = toNumber(product.price);
-  const cost = toNumber(product.cost);
+  const price = getComparablePrice(parsePriceRange(product.price));
+  const cost = getComparablePrice(parsePriceRange(product.cost));
   const grossMargin = price && cost ? (price - cost) / price : null;
 
   if (pricePosition === "above_market") return -3;
@@ -171,33 +184,39 @@ function normalizeApiResults(apiResponse = {}) {
   ];
 }
 
-function buildPriceAnalysisConclusions({ safeProduct, competitorPriceRange, wholesalePriceRange, suggestedPrice, cost, pricePosition }) {
+function buildPriceAnalysisConclusions({ safeProduct, competitorPriceRange, wholesalePriceRange, suggestedPriceRange, costRange, pricePosition }) {
   const conclusions = [];
+  const suggestedPrice = getComparablePrice(suggestedPriceRange);
+  const cost = getComparablePrice(costRange);
+  const suggestedPriceText = formatPriceRange(suggestedPriceRange);
+  const costText = formatPriceRange(costRange);
+  const wholesaleText = formatPriceRange(wholesalePriceRange);
+  const competitorText = formatPriceRange(competitorPriceRange);
 
   if (wholesalePriceRange.isValid && Number.isFinite(cost)) {
     if (cost > wholesalePriceRange.max) {
-      conclusions.push(`当前填写拿货价 ¥${cost} 高于批发价参考上限 ¥${wholesalePriceRange.max}，拿货优势不足，建议继续核验供应商报价、规格和起订量。`);
+      conclusions.push(`当前拿货价 ${costText} 高于用户填写的批发价参考上限 ${formatMoneyValue(wholesalePriceRange.max)}，拿货优势不足，建议继续核验供应商报价、规格和起订量。`);
     } else if (cost < wholesalePriceRange.min) {
-      conclusions.push(`当前填写拿货价 ¥${cost} 低于批发价参考下限 ¥${wholesalePriceRange.min}，价格看起来有优势，但需要核验材质、规格、起订量和供应商可靠性。`);
+      conclusions.push(`当前拿货价 ${costText} 明显低于用户填写的批发价参考 ${wholesaleText}，建议核验两者是否为同规格、同材质、同数量报价，避免因规格差异导致判断失真。`);
     } else {
-      conclusions.push(`当前拿货价 ¥${cost} 处于用户填写批发价区间 ¥${wholesalePriceRange.min}-${wholesalePriceRange.max} 内，拿货成本有初步参考依据。`);
+      conclusions.push(`当前拿货价 ${costText} 处于用户填写批发价参考 ${wholesaleText} 内，拿货成本有初步参考依据。`);
     }
   } else if (wholesalePriceRange.isValid) {
-    conclusions.push(`已补充批发价参考 ¥${wholesalePriceRange.min}-${wholesalePriceRange.max}，但产品拿货价未填写或不可计算，暂不能判断实际拿货优势。`);
+    conclusions.push(`已补充批发价参考 ${wholesaleText}，但产品拿货价未填写或不可计算，暂不能判断实际拿货优势。`);
   } else {
     conclusions.push("缺少批发价参考，当前只能基于建议售价和竞品零售价做初步判断。");
   }
 
   if (competitorPriceRange.isValid && Number.isFinite(suggestedPrice)) {
     if (pricePosition === "below_market") {
-      conclusions.push(`建议售价 ¥${suggestedPrice} 低于竞品价格区间 ¥${competitorPriceRange.min}-${competitorPriceRange.max}，适合低价测款，但要确认包装、运费、平台佣金后仍有利润空间。`);
+      conclusions.push(`当前建议售价 ${suggestedPriceText} 低于用户填写的零售价/竞品价参考 ${competitorText}，适合低价测款，但要确认包装、运费、平台佣金后仍有利润空间。`);
     } else if (pricePosition === "within_market") {
-      conclusions.push(`建议售价 ¥${suggestedPrice} 处于竞品价格区间 ¥${competitorPriceRange.min}-${competitorPriceRange.max} 内，定价相对稳妥，后续重点看主图、标题和内容差异化。`);
+      conclusions.push(`当前建议售价 ${suggestedPriceText} 处于用户填写的零售价/竞品价参考 ${competitorText} 内，定价相对稳妥，后续重点看主图、标题和内容差异化。`);
     } else if (pricePosition === "above_market") {
-      conclusions.push(`建议售价 ¥${suggestedPrice} 高于竞品价格区间 ¥${competitorPriceRange.min}-${competitorPriceRange.max}，需要明确材质、包装、设计或场景卖点，否则转化压力较大。`);
+      conclusions.push(`当前建议售价 ${suggestedPriceText} 高于用户填写的零售价参考区间 ${competitorText}，需要明确材质、设计、包装、场景或品牌感卖点，否则转化压力较大。`);
     }
   } else if (competitorPriceRange.isValid) {
-    conclusions.push(`已补充竞品价格区间 ¥${competitorPriceRange.min}-${competitorPriceRange.max}，但建议售价未填写或不可计算，暂不能判断定价位置。`);
+    conclusions.push(`已补充零售价/竞品价参考 ${competitorText}，但建议售价未填写或不可计算，暂不能判断定价位置。`);
   } else {
     conclusions.push("缺少竞品零售价参考，建议补充淘宝/拼多多同款价格区间后再判断定价是否有优势。");
   }
@@ -257,10 +276,12 @@ export function evaluatePriceEvidence(product = {}, apiResponse = {}) {
     : [];
   const query = safeApiResponse.query || buildAlibabaSearchQuery(safeProduct);
   const searchLinks = apiSearchLinks.length ? apiSearchLinks : buildAlibabaSearchLinks(safeProduct);
-  const competitorPriceRange = parsePriceRange(safeProduct.retailPriceReference || safeProduct.competitorPrice || safeProduct.marketReference);
+  const competitorPriceRange = parsePriceRange(safeProduct.retailPriceReference || safeProduct.competitorPrice);
   const wholesalePriceRange = parsePriceRange(safeProduct.wholesalePriceReference);
-  const suggestedPrice = toNumber(safeProduct.price);
-  const cost = toNumber(safeProduct.cost);
+  const suggestedPriceRange = parsePriceRange(safeProduct.price);
+  const costRange = parsePriceRange(safeProduct.cost);
+  const suggestedPrice = getComparablePrice(suggestedPriceRange);
+  const cost = getComparablePrice(costRange);
   const apiResults = normalizeApiResults(safeApiResponse);
   const sourceType = safeApiResponse.sourceType || "api_unavailable";
   const fallback = sourceType !== "api_real";
@@ -280,13 +301,15 @@ export function evaluatePriceEvidence(product = {}, apiResponse = {}) {
     safeProduct,
     competitorPriceRange,
     wholesalePriceRange,
-    suggestedPrice,
-    cost,
+    suggestedPriceRange,
+    costRange,
     pricePosition,
   });
   const nextActions = buildPriceNextActions({
     competitorPriceRange,
     wholesalePriceRange,
+    suggestedPriceRange,
+    costRange,
     pricePosition,
     cost,
     sourceType,
@@ -300,6 +323,8 @@ export function evaluatePriceEvidence(product = {}, apiResponse = {}) {
     query,
     competitorPriceRange,
     wholesalePriceRange,
+    suggestedPriceRange,
+    costRange,
     pricePosition,
     confidenceScore,
     evidenceScore: confidenceScore,

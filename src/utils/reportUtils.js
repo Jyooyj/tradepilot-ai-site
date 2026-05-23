@@ -242,6 +242,7 @@ function asObject(value) {
 }
 
 const marketEvidenceNotice = "当前为市场证据模式：未调用外部平台 API，不生成或伪造平台真实价格、销量、点赞、播放数据；系统基于用户填写信息和搜索入口进行辅助判断。";
+const defaultMarketRiskWarning = "暂无明确高风险，但建议继续核验同款价格、内容热度和成交反馈。";
 
 function visiblePriceSearchLinks(links) {
   return asArray(links).filter((link) => link?.platform !== "1688" && !String(link?.label || "").includes("1688"));
@@ -293,9 +294,8 @@ function renderDouyinEvidenceSection(douyinEvidence) {
   };
   const searchLinks = asArray(douyinEvidence.searchLinks).slice(0, 1);
   const analysisConclusions = asArray(douyinEvidence.analysisConclusions);
-  const riskWarnings = asArray(douyinEvidence.riskWarnings);
-  const nextActions = asArray(douyinEvidence.nextActions);
-  const manualSignals = asArray(douyinEvidence.manualSignals);
+  const riskWarnings = asArray(douyinEvidence.riskWarnings).length ? asArray(douyinEvidence.riskWarnings) : [defaultMarketRiskWarning];
+  const nextActions = asArray(douyinEvidence.nextActions).length ? asArray(douyinEvidence.nextActions) : ["先做小样内容测试，再根据互动和询价反馈决定是否进货。"];
   const linkCards = searchLinks.length
     ? searchLinks.map((link) => `
         <div class="card">
@@ -322,12 +322,8 @@ function renderDouyinEvidenceSection(douyinEvidence) {
       ${htmlList(riskWarnings, false)}
       <h3>下一步建议</h3>
       ${htmlList(nextActions, false)}
-      <h3>用户填写的热度信号</h3>
-      ${htmlList(manualSignals.length ? manualSignals : ["暂未提供抖音/小红书热度观察，建议先人工搜索同款关键词后再判断测款优先级。"], false)}
       <h3>抖音搜索参考入口</h3>
       <div class="grid">${linkCards}</div>
-      <h3>数据来源说明</h3>
-      <p class="card">${escapeHtml(marketEvidenceNotice)}</p>
     </section>
   `;
 }
@@ -352,10 +348,14 @@ function renderPriceEvidenceSection(priceEvidence) {
   const rangeText = range.isValid
     ? range.min === range.max ? `¥${range.min}` : `¥${range.min} - ¥${range.max}`
     : "待补充";
+  const wholesaleRange = asObject(safePriceEvidence.wholesalePriceRange);
+  const wholesaleText = wholesaleRange.isValid
+    ? wholesaleRange.min === wholesaleRange.max ? `¥${wholesaleRange.min}` : `¥${wholesaleRange.min} - ¥${wholesaleRange.max}`
+    : "待补充";
   const searchLinks = getVisiblePriceSearchLinks(safePriceEvidence);
-  const riskWarnings = asArray(safePriceEvidence.riskWarnings);
+  const riskWarnings = asArray(safePriceEvidence.riskWarnings).length ? asArray(safePriceEvidence.riskWarnings) : [defaultMarketRiskWarning];
   const analysisConclusions = asArray(safePriceEvidence.analysisConclusions);
-  const nextActions = asArray(safePriceEvidence.nextActions);
+  const nextActions = asArray(safePriceEvidence.nextActions).length ? asArray(safePriceEvidence.nextActions) : ["继续核验同款价格、规格、起订量和运费，确认当前价格判断可复盘。"];
   const linkCards = searchLinks.length
     ? searchLinks.map((link) => `
         <div class="card">
@@ -369,11 +369,11 @@ function renderPriceEvidenceSection(priceEvidence) {
   return `
     <section>
       <h2>淘宝/竞品价格证据分析</h2>
-      <p class="footer">该评分根据用户是否填写批发价、零售价、参考链接等证据项计算，不代表平台真实数据准确率。</p>
+      <p class="footer">该评分根据用户是否填写批发价、零售价等证据项计算，不代表平台真实数据准确率。</p>
       ${htmlTable(["项目", "内容"], [
-        ["搜索关键词", safePriceEvidence.query || "待补充"],
-        ["竞品价格区间", rangeText],
-        ["价格位置", pricePositionText[safePriceEvidence.pricePosition] || "未知"],
+        ["批发价参考", wholesaleText],
+        ["零售价/竞品价参考", rangeText],
+        ["建议售价位置", pricePositionText[safePriceEvidence.pricePosition] || "未知"],
         ["证据完整度评分", `${safePriceEvidence.evidenceScore ?? safePriceEvidence.confidenceScore ?? 0}/100`],
         ["证据完整度", dataCompletenessText[safePriceEvidence.dataCompleteness] || "低"],
         ["评分小幅修正", `${safePriceEvidence.scoreAdjustment ?? 0}`],
@@ -386,8 +386,6 @@ function renderPriceEvidenceSection(priceEvidence) {
       ${htmlList(nextActions, false)}
       <h3>淘宝搜索参考入口</h3>
       <div class="grid">${linkCards}</div>
-      <h3>数据来源说明</h3>
-      <p class="card">${escapeHtml(marketEvidenceNotice)}</p>
     </section>
   `;
 }
@@ -400,26 +398,17 @@ function renderManualMarketEvidenceSection(manualEvidence) {
     medium: "中",
     low: "低",
   };
-  const evidence = manualEvidence.evidence || {};
   const analysisConclusions = asArray(manualEvidence.analysisConclusions);
-  const riskWarnings = asArray(manualEvidence.riskWarnings);
-  const nextActions = asArray(manualEvidence.nextActions);
-  const positiveSignals = asArray(manualEvidence.positiveSignals);
+  const riskWarnings = asArray(manualEvidence.riskWarnings).length ? asArray(manualEvidence.riskWarnings) : [defaultMarketRiskWarning];
+  const nextActions = asArray(manualEvidence.nextActions).length ? asArray(manualEvidence.nextActions) : ["先小批量测款，观察点击、收藏、询价和成交后再决定是否扩大进货。"];
 
   return `
     <section>
       <h2>人工市场证据参考</h2>
-      <p class="footer">该评分根据用户是否填写批发价、零售价、热度观察、参考链接、竞品数量、同质化程度等证据项计算，不代表平台真实数据准确率。</p>
+      <p class="footer">围绕批发价、零售价、内容热度、竞品数量和同质化程度，判断现有人工证据是否足以支撑进货决策。</p>
       ${htmlTable(["项目", "内容"], [
         ["数据完整度", dataCompletenessText[manualEvidence.dataCompleteness] || "低"],
         ["证据完整度评分", `${manualEvidence.evidenceScore ?? manualEvidence.confidenceScore ?? 0}/100`],
-        ["1688 批发价参考", evidence.wholesalePriceReference || "未填写"],
-        ["淘宝/拼多多零售价参考", evidence.retailPriceReference || "未填写"],
-        ["抖音/小红书内容热度观察", evidence.contentHeatReference || "未填写"],
-        ["同类竞品数量观察", evidence.competitorDensity || "未观察"],
-        ["内容同质化程度", evidence.contentHomogeneity || "未观察"],
-        ["市场参考链接", evidence.marketReferenceLinks || "未填写"],
-        ["人工市场调研备注", evidence.manualMarketNote || "未填写"],
         ["评分小幅修正", `${manualEvidence.scoreAdjustment ?? 0}`],
       ])}
       <h3>证据结论</h3>
@@ -428,10 +417,6 @@ function renderManualMarketEvidenceSection(manualEvidence) {
       ${htmlList(riskWarnings, false)}
       <h3>下一步建议</h3>
       ${htmlList(nextActions, false)}
-      <h3>证据标签</h3>
-      ${htmlList(positiveSignals.length ? positiveSignals : ["暂无"], false)}
-      <h3>数据来源说明</h3>
-      <p class="card">${escapeHtml(marketEvidenceNotice)}</p>
     </section>
   `;
 }
@@ -631,12 +616,6 @@ export function generateHtmlReport(product, result) {
       </div>
     </section>
 
-    ${renderManualMarketEvidenceSection(manualMarketEvidence)}
-
-    ${renderPriceEvidenceSection(priceEvidence)}
-
-    ${renderDouyinEvidenceSection(douyinEvidence)}
-
     <section>
       <h2>十二、小红书种草发布方案</h2>
       <p class="footer">这一部分是给卖家/创业者使用的内容发布方案，但标题、正文、封面文案使用消费者视角。</p>
@@ -678,6 +657,19 @@ export function generateHtmlReport(product, result) {
       <h2>十五、AI 评分依据</h2>
       ${htmlTable(["维度", "分数", "说明"], scoreRows)}
     </section>
+
+    ${renderPriceEvidenceSection(priceEvidence)}
+
+    ${renderDouyinEvidenceSection(douyinEvidence)}
+
+    ${renderManualMarketEvidenceSection(manualMarketEvidence)}
+
+    ${(priceEvidence || douyinEvidence || manualMarketEvidence) ? `
+    <section class="notice">
+      <h2>市场证据说明</h2>
+      <p>${escapeHtml(marketEvidenceNotice)} 参考链接仅供人工复核，系统当前不会自动打开或解析外部页面。</p>
+    </section>
+    ` : ""}
 
     <section class="notice">
       <h2>报告说明</h2>
