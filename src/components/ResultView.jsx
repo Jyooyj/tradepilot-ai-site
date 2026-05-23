@@ -28,6 +28,10 @@ function getPriceEvidence(result) {
   return result?.priceEvidence || result?.marketEvidence?.price || null;
 }
 
+function getManualMarketEvidence(result) {
+  return result?.manualMarketEvidence || result?.marketEvidence?.manual || null;
+}
+
 function formatPriceRange(range) {
   if (!range?.isValid) return "待补充";
   if (range.min === range.max) return `¥${range.min}`;
@@ -37,6 +41,7 @@ function formatPriceRange(range) {
 export default function ResultView({ product, image, result, analyzed, setMode, copyReport, copied, saveCurrentReport, saveMessage, aiInsight, downloadReport }) {
   const douyinEvidence = getDouyinEvidence(result);
   const priceEvidence = getPriceEvidence(result);
+  const manualMarketEvidence = getManualMarketEvidence(result);
 
   return (
     <div className="space-y-6">
@@ -162,6 +167,65 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
               ))}
             </div>
             <p className="mt-4 text-xs leading-6 text-emerald-100/80">{priceEvidence.sourceNotice}</p>
+          </div>
+        </section>
+      )}
+
+      {manualMarketEvidence && (
+        <section className="rounded-[2rem] border border-teal-300/20 bg-teal-300/10 p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-sm font-bold text-teal-200">Manual Market Evidence</p>
+              <h2 className="mt-2 text-2xl font-black text-white">人工市场证据参考</h2>
+              <p className="mt-2 text-sm leading-7 text-slate-300">
+                这些信息来自用户手动填写的市场调研记录，用于在平台 API 未授权或不可用时辅助判断，不等同于平台自动抓取数据。
+              </p>
+            </div>
+            <span className="rounded-full border border-teal-200/30 bg-black/20 px-4 py-2 text-xs font-black text-teal-100">
+              完整度：{dataCompletenessText[manualMarketEvidence.dataCompleteness] || "低"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            <Card label="可信度评分" value={`${manualMarketEvidence.confidenceScore ?? 0}/100`} />
+            <Card label="1688 批发价参考" value={manualMarketEvidence.evidence?.wholesalePriceReference || "未填写"} />
+            <Card label="淘宝/拼多多零售价参考" value={manualMarketEvidence.evidence?.retailPriceReference || "未填写"} />
+            <Card label="评分修正" value={`${manualMarketEvidence.scoreAdjustment ?? 0}`} />
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <h3 className="font-black text-teal-100">用户填写的市场观察</h3>
+              <div className="mt-3 space-y-3 text-sm leading-7 text-slate-300">
+                <p><b className="text-teal-100">内容热度：</b>{manualMarketEvidence.evidence?.contentHeatReference || "未填写"}</p>
+                <p><b className="text-teal-100">竞品数量：</b>{manualMarketEvidence.evidence?.competitorDensity || "未观察"}</p>
+                <p><b className="text-teal-100">内容同质化：</b>{manualMarketEvidence.evidence?.contentHomogeneity || "未观察"}</p>
+                <p><b className="text-teal-100">参考链接：</b>{manualMarketEvidence.evidence?.marketReferenceLinks || "未填写"}</p>
+                <p><b className="text-teal-100">调研备注：</b>{manualMarketEvidence.evidence?.manualMarketNote || "未填写"}</p>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <h3 className="font-black text-teal-100">风险提示</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+                {(manualMarketEvidence.riskWarnings || []).map((warning) => (
+                  <li key={warning}>· {warning}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-3xl border border-teal-300/20 bg-black/20 p-5">
+            <h3 className="font-black text-teal-100">证据摘要</h3>
+            <p className="mt-3 text-sm leading-7 text-slate-300">{manualMarketEvidence.evidenceSummary}</p>
+            {!!manualMarketEvidence.positiveSignals?.length && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {manualMarketEvidence.positiveSignals.map((signal) => (
+                  <span key={signal} className="rounded-full bg-teal-300/15 px-3 py-2 text-xs font-bold text-teal-100">{signal}</span>
+                ))}
+              </div>
+            )}
+            <p className="mt-4 text-xs leading-6 text-teal-100/80">{manualMarketEvidence.sourceNotice}</p>
           </div>
         </section>
       )}
