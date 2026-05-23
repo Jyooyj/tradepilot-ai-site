@@ -12,7 +12,7 @@ function normalizeText(value) {
 }
 
 function unique(items) {
-  return [...new Set(items.filter(Boolean))];
+  return [...new Set((Array.isArray(items) ? items : []).filter(Boolean))];
 }
 
 function clamp(value, min, max) {
@@ -40,7 +40,9 @@ export function buildDouyinSearchLinks(product = {}) {
   const query = buildDouyinSearchQuery(product);
   const encodedQuery = encodeURIComponent(query);
 
-  return douyinSearchRules.links.map((link) => ({
+  const links = Array.isArray(douyinSearchRules.links) ? douyinSearchRules.links.slice(0, 1) : [];
+
+  return links.map((link) => ({
     label: link.label,
     url: link.urlTemplate.replace("{query}", encodedQuery),
     purpose: link.purpose,
@@ -63,6 +65,10 @@ export function extractManualDouyinSignals(product = {}) {
     .filter(({ keyword }) => sourceText.includes(keyword))
     .map(({ signal }) => signal);
 
+  if (normalizeText(product.contentHeatReference) && !signals.length) {
+    signals.push("用户已填写内容热度观察");
+  }
+
   if (product.contentHomogeneity === "高") {
     signals.push("用户观察到内容同质化程度较高");
   }
@@ -73,15 +79,15 @@ export function extractManualDouyinSignals(product = {}) {
 
   return {
     signals: unique(signals),
-    hasManualEvidence: signals.length > 0,
+    hasManualEvidence: signals.length > 0 || Boolean(normalizeText(product.contentHeatReference)),
   };
 }
 
 function inferHeatLevelFromSignals(signals) {
   const joinedSignals = signals.join(" ");
-  const hasLowSignal = /搜索结果较少|互动偏低|无明显热度/.test(joinedSignals);
-  const hasHighSignal = /点赞|评论|收藏|爆款|热门|同款|种草|搜索结果较多/.test(joinedSignals);
-  const hasCompetitionSignal = /竞争较大/.test(joinedSignals);
+  const hasLowSignal = /搜索结果较少|互动偏低|无明显热度|搜索少|内容少|低互动|没热度/.test(joinedSignals);
+  const hasHighSignal = /点赞|评论|询价|收藏|爆款|热门|同款|种草|搜索结果较多/.test(joinedSignals);
+  const hasCompetitionSignal = /竞争较大|竞品数量较多|同质化程度较高/.test(joinedSignals);
 
   if (hasLowSignal) return "low";
   if (hasHighSignal && !hasCompetitionSignal) return "high";
@@ -89,7 +95,7 @@ function inferHeatLevelFromSignals(signals) {
   return "unknown";
 }
 
-function buildRiskWarnings(heatLevel, manualSignals) {
+function buildRiskWarnings(heatLevel, manualSignals, product = {}) {
   const warnings = [
     douyinFallbackRiskMessages.apiUnauthorized,
     douyinFallbackRiskMessages.searchRecommendation,
@@ -104,11 +110,65 @@ function buildRiskWarnings(heatLevel, manualSignals) {
     warnings.push(douyinFallbackRiskMessages.sparseResults);
   }
 
-  if (!manualSignals.length) {
+  if (!normalizeText(product.contentHeatReference)) {
     warnings.push(douyinFallbackRiskMessages.missingManualEvidence);
   }
 
   return unique(warnings);
+}
+
+function buildAnalysisConclusions(product, heatLevel, manualSignals) {
+  const contentHeatText = normalizeText(product.contentHeatReference);
+  const joinedText = `${contentHeatText} ${manualSignals.join(" ")}`;
+  const conclusions = [];
+
+  if (contentHeatText) {
+    if (/点赞高|点赞较高|评论多|询价|爆款|热门|收藏|种草/.test(joinedText)) {
+      conclusions.push("用户观察到互动信号，说明该品类具备内容测款价值，但仍需用短视频封面和评论区反馈验证。");
+    } else if (/搜索少|内容少|低互动|没热度|无明显热度/.test(joinedText)) {
+      conclusions.push("当前平台热度证据偏弱，建议先做小样内容测试，不宜直接大量进货。");
+    } else {
+      conclusions.push("已补充抖音/小红书热度观察，可作为短视频和种草内容测款的辅助证据。");
+    }
+
+    if (/同款多|竞争大|同款|竞品数量较多|同质化程度较高/.test(joinedText)) {
+      conclusions.push("内容竞争较强，需要用差异化场景或人群定位切入。");
+    }
+  } else {
+    conclusions.push("暂未提供抖音/小红书热度观察，因此内容热度证据不足。建议先搜索同款关键词，记录点赞、评论、收藏、询价和同质化情况后再判断测款优先级。");
+  }
+
+  if (heatLevel === "high") {
+    conclusions.push("当前热度参考偏高，适合优先测试封面钩子、使用场景和评论区询价反馈。");
+  } else if (heatLevel === "low") {
+    conclusions.push("当前热度参考偏低，建议先用低成本内容验证兴趣，不宜直接扩大备货。");
+  } else if (heatLevel === "medium") {
+    conclusions.push("当前热度参考处于中等水平，建议结合差异化内容角度做小批量测款。");
+  }
+
+  return unique(conclusions);
+}
+
+function buildNextActions(product, heatLevel) {
+  const actions = [];
+
+  if (!normalizeText(product.contentHeatReference)) {
+    actions.push("先搜索同款关键词，记录点赞、评论、收藏、询价和内容同质化情况。");
+  }
+
+  if (heatLevel === "high" || heatLevel === "medium") {
+    actions.push("用 2-3 个短视频封面和标题钩子测试点击、停留和评论区询价。");
+  }
+
+  if (heatLevel === "low" || heatLevel === "unknown") {
+    actions.push("先做小样内容测试，再根据互动和询价反馈决定是否进货。");
+  }
+
+  if (product.contentHomogeneity === "高" || product.competitorDensity === "多") {
+    actions.push("避开同款平铺展示，优先拍使用场景、材质细节和人群标签。");
+  }
+
+  return unique(actions).length ? unique(actions) : ["人工查看抖音搜索结果，确认内容互动和同质化情况后再判断测款优先级。"];
 }
 
 function getScoreAdjustment(heatLevel, hasManualEvidence) {
@@ -131,9 +191,11 @@ export function evaluateDouyinFallbackEvidence(product = {}, baseResult = {}) {
     18,
     hasManualEvidence ? 82 : 45
   );
-  const riskWarnings = buildRiskWarnings(heatLevel, signals);
+  const riskWarnings = buildRiskWarnings(heatLevel, signals, product);
   const heatLabel = douyinHeatLevels[heatLevel]?.label || douyinHeatLevels.unknown.label;
   const scoreAdjustment = clamp(getScoreAdjustment(heatLevel, hasManualEvidence), -3, 3);
+  const analysisConclusions = buildAnalysisConclusions(product, heatLevel, signals);
+  const nextActions = buildNextActions(product, heatLevel);
 
   return {
     platform: douyinFallbackPlatform.platform,
@@ -146,14 +208,15 @@ export function evaluateDouyinFallbackEvidence(product = {}, baseResult = {}) {
     heatLevel,
     heatLevelLabel: heatLabel,
     confidenceScore,
+    evidenceScore: confidenceScore,
     searchLinks,
     manualSignals: signals,
-    evidenceSummary: hasManualEvidence
-      ? `已根据用户填写的内容热度备注识别到 ${signals.length} 条抖音相关信号，当前判断为${heatLabel}热度参考。`
-      : "当前未填写明确的抖音内容热度备注，热度等级暂为未知，仅提供搜索入口和风险提示。",
+    evidenceSummary: analysisConclusions[0] || "当前内容热度证据不足，需要人工搜索同款关键词后再判断测款优先级。",
+    analysisConclusions,
     riskWarnings,
+    nextActions,
     scoreAdjustment,
-    sourceNotice: "当前为抖音 API 未授权降级方案：未调用真实抖音 API，未获取真实点赞、评论、播放、收藏或完播数据；请将搜索入口作为人工核验参考。",
+    sourceNotice: "当前为市场证据模式：未调用外部平台 API，不生成或伪造平台真实价格、销量、点赞、播放数据；系统基于用户填写信息和搜索入口进行辅助判断。",
     baseScore: baseResult?.totalScore ?? baseResult?.score ?? null,
   };
 }

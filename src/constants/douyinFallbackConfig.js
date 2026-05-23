@@ -10,14 +10,9 @@ export const douyinSearchRules = {
   separatorPattern: /[\s,，、/|;；]+/,
   links: [
     {
-      label: "抖音网页版搜索",
+      label: "抖音搜索参考",
       purpose: "进入抖音搜索同款或相近关键词，人工查看内容互动和同质化情况。",
       urlTemplate: "https://www.douyin.com/search/{query}?type=general",
-    },
-    {
-      label: "抖音种草/测评关键词参考",
-      purpose: "补充查看种草、测评、使用场景类内容，辅助判断短视频测款方向。",
-      urlTemplate: "https://www.douyin.com/search/{query}%20种草%20测评?type=general",
     },
   ],
 };
@@ -44,13 +39,14 @@ export const douyinHeatLevels = {
 export const douyinSourceTypes = {
   manual_input: "用户填写的内容热度备注",
   search_reference: "平台搜索入口",
-  fallback: "API 未授权降级",
-  api_pending: "已预留真实 API 接入，但当前未授权",
+  fallback: "市场证据模式",
+  api_pending: "市场证据模式",
 };
 
 export const douyinManualSignalRules = [
   { keyword: "点赞", signal: "用户备注提到点赞表现" },
   { keyword: "评论", signal: "用户备注提到评论互动" },
+  { keyword: "询价", signal: "用户备注提到评论区或私信询价" },
   { keyword: "收藏", signal: "用户备注提到收藏或留存兴趣" },
   { keyword: "爆款", signal: "用户备注提到爆款线索" },
   { keyword: "热门", signal: "用户备注提到热门内容" },
@@ -64,7 +60,7 @@ export const douyinManualSignalRules = [
 ];
 
 export const douyinFallbackRiskMessages = {
-  apiUnauthorized: "抖音 API 未授权，当前不能自动获取真实热度，只能作为搜索参考和手动证据整理。",
+  apiUnauthorized: "本模块仅作内容热度辅助判断，不代表平台真实热度。",
   searchRecommendation: "建议进入抖音搜索同款关键词，人工查看点赞、评论、收藏、完播/互动情况。",
   homogenization: "若热门内容多但同质化严重，需要注意内容差异化，避免只跟随同款低价竞争。",
   sparseResults: "若搜索结果少，说明内容机会可能存在，但需要通过小样测款验证真实需求。",
