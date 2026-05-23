@@ -257,6 +257,51 @@ export function htmlPills(items) {
   return `<div class="pills">${safeItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("") || "<span>暂无</span>"}</div>`;
 }
 
+function renderDouyinEvidenceSection(douyinEvidence) {
+  if (!douyinEvidence) return "";
+
+  const heatLevelText = {
+    high: "高",
+    medium: "中",
+    low: "低",
+    unknown: "未知",
+  };
+  const searchLinks = douyinEvidence.searchLinks || [];
+  const linkCards = searchLinks.length
+    ? searchLinks.map((link) => `
+        <div class="card">
+          <h3>${escapeHtml(link.label)}</h3>
+          <p>${escapeHtml(link.purpose)}</p>
+          <p><a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer">${escapeHtml(link.url)}</a></p>
+        </div>
+      `).join("")
+    : '<div class="card"><p>暂无搜索入口。</p></div>';
+
+  return `
+    <section>
+      <h2>抖音内容热度参考</h2>
+      <p class="footer">当前状态：API 未授权 / 搜索参考模式。本章节不调用真实抖音 API，也不生成真实点赞、评论、播放、收藏或完播数据。</p>
+      ${htmlTable(["项目", "内容"], [
+        ["数据来源", douyinEvidence.sourceTypeLabel || "API 未授权降级"],
+        ["搜索关键词", douyinEvidence.query || "待补充"],
+        ["热度等级", douyinEvidence.heatLevelLabel || heatLevelText[douyinEvidence.heatLevel] || "未知"],
+        ["可信度评分", `${douyinEvidence.confidenceScore ?? 0}/100`],
+        ["评分小幅修正", `${douyinEvidence.scoreAdjustment ?? 0}`],
+      ])}
+      <h3>用户填写的热度信号</h3>
+      ${htmlList(douyinEvidence.manualSignals?.length ? douyinEvidence.manualSignals : ["暂未识别到用户填写的抖音内容热度备注。"], false)}
+      <h3>证据摘要</h3>
+      <p class="card">${escapeHtml(douyinEvidence.evidenceSummary)}</p>
+      <h3>风险提示</h3>
+      ${htmlList(douyinEvidence.riskWarnings || [], false)}
+      <h3>抖音搜索参考入口</h3>
+      <div class="grid">${linkCards}</div>
+      <h3>数据来源说明</h3>
+      <p class="card">${escapeHtml(douyinEvidence.sourceNotice)}</p>
+    </section>
+  `;
+}
+
 export function generateHtmlReport(product, result) {
   const fallbackMarket = result.market || inferMarketInfo(product);
   const fallbackChannelFit = result.channelFit || getChannelFit(product, fallbackMarket.categoryKey);
@@ -275,6 +320,7 @@ export function generateHtmlReport(product, result) {
     ? result.actions
     : [...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)];
   const channelScore = getScoreValue(result, "渠道", result.channelFit?.score || "");
+  const douyinEvidence = result.douyinEvidence || result.marketEvidence?.douyin || null;
   const basicRows = [
     ["产品名称", contentContext.productIdentity?.displayName || product.name || "未填写"],
     ["产品类型", contentContext.productIdentity?.productTypeLabel || product.category || result.market?.marketType || "未填写"],
@@ -437,6 +483,8 @@ export function generateHtmlReport(product, result) {
       </div>
     </section>
 
+    ${renderDouyinEvidenceSection(douyinEvidence)}
+
     <section>
       <h2>十二、小红书种草发布方案</h2>
       <p class="footer">这一部分是给卖家/创业者使用的内容发布方案，但标题、正文、封面文案使用消费者视角。</p>
@@ -488,4 +536,3 @@ export function generateHtmlReport(product, result) {
 </html>`;
   return validateGeneratedContent(contentContext, html, "htmlReport").content;
 }
-
