@@ -233,27 +233,31 @@ export function escapeHtml(value) {
     .trim() || "未填写";
 }
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 export function htmlTable(headers, rows) {
-  return `<table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${(rows || [])
-    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
+  return `<table><thead><tr>${asArray(headers).map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${asArray(rows)
+    .map((row) => `<tr>${asArray(row).map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
     .join("")}</tbody></table>`;
 }
 
 export function htmlList(items, ordered = true) {
-  const safeItems = (items || []).filter(Boolean);
+  const safeItems = asArray(items).filter(Boolean);
   const tag = ordered ? "ol" : "ul";
   if (!safeItems.length) return `<${tag}><li>暂无</li></${tag}>`;
   return `<${tag}>${safeItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</${tag}>`;
 }
 
 export function htmlChecklist(items) {
-  const safeItems = (items || []).filter(Boolean);
+  const safeItems = asArray(items).filter(Boolean);
   if (!safeItems.length) return `<ul class="checklist"><li><span class="box"></span><span>暂无</span></li></ul>`;
   return `<ul class="checklist">${safeItems.map((item) => `<li><span class="box"></span><span>${escapeHtml(item)}</span></li>`).join("")}</ul>`;
 }
 
 export function htmlPills(items) {
-  const safeItems = (items || []).filter(Boolean);
+  const safeItems = asArray(items).filter(Boolean);
   return `<div class="pills">${safeItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("") || "<span>暂无</span>"}</div>`;
 }
 
@@ -304,6 +308,7 @@ function renderDouyinEvidenceSection(douyinEvidence) {
 
 function renderPriceEvidenceSection(priceEvidence) {
   if (!priceEvidence) return "";
+  const safePriceEvidence = priceEvidence || {};
 
   const pricePositionText = {
     below_market: "低于竞品区间",
@@ -316,11 +321,12 @@ function renderPriceEvidenceSection(priceEvidence) {
     medium: "中",
     low: "低",
   };
-  const range = priceEvidence.competitorPriceRange || {};
+  const range = safePriceEvidence.competitorPriceRange || {};
   const rangeText = range.isValid
     ? range.min === range.max ? `¥${range.min}` : `¥${range.min} - ¥${range.max}`
     : "待补充";
-  const searchLinks = priceEvidence.searchLinks || [];
+  const searchLinks = asArray(safePriceEvidence.searchLinks);
+  const riskWarnings = asArray(safePriceEvidence.riskWarnings);
   const linkCards = searchLinks.length
     ? searchLinks.map((link) => `
         <div class="card">
@@ -336,22 +342,22 @@ function renderPriceEvidenceSection(priceEvidence) {
       <h2>1688 / 淘宝价格参考</h2>
       <p class="footer">当前用于批发价和竞品售价参考；API 未配置时仅使用平台搜索入口和用户填写竞品价格区间，不生成真实平台价格、销量、店铺或供应商数据。</p>
       ${htmlTable(["项目", "内容"], [
-        ["当前状态", priceEvidence.sourceTypeLabel || (priceEvidence.sourceType === "api_real" ? "真实 API" : "API 未配置 / 搜索参考")],
-        ["搜索关键词", priceEvidence.query || "待补充"],
+        ["当前状态", safePriceEvidence.sourceTypeLabel || (safePriceEvidence.sourceType === "api_real" ? "真实 API" : "API 未配置 / 搜索参考")],
+        ["搜索关键词", safePriceEvidence.query || "待补充"],
         ["竞品价格区间", rangeText],
-        ["价格位置", pricePositionText[priceEvidence.pricePosition] || "未知"],
-        ["可信度评分", `${priceEvidence.confidenceScore ?? 0}/100`],
-        ["数据完整度", dataCompletenessText[priceEvidence.dataCompleteness] || "低"],
-        ["评分小幅修正", `${priceEvidence.scoreAdjustment ?? 0}`],
+        ["价格位置", pricePositionText[safePriceEvidence.pricePosition] || "未知"],
+        ["可信度评分", `${safePriceEvidence.confidenceScore ?? 0}/100`],
+        ["数据完整度", dataCompletenessText[safePriceEvidence.dataCompleteness] || "低"],
+        ["评分小幅修正", `${safePriceEvidence.scoreAdjustment ?? 0}`],
       ])}
       <h3>证据摘要</h3>
-      <p class="card">${escapeHtml(priceEvidence.evidenceSummary)}</p>
+      <p class="card">${escapeHtml(safePriceEvidence.evidenceSummary)}</p>
       <h3>风险提示</h3>
-      ${htmlList(priceEvidence.riskWarnings || [], false)}
+      ${htmlList(riskWarnings, false)}
       <h3>1688 / 淘宝搜索参考入口</h3>
       <div class="grid">${linkCards}</div>
       <h3>数据来源说明</h3>
-      <p class="card">${escapeHtml(priceEvidence.sourceNotice)}</p>
+      <p class="card">${escapeHtml(safePriceEvidence.sourceNotice)}</p>
     </section>
   `;
 }
@@ -412,9 +418,10 @@ export function generateHtmlReport(product, result) {
     ? result.actions
     : [...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)];
   const channelScore = getScoreValue(result, "渠道", result.channelFit?.score || "");
-  const douyinEvidence = result.douyinEvidence || result.marketEvidence?.douyin || null;
-  const priceEvidence = result.priceEvidence || result.marketEvidence?.price || null;
-  const manualMarketEvidence = result.manualMarketEvidence || result.marketEvidence?.manual || null;
+  const marketEvidence = result?.marketEvidence || {};
+  const douyinEvidence = result.douyinEvidence || marketEvidence.douyin || null;
+  const priceEvidence = result.priceEvidence || marketEvidence.price || null;
+  const manualMarketEvidence = result.manualMarketEvidence || marketEvidence.manual || null;
   const basicRows = [
     ["产品名称", contentContext.productIdentity?.displayName || product.name || "未填写"],
     ["产品类型", contentContext.productIdentity?.productTypeLabel || product.category || result.market?.marketType || "未填写"],

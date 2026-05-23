@@ -10,7 +10,7 @@ function normalizeText(value) {
 }
 
 function unique(items) {
-  return [...new Set(items.filter(Boolean))];
+  return [...new Set((Array.isArray(items) ? items : []).filter(Boolean))];
 }
 
 function clamp(value, min, max) {
@@ -68,7 +68,9 @@ export function buildAlibabaSearchLinks(product = {}) {
   const query = buildAlibabaSearchQuery(product);
   const encodedQuery = encodeURIComponent(query);
 
-  return alibabaPriceSearchRules.links.map((link) => ({
+  const links = Array.isArray(alibabaPriceSearchRules.links) ? alibabaPriceSearchRules.links : [];
+
+  return links.map((link) => ({
     platform: link.platform,
     label: link.label,
     url: link.urlTemplate.replace("{query}", encodedQuery),
@@ -131,20 +133,26 @@ function getScoreAdjustment({ pricePosition, range, product }) {
 }
 
 function normalizeApiResults(apiResponse = {}) {
+  const safeApiResponse = apiResponse || {};
+  const wholesaleResults = Array.isArray(safeApiResponse.wholesaleResults) ? safeApiResponse.wholesaleResults : [];
+  const retailResults = Array.isArray(safeApiResponse.retailResults) ? safeApiResponse.retailResults : [];
+
   return [
-    ...(Array.isArray(apiResponse.wholesaleResults) ? apiResponse.wholesaleResults : []),
-    ...(Array.isArray(apiResponse.retailResults) ? apiResponse.retailResults : []),
+    ...wholesaleResults,
+    ...retailResults,
   ];
 }
 
 export function evaluatePriceEvidence(product = {}, apiResponse = null) {
-  const query = apiResponse?.query || buildAlibabaSearchQuery(product);
-  const searchLinks = apiResponse?.searchLinks?.length ? apiResponse.searchLinks : buildAlibabaSearchLinks(product);
+  const safeApiResponse = apiResponse || {};
+  const apiSearchLinks = Array.isArray(safeApiResponse.searchLinks) ? safeApiResponse.searchLinks : [];
+  const query = safeApiResponse.query || buildAlibabaSearchQuery(product);
+  const searchLinks = apiSearchLinks.length ? apiSearchLinks : buildAlibabaSearchLinks(product);
   const competitorPriceRange = parsePriceRange(product.retailPriceReference || product.competitorPrice || product.marketReference);
   const wholesalePriceRange = parsePriceRange(product.wholesalePriceReference || product.cost);
   const suggestedPrice = toNumber(product.price);
-  const apiResults = normalizeApiResults(apiResponse);
-  const sourceType = apiResponse?.sourceType || "api_unavailable";
+  const apiResults = normalizeApiResults(safeApiResponse);
+  const sourceType = safeApiResponse.sourceType || "api_unavailable";
   const fallback = sourceType !== "api_real";
   const pricePosition = getPricePosition(suggestedPrice, competitorPriceRange);
   const dataCompleteness = getDataCompleteness(competitorPriceRange, wholesalePriceRange, apiResults);
@@ -155,7 +163,7 @@ export function evaluatePriceEvidence(product = {}, apiResponse = null) {
   );
   const riskWarnings = getRiskWarnings({ sourceType, range: competitorPriceRange, pricePosition });
   const scoreAdjustment = clamp(getScoreAdjustment({ pricePosition, range: competitorPriceRange, product }), -5, 5);
-  const sourceNotice = apiResponse?.sourceNotice || (
+  const sourceNotice = safeApiResponse.sourceNotice || (
     sourceType === "api_real" ? alibabaPriceNotices.apiReal : alibabaPriceNotices.apiUnavailable
   );
 
