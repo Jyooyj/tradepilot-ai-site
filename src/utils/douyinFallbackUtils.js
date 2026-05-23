@@ -51,6 +51,9 @@ export function buildDouyinSearchLinks(product = {}) {
 export function extractManualDouyinSignals(product = {}) {
   const sourceText = [
     product.marketReference,
+    product.contentHeatReference,
+    product.manualMarketNote,
+    product.marketReferenceLinks,
     product.note,
     product.keywords,
     product.channel,
@@ -59,6 +62,14 @@ export function extractManualDouyinSignals(product = {}) {
   const signals = douyinManualSignalRules
     .filter(({ keyword }) => sourceText.includes(keyword))
     .map(({ signal }) => signal);
+
+  if (product.contentHomogeneity === "高") {
+    signals.push("用户观察到内容同质化程度较高");
+  }
+
+  if (product.competitorDensity === "多") {
+    signals.push("用户观察到同类竞品数量较多");
+  }
 
   return {
     signals: unique(signals),
@@ -85,7 +96,7 @@ function buildRiskWarnings(heatLevel, manualSignals) {
   ];
   const joinedSignals = manualSignals.join(" ");
 
-  if (/同款|竞争较大/.test(joinedSignals) || heatLevel === "high") {
+  if (/同款|竞争较大|竞品数量较多|同质化程度较高/.test(joinedSignals) || heatLevel === "high") {
     warnings.push(douyinFallbackRiskMessages.homogenization);
   }
 

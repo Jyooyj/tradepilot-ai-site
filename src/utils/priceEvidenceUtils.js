@@ -84,10 +84,11 @@ function getPricePosition(price, range) {
   return "within_market";
 }
 
-function getDataCompleteness(range, apiResults) {
-  if (range?.isValid && apiResults.length > 0) return "high";
-  if (range?.isValid) return "medium";
-  return "low";
+function getDataCompleteness(retailRange, wholesaleRange, apiResults) {
+  if (!retailRange?.isValid) return "low";
+  if (retailRange?.isValid && wholesaleRange?.isValid && apiResults.length > 0) return "high";
+  if (retailRange?.isValid && wholesaleRange?.isValid) return "high";
+  return "medium";
 }
 
 function getRiskWarnings({ sourceType, range, pricePosition }) {
@@ -139,17 +140,18 @@ function normalizeApiResults(apiResponse = {}) {
 export function evaluatePriceEvidence(product = {}, apiResponse = null) {
   const query = apiResponse?.query || buildAlibabaSearchQuery(product);
   const searchLinks = apiResponse?.searchLinks?.length ? apiResponse.searchLinks : buildAlibabaSearchLinks(product);
-  const competitorPriceRange = parsePriceRange(product.competitorPrice || product.marketReference);
+  const competitorPriceRange = parsePriceRange(product.retailPriceReference || product.competitorPrice || product.marketReference);
+  const wholesalePriceRange = parsePriceRange(product.wholesalePriceReference || product.cost);
   const suggestedPrice = toNumber(product.price);
   const apiResults = normalizeApiResults(apiResponse);
   const sourceType = apiResponse?.sourceType || "api_unavailable";
   const fallback = sourceType !== "api_real";
   const pricePosition = getPricePosition(suggestedPrice, competitorPriceRange);
-  const dataCompleteness = getDataCompleteness(competitorPriceRange, apiResults);
+  const dataCompleteness = getDataCompleteness(competitorPriceRange, wholesalePriceRange, apiResults);
   const confidenceScore = clamp(
-    20 + (competitorPriceRange.isValid ? 35 : 0) + (apiResults.length ? 30 : 0) + (searchLinks.length ? 10 : 0),
+    20 + (competitorPriceRange.isValid ? 30 : 0) + (wholesalePriceRange.isValid ? 15 : 0) + (apiResults.length ? 30 : 0) + (searchLinks.length ? 10 : 0),
     18,
-    sourceType === "api_real" ? 90 : competitorPriceRange.isValid ? 68 : 42
+    sourceType === "api_real" ? 90 : competitorPriceRange.isValid || wholesalePriceRange.isValid ? 76 : 42
   );
   const riskWarnings = getRiskWarnings({ sourceType, range: competitorPriceRange, pricePosition });
   const scoreAdjustment = clamp(getScoreAdjustment({ pricePosition, range: competitorPriceRange, product }), -5, 5);
@@ -164,13 +166,14 @@ export function evaluatePriceEvidence(product = {}, apiResponse = null) {
     fallback,
     query,
     competitorPriceRange,
+    wholesalePriceRange,
     pricePosition,
     confidenceScore,
     dataCompleteness,
     searchLinks,
     apiResults,
     evidenceSummary: competitorPriceRange.isValid
-      ? `已根据用户填写的竞品价格区间 ${competitorPriceRange.min}-${competitorPriceRange.max} 元判断建议售价位置，未配置 API 时不代表真实平台自动价格。`
+      ? `已根据用户填写的零售价/竞品价格区间 ${competitorPriceRange.min}-${competitorPriceRange.max} 元判断建议售价位置${wholesalePriceRange.isValid ? `，并参考批发价区间 ${wholesalePriceRange.min}-${wholesalePriceRange.max} 元` : ""}。未配置 API 时不代表真实平台自动价格。`
       : "当前缺少用户填写的竞品价格区间，仅提供 1688 / 淘宝搜索入口和价格风险提示。",
     riskWarnings,
     scoreAdjustment,
