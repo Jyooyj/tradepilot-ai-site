@@ -51,6 +51,7 @@ import {
 import {
   buildImageRecognitionErrorMessage,
   buildImageRecognitionMessage,
+  normalizeImageQualityLevel,
 } from "./src/utils/imageQualityUtils";
 import {
   applyDouyinFallbackToResult,
@@ -2062,8 +2063,6 @@ function getScoreValue(result, keyword, fallback = "") {
   return found?.[1] ?? fallback;
 }
 
-
-
 function App() {
   const [page, setPage] = useState("cover");
   const [mode, setMode] = useState("intro");
@@ -2471,8 +2470,10 @@ function App() {
       level: "ok",
       title: "正在识别图片",
       summary: imageQualityNotice?.level === "warning"
-        ? "当前图片存在质量预警，识别结果可能不稳定，请稍后重点核对自动回填字段。"
-        : "正在调用图片识别接口，请稍候。",
+        ? "当前图片存在质量提醒，识别结果建议人工复核。"
+        : imageQualityNotice?.level === "minor_warning"
+          ? "当前图片存在轻微质量提醒，仍可继续识别。"
+          : "正在调用图片识别接口，请稍候。",
       issues: imageQualityNotice?.level === "warning" ? imageQualityNotice.issues || [] : [],
       suggestions: ["识别完成后请核对商品名称、品类、材质、价格和 MOQ。"],
     });
@@ -2559,6 +2560,7 @@ function App() {
 
       setAiInsight(data);
       setImageRecognitionNotice(recognitionMessage);
+      setImageQualityNotice((oldNotice) => normalizeImageQualityLevel(oldNotice, recognitionMessage));
 
       setProduct((old) => ({
         ...old,
