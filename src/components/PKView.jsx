@@ -1,4 +1,39 @@
 import { getPkRecommendation, getRecordMetrics, getRecordStatus, money, PkMetricRow } from "../../App.jsx";
+import ProductPKBarChart from "./charts/ProductPKBarChart";
+import ProductPKRadarChart from "./charts/ProductPKRadarChart";
+
+function toFiniteNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function clampScore(value) {
+  return Math.max(0, Math.min(100, Math.round(toFiniteNumber(value))));
+}
+
+function buildPkChartCandidate(record) {
+  const metrics = getRecordMetrics(record);
+  const result = record?.result || {};
+  const marginScore = clampScore(toFiniteNumber(metrics.margin) * 100);
+  const riskControl = clampScore(100 - toFiniteNumber(metrics.riskCount) * 18);
+  const hotPotential = clampScore(
+    result.hotPotentialScore ??
+    result.viralPotentialScore ??
+    result.contentPotentialScore ??
+    metrics.contentPotential,
+  );
+
+  return {
+    id: record?.id || metrics.displayName,
+    name: metrics.displayName || record?.product_name || "候选产品",
+    score: clampScore(metrics.score),
+    hotPotential,
+    profitSpace: marginScore,
+    riskControl,
+    contentValue: clampScore(metrics.contentPotential),
+    channelFit: clampScore(result.channelFit?.score),
+  };
+}
 
 export default function PKView({ records, loading, message, onRefresh, onRestore, leftId, setLeftId, rightId, setRightId }) {
   const sorted = [...records].sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -6,6 +41,11 @@ export default function PKView({ records, loading, message, onRefresh, onRestore
   const right = sorted.find((record) => record.id === rightId) || sorted.find((record) => record.id !== left?.id) || null;
   const leftMetrics = left ? getRecordMetrics(left) : null;
   const rightMetrics = right ? getRecordMetrics(right) : null;
+  const chartCandidates = [left, right, ...sorted]
+    .filter(Boolean)
+    .filter((record, index, source) => source.findIndex((item) => item?.id === record?.id) === index)
+    .slice(0, 3)
+    .map(buildPkChartCandidate);
 
   return (
     <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
@@ -53,6 +93,28 @@ export default function PKView({ records, loading, message, onRefresh, onRestore
           <div className="rounded-3xl bg-emerald-300 p-6 text-black">
             <p className="text-sm font-bold opacity-70">AI 推荐结论</p>
             <h3 className="mt-2 text-2xl font-black">{getPkRecommendation(left, right)}</h3>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
+            <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-sm font-bold text-emerald-300">Candidate Charts</p>
+                <h3 className="text-2xl font-black text-white">候选产品对比图</h3>
+              </div>
+              <p className="max-w-xl text-xs leading-6 text-slate-400">
+                图表仅基于已保存报告字段做辅助展示，不改变原有 PK 排序、判断和保存逻辑。
+              </p>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                <h4 className="mb-3 font-black text-slate-100">核心维度雷达图</h4>
+                <ProductPKRadarChart candidates={chartCandidates} />
+              </div>
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                <h4 className="mb-3 font-black text-slate-100">综合分 / 爆款潜力柱状图</h4>
+                <ProductPKBarChart candidates={chartCandidates} />
+              </div>
+            </div>
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/30">

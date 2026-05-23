@@ -1,6 +1,7 @@
 import { Card, Input, MetricBar, n } from "../../App.jsx";
+import ReviewMetricChart from "./charts/ReviewMetricChart";
 
-export default function ReviewView({ product, result, review, setReview, saveCurrentReport, saveMessage }) {
+export default function ReviewView({ product, result, review, setReview, saveCurrentReport, saveMessage, records }) {
   const views = n(review.views);
   const likes = n(review.likes);
   const saves = n(review.saves);
@@ -82,6 +83,19 @@ export default function ReviewView({ product, result, review, setReview, saveCur
           <MetricBar label="询单率" value={inquiryRate} max={3} suffix="%" desc="判断购买兴趣，用户愿意私信或评论问价，说明产品已经进入购买考虑。" />
           <MetricBar label="成交转化率" value={conversionRate} max={35} suffix="%" desc="判断价格、信任和付款路径是否成立，高询单低成交时优先排查成交阻力。" />
           <MetricBar label="单均测款成本" value={costPerOrder} max={Math.max(result.profit * 1.2, 20)} prefix="¥" desc="判断获客成本是否可接受，单均成本应低于可承受利润空间。" />
+        </div>
+
+        <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-bold text-cyan-300">Review Chart</p>
+              <h3 className="text-2xl font-black text-white">测款复盘可视化</h3>
+            </div>
+            <p className="max-w-xl text-xs leading-6 text-slate-400">
+              图表仅展示已填写或已保存的复盘数据，不改变复盘结论和保存字段。
+            </p>
+          </div>
+          <ReviewMetricChart review={review} records={records} />
         </div>
 
         <div className="mt-6 rounded-3xl bg-emerald-300 p-5 text-black">

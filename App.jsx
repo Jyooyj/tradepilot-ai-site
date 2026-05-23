@@ -45,6 +45,7 @@ import { supabase } from "./supabaseClient";
 import {
   cleanFileName,
   generateHtmlReport,
+  generatePrintablePdfReport,
   generateProductLibraryWordDocument,
 } from "./src/utils/reportUtils";
 import {
@@ -2226,6 +2227,37 @@ function App() {
     }
   }
 
+  function handleExportPdfReport(currentProduct = product, currentResult = result) {
+    const safeProduct = currentProduct && typeof currentProduct === "object" ? currentProduct : product;
+    const safeResult = currentResult && typeof currentResult === "object" ? currentResult : result;
+
+    if (!safeProduct || !safeResult || !Object.keys(safeResult).length) {
+      alert("请先生成进货报告，再导出 PDF 报告。");
+      return;
+    }
+
+    try {
+      const html = generatePrintablePdfReport(safeProduct, safeResult);
+      const printWindow = window.open("", "_blank");
+
+      if (!printWindow) {
+        alert("浏览器拦截了打印窗口，请允许弹窗后重试。");
+        return;
+      }
+
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 300);
+    } catch (error) {
+      console.error("PDF 报告导出失败：", error);
+      alert("PDF 报告导出失败，请确认报告已生成。");
+    }
+  }
+
   async function exportRecordsBackup() {
     try {
       const storageResult = await loadProductRecords(storageMode);
@@ -2710,12 +2742,18 @@ function App() {
             saveMessage={saveMessage}
             aiInsight={aiInsight}
             downloadReport={downloadReport}
+            onExportPdfReport={handleExportPdfReport}
           />
         )}
         {mode === "history" && (
           <div>
             <StorageModeSelector mode={storageMode} onChange={handleStorageModeChange} disabled={historyLoading} />
-            <StorageStatusBadge status={storageStatus} onMigrate={syncLocalRecordsToCloud} onSignOut={handleCloudSignOut} />
+            <StorageStatusBadge
+              status={storageStatus}
+              onMigrate={syncLocalRecordsToCloud}
+              onSignOut={handleCloudSignOut}
+              onUseLocal={() => handleStorageModeChange(STORAGE_MODES.LOCAL)}
+            />
             {storageMode === STORAGE_MODES.CLOUD && (!storageStatus.hasSupabaseConfig || storageStatus.needsLogin) && (
               <SupabaseLoginPanel
                 onAuthChange={handleCloudAuthChange}
@@ -2763,6 +2801,7 @@ function App() {
             setReview={setReview}
             saveCurrentReport={saveCurrentReport}
             saveMessage={saveMessage}
+            records={historyRecords}
           />
         )}
         {mode === "demo" && <DemoView applyDemo={applyDemo} />}
