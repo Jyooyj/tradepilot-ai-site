@@ -237,6 +237,10 @@ function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function asObject(value) {
+  return value && typeof value === "object" ? value : {};
+}
+
 export function htmlTable(headers, rows) {
   return `<table><thead><tr>${asArray(headers).map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${asArray(rows)
     .map((row) => `<tr>${asArray(row).map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
@@ -308,7 +312,8 @@ function renderDouyinEvidenceSection(douyinEvidence) {
 
 function renderPriceEvidenceSection(priceEvidence) {
   if (!priceEvidence) return "";
-  const safePriceEvidence = priceEvidence || {};
+  const safePriceEvidence = asObject(priceEvidence);
+  if (!Object.keys(safePriceEvidence).length) return "";
 
   const pricePositionText = {
     below_market: "低于竞品区间",
@@ -321,7 +326,7 @@ function renderPriceEvidenceSection(priceEvidence) {
     medium: "中",
     low: "低",
   };
-  const range = safePriceEvidence.competitorPriceRange || {};
+  const range = asObject(safePriceEvidence.competitorPriceRange);
   const rangeText = range.isValid
     ? range.min === range.max ? `¥${range.min}` : `¥${range.min} - ¥${range.max}`
     : "待补充";
@@ -418,9 +423,20 @@ export function generateHtmlReport(product, result) {
     ? result.actions
     : [...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)];
   const channelScore = getScoreValue(result, "渠道", result.channelFit?.score || "");
-  const marketEvidence = result?.marketEvidence || {};
+  const marketEvidence = asObject(result?.marketEvidence);
   const douyinEvidence = result.douyinEvidence || marketEvidence.douyin || null;
-  const priceEvidence = result.priceEvidence || marketEvidence.price || null;
+  const priceEvidenceCandidate = result.priceEvidence || marketEvidence.price || null;
+  const safePriceEvidenceCandidate = asObject(priceEvidenceCandidate);
+  const priceEvidence = Object.keys(safePriceEvidenceCandidate).length
+    ? {
+        ...safePriceEvidenceCandidate,
+        competitorPriceRange: asObject(safePriceEvidenceCandidate.competitorPriceRange),
+        wholesaleResults: asArray(safePriceEvidenceCandidate.wholesaleResults),
+        retailResults: asArray(safePriceEvidenceCandidate.retailResults),
+        searchLinks: asArray(safePriceEvidenceCandidate.searchLinks),
+        riskWarnings: asArray(safePriceEvidenceCandidate.riskWarnings),
+      }
+    : null;
   const manualMarketEvidence = result.manualMarketEvidence || marketEvidence.manual || null;
   const basicRows = [
     ["产品名称", contentContext.productIdentity?.displayName || product.name || "未填写"],
