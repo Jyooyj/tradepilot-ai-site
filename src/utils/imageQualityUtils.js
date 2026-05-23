@@ -20,6 +20,7 @@ function uniqueList(items) {
 function normalizeLevel(levels) {
   if (levels.includes("error")) return "error";
   if (levels.includes("warning")) return "warning";
+  if (levels.includes("minor_warning")) return "minor_warning";
   return "ok";
 }
 
@@ -57,7 +58,7 @@ export function validateImageFile(file) {
     issues.push(IMAGE_QUALITY_COPY.fileTooSmall);
     suggestions.push("请确认上传的是有效商品图片，或直接手动填写商品信息。");
   } else if ((file.size || 0) < IMAGE_QUALITY_LIMITS.tinyFileSizeKb * 1024) {
-    level = level === "error" ? "error" : "warning";
+    level = level === "error" ? "error" : "minor_warning";
     issues.push(IMAGE_QUALITY_COPY.tinyFileWarning);
     suggestions.push("建议上传更清晰、细节更多的商品图。");
   }
@@ -159,34 +160,58 @@ export async function analyzeImageQuality(file) {
     levels.push("error");
     issues.push(IMAGE_QUALITY_COPY.resolutionTooSmall);
     suggestions.push("建议上传主体清晰、边长至少 300px 的单品图。");
-  } else if (image.width < IMAGE_QUALITY_LIMITS.minWidth || image.height < IMAGE_QUALITY_LIMITS.minHeight) {
+  } else if (image.width < IMAGE_QUALITY_LIMITS.warningMinWidth || image.height < IMAGE_QUALITY_LIMITS.warningMinHeight) {
     levels.push("warning");
     issues.push(IMAGE_QUALITY_COPY.resolutionTooLow);
-    suggestions.push("建议上传更高分辨率的图片，商品主体尽量占画面中间。");
+    suggestions.push("建议上传主体更清晰、背景更简单的商品图。");
+  } else if (image.width < IMAGE_QUALITY_LIMITS.minWidth || image.height < IMAGE_QUALITY_LIMITS.minHeight) {
+    levels.push("minor_warning");
+    issues.push(IMAGE_QUALITY_COPY.resolutionSlightlyLow);
+    suggestions.push("当前图片仍可用于识别，建议识别后人工核对商品名称和品类。");
   }
 
-  if (stats.brightness < IMAGE_QUALITY_LIMITS.darkBrightness) {
+  if (stats.brightness < IMAGE_QUALITY_LIMITS.darkBrightnessWarning) {
     levels.push("warning");
     issues.push(IMAGE_QUALITY_COPY.tooDark);
     suggestions.push("建议换用光线更好的图片，避免暗部遮住材质和轮廓。");
+  } else if (stats.brightness < IMAGE_QUALITY_LIMITS.darkBrightnessMinor) {
+    levels.push("minor_warning");
+    issues.push(IMAGE_QUALITY_COPY.slightlyDark);
+    suggestions.push("当前图片仍可用于识别，建议识别后人工核对材质和细节。");
   }
 
-  if (stats.brightness > IMAGE_QUALITY_LIMITS.brightBrightness) {
+  if (stats.brightness > IMAGE_QUALITY_LIMITS.brightBrightnessWarning) {
     levels.push("warning");
     issues.push(IMAGE_QUALITY_COPY.tooBright);
     suggestions.push("建议减少过曝或反光，保留商品边缘和细节。");
+  } else if (stats.brightness > IMAGE_QUALITY_LIMITS.brightBrightnessMinor) {
+    levels.push("minor_warning");
+    issues.push(IMAGE_QUALITY_COPY.slightlyBright);
+    suggestions.push("当前图片仍可用于识别，建议识别后人工核对轮廓和颜色。");
   }
 
-  if (stats.contrast < IMAGE_QUALITY_LIMITS.lowContrast) {
+  if (stats.contrast < IMAGE_QUALITY_LIMITS.lowContrastWarning) {
     levels.push("warning");
     issues.push(IMAGE_QUALITY_COPY.lowContrast);
     suggestions.push("建议使用背景更干净、主体更突出的商品图。");
+  } else if (stats.contrast < IMAGE_QUALITY_LIMITS.lowContrastMinor) {
+    levels.push("minor_warning");
+    issues.push(IMAGE_QUALITY_COPY.slightlyLowContrast);
+    suggestions.push("当前图片仍可用于识别，建议识别后人工核对主体和背景。");
   }
 
-  if (stats.blurScore < IMAGE_QUALITY_LIMITS.blurScore) {
+  if (stats.blurScore < IMAGE_QUALITY_LIMITS.blurErrorThreshold) {
+    levels.push("error");
+    issues.push(IMAGE_QUALITY_COPY.severelyBlurry);
+    suggestions.push("请重新上传主体清晰的商品图，或跳过识别并手动填写商品信息。");
+  } else if (stats.blurScore < IMAGE_QUALITY_LIMITS.blurWarningThreshold) {
     levels.push("warning");
     issues.push(IMAGE_QUALITY_COPY.blurry);
-    suggestions.push("建议重新拍摄或选择更清晰的商品主图。");
+    suggestions.push("建议人工复核识别结果；如果商品名称或品类不准，再换更清晰的商品图。");
+  } else if (stats.blurScore < IMAGE_QUALITY_LIMITS.blurMinorThreshold) {
+    levels.push("minor_warning");
+    issues.push(IMAGE_QUALITY_COPY.slightlyBlurry);
+    suggestions.push("当前图片仍可用于识别，建议识别后人工核对商品名称和品类。");
   }
 
   return {
@@ -204,19 +229,34 @@ export async function analyzeImageQuality(file) {
 export function buildImageQualityMessage(qualityResult) {
   const safeResult = qualityResult && typeof qualityResult === "object" ? qualityResult : {};
   const issues = uniqueList(safeResult.issues || []);
+  const level = issues.length
+    ? normalizeLevel([safeResult.level === "ok" ? "minor_warning" : safeResult.level || "warning"])
+    : "ok";
   const suggestions = uniqueList(
-    (safeResult.suggestions || []).length
-      ? safeResult.suggestions
+    issues.length
+      ? (safeResult.suggestions || [])
       : [IMAGE_QUALITY_COPY.normal],
   );
-  const level = safeResult.level || (issues.length ? "warning" : "ok");
+
+  const titleMap = {
+    ok: "图片质量正常",
+    minor_warning: "图片存在轻微质量提醒",
+    warning: "图片质量可能影响识别准确性",
+    error: "图片暂无法用于识别",
+  };
+  const summaryMap = {
+    ok: IMAGE_QUALITY_COPY.normal,
+    minor_warning: "当前图片仍可用于识别，建议在结果生成后人工核对商品名称和品类。",
+    warning: "建议上传主体更清晰、背景更简单的商品图，或继续手动填写商品信息。",
+    error: "请重新上传图片，或跳过识别并手动填写商品信息。",
+  };
 
   return {
     level,
-    title: level === "error" ? "图片上传需要处理" : level === "warning" ? "图片可能影响识别准确性" : "图片质量检测正常",
-    summary: issues.length ? issues.join("；") : IMAGE_QUALITY_COPY.normal,
+    title: titleMap[level] || titleMap.ok,
+    summary: issues.length ? summaryMap[level] : summaryMap.ok,
     issues,
-    suggestions: uniqueList([...suggestions, IMAGE_QUALITY_COPY.manualFallback]),
+    suggestions: uniqueList(level === "ok" ? suggestions : [...suggestions, IMAGE_QUALITY_COPY.manualFallback]),
     metrics: {
       width: safeResult.width,
       height: safeResult.height,
@@ -224,6 +264,36 @@ export function buildImageQualityMessage(qualityResult) {
       contrast: safeResult.contrast,
       blurScore: safeResult.blurScore,
     },
+  };
+}
+
+export function normalizeImageQualityLevel(qualityResult, recognitionResult) {
+  if (!qualityResult || typeof qualityResult !== "object") return qualityResult;
+
+  const recognitionLevel = recognitionResult?.level || "";
+  const recognitionSucceeded = recognitionLevel === "ok" || recognitionLevel === "minor_warning";
+
+  if (!recognitionSucceeded || qualityResult.level === "error") {
+    return qualityResult;
+  }
+
+  if (qualityResult.level === "warning" || qualityResult.level === "minor_warning") {
+    return {
+      ...qualityResult,
+      level: "minor_warning",
+      title: "图片可用于识别，建议人工核对结果",
+      summary: "图片已完成识别，质量提醒不会影响继续生成报告；建议人工核对商品名称、品类和规格。",
+      suggestions: ["如识别不准，可直接手动修改商品信息。"],
+    };
+  }
+
+  return {
+    ...qualityResult,
+    level: "ok",
+    title: "图片质量正常",
+    summary: "图片可用于识别，建议人工核对识别结果。",
+    issues: [],
+    suggestions: [],
   };
 }
 
@@ -241,36 +311,49 @@ function readConfidence(data, aiProduct) {
 }
 
 export function buildImageRecognitionMessage(data = {}, aiProduct = {}) {
-  const reasons = [];
-  const suggestions = [
-    "重新上传主体更清晰的单品图，尽量避免多个商品同时出现。",
-    "也可以继续手动填写商品信息生成进货报告。",
-  ];
+  const strongReasons = [];
+  const minorReasons = [];
   const productName = String(aiProduct.name || aiProduct.productName || "").trim();
   const category = String(aiProduct.category || aiProduct.type || "").trim();
   const confidence = readConfidence(data, aiProduct);
 
-  asArray(data.failureReasons).forEach((reason) => reasons.push(reason));
-  asArray(data.qualityIssues).forEach((issue) => reasons.push(issue));
+  asArray(data.failureReasons).forEach((reason) => strongReasons.push(reason));
+  asArray(data.qualityIssues).forEach((issue) => minorReasons.push(issue));
 
-  if (!productName) reasons.push("商品名称为空，模型未能稳定定位商品主体。");
-  if (!category || /unknown|未知|无法|不确定|其他/.test(category)) reasons.push("模型未能稳定判断品类。");
-  if (confidence !== null && confidence < 0.45) reasons.push("模型置信度较低。");
-  if (data.isMultiProductImage) reasons.push("图片中可能包含多个商品。");
-  if (data.isOccluded) reasons.push("商品可能被遮挡。");
-  if (data.isBlurry) reasons.push("图片可能较模糊。");
-  if (/low|低|unclear|不清晰/i.test(String(data.subjectClarity || ""))) reasons.push("商品主体不够清晰。");
-  if (data.fallbackMessage) reasons.push(data.fallbackMessage);
+  if (!productName) strongReasons.push("商品名称为空，模型未能稳定定位商品主体。");
+  if (!category || /unknown|未知|无法|不确定/.test(category)) strongReasons.push("模型未能稳定判断品类。");
+  if (confidence !== null && confidence < 0.45) strongReasons.push("模型置信度较低。");
+  if (data.isMultiProductImage) {
+    minorReasons.push("图片中可能包含组合商品，系统会以主要商品或套装进行识别。");
+  }
+  if (data.isOccluded) strongReasons.push("商品可能被遮挡。");
+  if (data.isBlurry) strongReasons.push("图片可能较模糊。");
+  if (/low|低|unclear|不清晰/i.test(String(data.subjectClarity || ""))) strongReasons.push("商品主体不够清晰。");
+  if (data.fallbackMessage) strongReasons.push(data.fallbackMessage);
 
-  const hasReason = reasons.length > 0;
+  const level = strongReasons.length ? "warning" : minorReasons.length ? "minor_warning" : "ok";
+  const issues = uniqueList([...strongReasons, ...minorReasons]);
+  const suggestions = level === "warning"
+    ? [
+        "重新上传主体更清晰、背景更简单的单品图后再试。",
+        "也可以继续手动填写商品信息生成进货报告。",
+      ]
+    : level === "minor_warning"
+      ? [
+          "当前已完成识别，建议人工核对商品名称、品类和规格。",
+          "如果识别不准，可手动修改商品信息。",
+        ]
+      : ["已根据图片自动回填产品信息，建议继续人工核对关键字段。"];
 
   return {
-    level: hasReason ? "warning" : "ok",
-    title: hasReason ? "图片识别未能稳定判断商品" : "图片识别完成",
-    summary: hasReason
-      ? "系统可能受到图片模糊、商品遮挡、多个商品同时出现、背景复杂或商品过于小众等因素影响。"
-      : "已根据图片自动回填产品信息，建议继续人工核对关键字段。",
-    issues: uniqueList(reasons),
+    level,
+    title: level === "warning" ? "图片识别未能稳定判断商品" : level === "minor_warning" ? "图片识别完成，建议人工复核" : "图片识别完成",
+    summary: level === "warning"
+      ? "系统可能受到图片模糊、商品遮挡、多个不同品类商品同时出现、背景复杂或商品过于小众等因素影响。"
+      : level === "minor_warning"
+        ? "当前图片仍可用于识别，系统已自动回填商品信息；如为组合商品或套装，请人工核对字段。"
+        : "已根据图片自动回填产品信息，建议继续人工核对关键字段。",
+    issues,
     suggestions,
   };
 }
