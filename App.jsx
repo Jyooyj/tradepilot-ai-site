@@ -2062,6 +2062,37 @@ function getScoreValue(result, keyword, fallback = "") {
   return found?.[1] ?? fallback;
 }
 
+function softenQualityNoticeAfterRecognition(notice, recognitionLevel) {
+  if (!notice || recognitionLevel === "warning" || recognitionLevel === "error") return notice;
+
+  if (notice.level === "minor_warning") {
+    return {
+      ...notice,
+      title: "图片存在轻微质量提醒",
+      summary: "当前图片仍可用于识别，系统已完成自动回填；建议人工核对商品名称和品类。",
+      suggestions: ["识别成功后请人工核对商品名称、品类和规格。"],
+    };
+  }
+
+  if (notice.level === "warning") {
+    return {
+      ...notice,
+      title: "图片存在质量提醒，识别结果建议人工复核",
+      summary: "当前图片已完成识别，但图片质量可能影响部分字段准确性。",
+      suggestions: ["请人工核对商品名称、品类、材质和规格；如识别不准，可手动修改商品信息。"],
+    };
+  }
+
+  return {
+    ...notice,
+    level: "ok",
+    title: "图片质量正常",
+    summary: "图片质量正常，已完成识别；建议继续人工核对关键字段。",
+    issues: [],
+    suggestions: ["可以继续生成进货报告。"],
+  };
+}
+
 
 
 function App() {
@@ -2471,8 +2502,10 @@ function App() {
       level: "ok",
       title: "正在识别图片",
       summary: imageQualityNotice?.level === "warning"
-        ? "当前图片存在质量预警，识别结果可能不稳定，请稍后重点核对自动回填字段。"
-        : "正在调用图片识别接口，请稍候。",
+        ? "当前图片存在质量提醒，识别结果建议人工复核。"
+        : imageQualityNotice?.level === "minor_warning"
+          ? "当前图片存在轻微质量提醒，仍可继续识别。"
+          : "正在调用图片识别接口，请稍候。",
       issues: imageQualityNotice?.level === "warning" ? imageQualityNotice.issues || [] : [],
       suggestions: ["识别完成后请核对商品名称、品类、材质、价格和 MOQ。"],
     });
@@ -2559,6 +2592,7 @@ function App() {
 
       setAiInsight(data);
       setImageRecognitionNotice(recognitionMessage);
+      setImageQualityNotice((oldNotice) => softenQualityNoticeAfterRecognition(oldNotice, recognitionMessage.level));
 
       setProduct((old) => ({
         ...old,
