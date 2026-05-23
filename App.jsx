@@ -2075,7 +2075,7 @@ function App() {
   const [priceEvidence, setPriceEvidence] = useState(null);
 
   const baseResult = useMemo(() => analyzeProduct(product, Boolean(image)), [product, image]);
-  const fallbackPriceEvidence = useMemo(() => evaluatePriceEvidence(product, null), [product]);
+  const fallbackPriceEvidence = useMemo(() => evaluatePriceEvidence(product, {}), [product]);
 
   useEffect(() => {
     let isActive = true;
@@ -2093,7 +2093,7 @@ function App() {
   const result = useMemo(() => {
     const douyinEvidence = evaluateDouyinFallbackEvidence(product, baseResult);
     const resultWithDouyinEvidence = applyDouyinFallbackToResult(baseResult, douyinEvidence);
-    const resultWithPriceEvidence = applyPriceEvidenceToResult(resultWithDouyinEvidence, priceEvidence || fallbackPriceEvidence);
+    const resultWithPriceEvidence = applyPriceEvidenceToResult(resultWithDouyinEvidence, priceEvidence || fallbackPriceEvidence || {});
     const manualEvidence = evaluateManualMarketEvidence(product, resultWithPriceEvidence);
     return applyManualMarketEvidenceToResult(resultWithPriceEvidence, manualEvidence);
   }, [baseResult, product, priceEvidence, fallbackPriceEvidence]);
