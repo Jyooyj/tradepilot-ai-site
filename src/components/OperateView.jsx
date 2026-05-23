@@ -12,6 +12,13 @@ import {
 } from "../utils/imageQualityUtils";
 import { blankProduct, compressImageToDataUrl, initialProduct, Input } from "../../App.jsx";
 
+function strongestNoticeLevel(...levels) {
+  const rank = { ok: 0, minor_warning: 1, warning: 2, error: 3 };
+  return levels
+    .filter(Boolean)
+    .sort((a, b) => (rank[b] ?? 0) - (rank[a] ?? 0))[0] || "ok";
+}
+
 export default function OperateView({
   product,
   update,
@@ -49,7 +56,7 @@ export default function OperateView({
         qualityResult = await analyzeImageQuality(file);
       } catch (error) {
         qualityResult = {
-          level: fileValidation.level === "warning" ? "warning" : "ok",
+          level: fileValidation.level || "ok",
           issues: fileValidation.issues,
           suggestions: [
             ...fileValidation.suggestions,
@@ -60,7 +67,7 @@ export default function OperateView({
 
       const mergedQuality = buildImageQualityMessage({
         ...qualityResult,
-        level: fileValidation.level === "warning" || qualityResult?.level === "warning" ? "warning" : qualityResult?.level || "ok",
+        level: strongestNoticeLevel(fileValidation.level, qualityResult?.level),
         issues: [...(fileValidation.issues || []), ...(qualityResult?.issues || [])],
         suggestions: [...(fileValidation.suggestions || []), ...(qualityResult?.suggestions || [])],
       });
@@ -206,6 +213,8 @@ export default function OperateView({
 
 function ImageDiagnosticPanel({ qualityNotice, recognitionNotice }) {
   const notices = [qualityNotice, recognitionNotice].filter(Boolean);
+  const compactNotices = notices.filter((notice) => notice.level === "ok" || notice.level === "minor_warning");
+  const strongNotices = notices.filter((notice) => notice.level === "warning" || notice.level === "error");
 
   if (!notices.length) {
     return (
@@ -220,7 +229,10 @@ function ImageDiagnosticPanel({ qualityNotice, recognitionNotice }) {
 
   return (
     <div className="mt-3 space-y-3">
-      {notices.map((notice) => (
+      {compactNotices.map((notice) => (
+        <CompactDiagnosticNotice key={notice.title + notice.summary} notice={notice} />
+      ))}
+      {strongNotices.map((notice) => (
         <DiagnosticNotice key={notice.title + notice.summary} notice={notice} />
       ))}
       <p className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-xs leading-6 text-cyan-100">
@@ -230,11 +242,30 @@ function ImageDiagnosticPanel({ qualityNotice, recognitionNotice }) {
   );
 }
 
+function CompactDiagnosticNotice({ notice }) {
+  const toneClass = notice.level === "minor_warning"
+    ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
+    : "border-emerald-300/20 bg-emerald-300/10 text-emerald-100";
+  const issues = Array.isArray(notice.issues) ? notice.issues : [];
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 text-xs leading-6 ${toneClass}`}>
+      <p className="font-black">{notice.title}</p>
+      <p className="mt-1">{notice.summary}</p>
+      {notice.level === "minor_warning" && issues.length > 0 && (
+        <p className="mt-1 opacity-85">{issues.join("；")}</p>
+      )}
+    </div>
+  );
+}
+
 function DiagnosticNotice({ notice }) {
   const colorClass = notice.level === "error"
     ? "border-rose-300/25 bg-rose-300/10 text-rose-100"
     : notice.level === "warning"
       ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
+      : notice.level === "minor_warning"
+        ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
       : "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
   const issues = Array.isArray(notice.issues) ? notice.issues : [];
   const suggestions = Array.isArray(notice.suggestions) ? notice.suggestions : [];
