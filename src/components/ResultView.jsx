@@ -24,8 +24,14 @@ const dataCompletenessText = {
   low: "低",
 };
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 function getPriceEvidence(result) {
-  return result?.priceEvidence || result?.marketEvidence?.price || null;
+  const marketEvidence = result?.marketEvidence || {};
+  const priceEvidence = result?.priceEvidence || marketEvidence.price || null;
+  return priceEvidence && typeof priceEvidence === "object" ? priceEvidence : null;
 }
 
 function getManualMarketEvidence(result) {
@@ -42,6 +48,8 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
   const douyinEvidence = getDouyinEvidence(result);
   const priceEvidence = getPriceEvidence(result);
   const manualMarketEvidence = getManualMarketEvidence(result);
+  const priceRiskWarnings = asArray(priceEvidence?.riskWarnings);
+  const priceSearchLinks = asArray(priceEvidence?.searchLinks);
 
   return (
     <div className="space-y-6">
@@ -143,7 +151,7 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
             <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
               <h3 className="font-black text-amber-100">价格风险提示</h3>
               <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
-                {(priceEvidence.riskWarnings || []).map((warning) => (
+                {priceRiskWarnings.map((warning) => (
                   <li key={warning}>· {warning}</li>
                 ))}
               </ul>
@@ -153,7 +161,7 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
           <div className="mt-5 rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-5">
             <h3 className="font-black text-emerald-100">1688 / 淘宝搜索参考入口</h3>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              {(priceEvidence.searchLinks || []).map((link) => (
+              {priceSearchLinks.map((link) => (
                 <a
                   key={`${link.label}-${link.url}`}
                   href={link.url}
