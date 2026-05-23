@@ -49,3 +49,4 @@ export default function FloatingFeedback({ open, setOpen }) {
     </>
   );
 }
+// component extracted from App.jsx
