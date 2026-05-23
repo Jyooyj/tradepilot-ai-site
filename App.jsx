@@ -32,6 +32,10 @@ import {
   generateHtmlReport,
   generateProductLibraryWordDocument,
 } from "./src/utils/reportUtils";
+import {
+  applyDouyinFallbackToResult,
+  evaluateDouyinFallbackEvidence,
+} from "./src/utils/douyinFallbackUtils";
 
 
 const ANALYZE_IMAGE_ENDPOINT =
@@ -2046,7 +2050,11 @@ function App() {
   });
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
-  const result = useMemo(() => analyzeProduct(product, Boolean(image)), [product, image]);
+  const result = useMemo(() => {
+    const baseResult = analyzeProduct(product, Boolean(image));
+    const douyinEvidence = evaluateDouyinFallbackEvidence(product, baseResult);
+    return applyDouyinFallbackToResult(baseResult, douyinEvidence);
+  }, [product, image]);
 
   function update(key, value) {
     setProduct((old) => ({ ...old, [key]: value }));
