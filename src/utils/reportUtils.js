@@ -847,3 +847,150 @@ export function generateHtmlReport(product, result) {
 </html>`;
   return validateGeneratedContent(contentContext, html, "htmlReport").content;
 }
+
+function injectPrintablePdfStyles(html) {
+  const printableStyle = `
+  <style id="tradepilot-printable-pdf-style">
+    @page { size: A4; margin: 14mm; }
+    .pdf-report-footer {
+      margin-top: 28px;
+      border-top: 1px solid #d1d5db;
+      padding-top: 12px;
+      color: #4b5563;
+      font-size: 12px;
+      text-align: center;
+    }
+    @media print {
+      :root { color-scheme: light; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body {
+        background: #ffffff !important;
+        color: #111827 !important;
+        font-size: 12px;
+      }
+      .page {
+        max-width: none !important;
+        padding: 0 !important;
+      }
+      .hero,
+      section,
+      .card,
+      .metric,
+      .summary p {
+        background: #ffffff !important;
+        color: #111827 !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .hero,
+      section {
+        border: 1px solid #d1d5db !important;
+        border-radius: 12px !important;
+        margin-top: 12px !important;
+        padding: 14px !important;
+      }
+      h1, h2, h3, strong, td, th, li, p, span {
+        color: #111827 !important;
+      }
+      table {
+        background: #ffffff !important;
+      }
+      th {
+        background: #ecfdf5 !important;
+      }
+      a {
+        color: #065f46 !important;
+        text-decoration: none;
+      }
+      button,
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>`;
+  const footer = `
+    <footer class="pdf-report-footer">
+      由 TradePilot AI 生成，仅供进货决策和测款参考。
+    </footer>`;
+
+  return String(html || "")
+    .replace(/<title>.*?<\/title>/i, "<title>TradePilot AI 进货决策报告</title>")
+    .replace("</head>", `${printableStyle}\n</head>`)
+    .replace("</main>", `${footer}\n  </main>`);
+}
+
+function generatePrintableFallbackReport(product, result) {
+  const safeProduct = asObject(product);
+  const safeResult = asObject(result);
+  const scoreRows = getScoringItems(safeResult).map((item) => [item.title, item.score, item.description]);
+  const marketEvidence = asObject(safeResult.marketEvidence);
+  const priceEvidence = safeResult.priceEvidence || marketEvidence.price || null;
+  const douyinEvidence = safeResult.douyinEvidence || marketEvidence.douyin || null;
+  const manualMarketEvidence = safeResult.manualMarketEvidence || marketEvidence.manual || null;
+
+  const html = `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TradePilot AI 进货决策报告</title>
+  <style>
+    body { margin: 0; background: #ffffff; color: #111827; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif; line-height: 1.7; }
+    .page { max-width: 900px; margin: 0 auto; padding: 28px; }
+    .hero, section { border: 1px solid #d1d5db; border-radius: 12px; padding: 18px; margin-top: 14px; break-inside: avoid; page-break-inside: avoid; }
+    h1, h2 { margin: 0 0 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #d1d5db; padding: 9px 10px; text-align: left; vertical-align: top; }
+    th { background: #ecfdf5; }
+    .footer { color: #4b5563; font-size: 12px; }
+    @page { size: A4; margin: 14mm; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <h1>TradePilot AI 进货决策报告</h1>
+      <p>当前报告使用打印兜底模板生成，部分模块缺失时仍可导出 PDF。</p>
+    </header>
+    <section>
+      <h2>核心信息</h2>
+      ${htmlTable(["项目", "内容"], [
+        ["产品名称", safeProduct.name || safeResult.productIdentity?.displayName || "未填写"],
+        ["产品类型", safeProduct.category || safeResult.productIdentity?.productTypeLabel || safeResult.categoryName || "未填写"],
+        ["综合评分", safeResult.totalScore !== undefined ? `${safeResult.totalScore}/100` : "未填写"],
+        ["进货建议", safeResult.level || safeResult.status || "未填写"],
+        ["单件利润", safeResult.profit !== undefined ? `¥${money(safeResult.profit)}` : "未填写"],
+        ["毛利率", safeResult.margin !== undefined ? `${Math.round(Number(safeResult.margin || 0) * 100)}%` : "未填写"],
+      ])}
+    </section>
+    <section>
+      <h2>AI 评分依据</h2>
+      ${scoreRows.length ? htmlTable(["维度", "分数", "说明"], scoreRows) : '<p class="footer">暂无评分明细。</p>'}
+    </section>
+    ${renderPriceEvidenceSection(priceEvidence)}
+    ${renderDouyinEvidenceSection(douyinEvidence)}
+    ${renderManualMarketEvidenceSection(manualMarketEvidence)}
+    <footer class="footer">由 TradePilot AI 生成，仅供进货决策和测款参考。</footer>
+  </main>
+</body>
+</html>`;
+
+  return html;
+}
+
+export function generatePrintablePdfReport(product, result) {
+  const safeProduct = asObject(product);
+  const safeResult = asObject(result);
+
+  try {
+    if (!Object.keys(safeResult).length) {
+      return generatePrintableFallbackReport(safeProduct, safeResult);
+    }
+
+    return injectPrintablePdfStyles(generateHtmlReport(safeProduct, safeResult));
+  } catch (error) {
+    console.error("生成打印版 PDF 报告失败，已使用兜底模板：", error);
+    return generatePrintableFallbackReport(safeProduct, safeResult);
+  }
+}
