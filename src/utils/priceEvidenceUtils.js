@@ -13,6 +13,10 @@ function unique(items) {
   return [...new Set((Array.isArray(items) ? items : []).filter(Boolean))];
 }
 
+function safeObject(value) {
+  return value && typeof value === "object" ? value : {};
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -132,10 +136,19 @@ function getScoreAdjustment({ pricePosition, range, product }) {
   return 0;
 }
 
-function normalizeApiResults(apiResponse = {}) {
-  const safeApiResponse = apiResponse || {};
+function getApiResultGroups(apiResponse = {}) {
+  const safeApiResponse = safeObject(apiResponse);
   const wholesaleResults = Array.isArray(safeApiResponse.wholesaleResults) ? safeApiResponse.wholesaleResults : [];
   const retailResults = Array.isArray(safeApiResponse.retailResults) ? safeApiResponse.retailResults : [];
+
+  return {
+    wholesaleResults,
+    retailResults,
+  };
+}
+
+function normalizeApiResults(apiResponse = {}) {
+  const { wholesaleResults, retailResults } = getApiResultGroups(apiResponse);
 
   return [
     ...wholesaleResults,
@@ -143,14 +156,16 @@ function normalizeApiResults(apiResponse = {}) {
   ];
 }
 
-export function evaluatePriceEvidence(product = {}, apiResponse = null) {
-  const safeApiResponse = apiResponse || {};
+export function evaluatePriceEvidence(product = {}, apiResponse = {}) {
+  const safeProduct = safeObject(product);
+  const safeApiResponse = safeObject(apiResponse);
+  const { wholesaleResults, retailResults } = getApiResultGroups(safeApiResponse);
   const apiSearchLinks = Array.isArray(safeApiResponse.searchLinks) ? safeApiResponse.searchLinks : [];
-  const query = safeApiResponse.query || buildAlibabaSearchQuery(product);
-  const searchLinks = apiSearchLinks.length ? apiSearchLinks : buildAlibabaSearchLinks(product);
-  const competitorPriceRange = parsePriceRange(product.retailPriceReference || product.competitorPrice || product.marketReference);
-  const wholesalePriceRange = parsePriceRange(product.wholesalePriceReference || product.cost);
-  const suggestedPrice = toNumber(product.price);
+  const query = safeApiResponse.query || buildAlibabaSearchQuery(safeProduct);
+  const searchLinks = apiSearchLinks.length ? apiSearchLinks : buildAlibabaSearchLinks(safeProduct);
+  const competitorPriceRange = parsePriceRange(safeProduct.retailPriceReference || safeProduct.competitorPrice || safeProduct.marketReference);
+  const wholesalePriceRange = parsePriceRange(safeProduct.wholesalePriceReference || safeProduct.cost);
+  const suggestedPrice = toNumber(safeProduct.price);
   const apiResults = normalizeApiResults(safeApiResponse);
   const sourceType = safeApiResponse.sourceType || "api_unavailable";
   const fallback = sourceType !== "api_real";
@@ -162,7 +177,7 @@ export function evaluatePriceEvidence(product = {}, apiResponse = null) {
     sourceType === "api_real" ? 90 : competitorPriceRange.isValid || wholesalePriceRange.isValid ? 76 : 42
   );
   const riskWarnings = getRiskWarnings({ sourceType, range: competitorPriceRange, pricePosition });
-  const scoreAdjustment = clamp(getScoreAdjustment({ pricePosition, range: competitorPriceRange, product }), -5, 5);
+  const scoreAdjustment = clamp(getScoreAdjustment({ pricePosition, range: competitorPriceRange, product: safeProduct }), -5, 5);
   const sourceNotice = safeApiResponse.sourceNotice || (
     sourceType === "api_real" ? alibabaPriceNotices.apiReal : alibabaPriceNotices.apiUnavailable
   );
@@ -178,6 +193,8 @@ export function evaluatePriceEvidence(product = {}, apiResponse = null) {
     pricePosition,
     confidenceScore,
     dataCompleteness,
+    wholesaleResults,
+    retailResults,
     searchLinks,
     apiResults,
     evidenceSummary: competitorPriceRange.isValid
@@ -189,25 +206,28 @@ export function evaluatePriceEvidence(product = {}, apiResponse = null) {
   };
 }
 
-export function applyPriceEvidenceToResult(result = {}, priceEvidence = null) {
-  if (!priceEvidence) return result;
+export function applyPriceEvidenceToResult(result = {}, priceEvidence = {}) {
+  const safeResult = safeObject(result);
+  const safePriceEvidence = safeObject(priceEvidence);
 
-  const scoreAdjustment = clamp(Number(priceEvidence.scoreAdjustment) || 0, -5, 5);
+  if (!Object.keys(safePriceEvidence).length) return safeResult;
+
+  const scoreAdjustment = clamp(Number(safePriceEvidence.scoreAdjustment) || 0, -5, 5);
   const nextResult = {
-    ...result,
-    priceEvidence,
+    ...safeResult,
+    priceEvidence: safePriceEvidence,
     marketEvidence: {
-      ...(result.marketEvidence || {}),
-      price: priceEvidence,
+      ...safeObject(safeResult.marketEvidence),
+      price: safePriceEvidence,
     },
   };
 
-  if (Number.isFinite(Number(result.totalScore))) {
-    nextResult.totalScore = clamp(Math.round(Number(result.totalScore) + scoreAdjustment), 0, 100);
+  if (Number.isFinite(Number(safeResult.totalScore))) {
+    nextResult.totalScore = clamp(Math.round(Number(safeResult.totalScore) + scoreAdjustment), 0, 100);
   }
 
-  if (Number.isFinite(Number(result.score))) {
-    nextResult.score = clamp(Math.round(Number(result.score) + scoreAdjustment), 0, 100);
+  if (Number.isFinite(Number(safeResult.score))) {
+    nextResult.score = clamp(Math.round(Number(safeResult.score) + scoreAdjustment), 0, 100);
   }
 
   return nextResult;

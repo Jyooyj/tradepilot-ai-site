@@ -28,10 +28,26 @@ function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function asObject(value) {
+  return value && typeof value === "object" ? value : {};
+}
+
 function getPriceEvidence(result) {
-  const marketEvidence = result?.marketEvidence || {};
+  const marketEvidence = asObject(result?.marketEvidence);
   const priceEvidence = result?.priceEvidence || marketEvidence.price || null;
-  return priceEvidence && typeof priceEvidence === "object" ? priceEvidence : null;
+
+  if (!priceEvidence || typeof priceEvidence !== "object") return null;
+
+  const safePriceEvidence = asObject(priceEvidence);
+
+  return {
+    ...safePriceEvidence,
+    competitorPriceRange: asObject(safePriceEvidence.competitorPriceRange),
+    wholesaleResults: asArray(safePriceEvidence.wholesaleResults),
+    retailResults: asArray(safePriceEvidence.retailResults),
+    searchLinks: asArray(safePriceEvidence.searchLinks),
+    riskWarnings: asArray(safePriceEvidence.riskWarnings),
+  };
 }
 
 function getManualMarketEvidence(result) {
