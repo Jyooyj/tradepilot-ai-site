@@ -26,17 +26,22 @@ import ResultView from "./src/components/ResultView";
 import HistoryView from "./src/components/HistoryView";
 import PKView from "./src/components/PKView";
 import ReviewView from "./src/components/ReviewView";
+import StorageModeSelector from "./src/components/StorageModeSelector";
 import StorageStatusBadge from "./src/components/StorageStatusBadge";
+import SupabaseLoginPanel from "./src/components/SupabaseLoginPanel";
 import DemoView from "./src/components/DemoView";
 import {
-  canUseCloudStorage,
   deleteProductRecord,
+  getStorageMode,
   getStorageStatus,
   loadProductRecords,
   migrateLocalRecordsToCloud,
+  saveStorageMode,
   saveLocalRecords,
   saveProductRecord,
+  STORAGE_MODES,
 } from "./src/services/productStorage";
+import { supabase } from "./supabaseClient";
 import {
   cleanFileName,
   generateHtmlReport,
@@ -2066,7 +2071,11 @@ function App() {
   const [historyRecords, setHistoryRecords] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMessage, setHistoryMessage] = useState("");
+  const [storageMode, setStorageMode] = useState(() => getStorageMode());
   const [storageStatus, setStorageStatus] = useState({
+    selectedMode: storageMode,
+    selectedModeLabel: storageMode === "cloud" ? "云端同步" : storageMode === "local" ? "仅本地保存" : "自动选择",
+    effectiveMode: "local",
     mode: "local",
     label: "本地模式",
     description: "正在检测产品库存储状态。",
@@ -2110,13 +2119,13 @@ function App() {
 
   useEffect(() => {
     let isActive = true;
-    getStorageStatus().then((status) => {
+    getStorageStatus(storageMode).then((status) => {
       if (isActive) setStorageStatus(status);
     });
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [storageMode]);
 
   const result = useMemo(() => {
     const douyinEvidence = evaluateDouyinFallbackEvidence(product, baseResult);
@@ -2143,12 +2152,36 @@ function App() {
 
   async function syncLocalRecordsToCloud() {
     setHistoryMessage("正在尝试同步本地产品库到云端...");
-    const storageResult = await migrateLocalRecordsToCloud();
+    const storageResult = await migrateLocalRecordsToCloud(storageMode);
     setHistoryRecords(storageResult.records || []);
     applyStorageResult(
       storageResult,
       storageResult.mode === "cloud" ? "本地产品库已同步到云端。" : "当前仍使用本地模式。"
     );
+  }
+
+  async function handleStorageModeChange(nextMode) {
+    const savedMode = saveStorageMode(nextMode);
+    setStorageMode(savedMode);
+    setHistoryMessage("正在切换产品库存储方式...");
+    await loadHistoryRecords(savedMode, `已切换为${savedMode === STORAGE_MODES.CLOUD ? "云端同步" : savedMode === STORAGE_MODES.LOCAL ? "仅本地保存" : "自动选择"}。`);
+  }
+
+  async function handleCloudAuthChange() {
+    setHistoryMessage("登录状态已更新，正在读取产品库...");
+    await loadHistoryRecords(storageMode, "云端账号已连接，产品库已重新加载。");
+  }
+
+  async function handleCloudSignOut() {
+    try {
+      await supabase?.auth.signOut();
+      const nextMode = saveStorageMode(STORAGE_MODES.AUTO);
+      setStorageMode(nextMode);
+      setHistoryMessage("已退出云端账号，已切回自动选择；本地记录不会清空。");
+      await loadHistoryRecords(nextMode, "已退出云端账号，当前自动回退到本地模式。");
+    } catch (error) {
+      setHistoryMessage("退出登录失败：" + error.message);
+    }
   }
 
   function copyReport() {
@@ -2195,7 +2228,7 @@ function App() {
 
   async function exportRecordsBackup() {
     try {
-      const storageResult = await loadProductRecords();
+      const storageResult = await loadProductRecords(storageMode);
       const records = storageResult.records || [];
       setHistoryRecords(records);
       applyStorageResult(storageResult);
@@ -2249,7 +2282,7 @@ function App() {
         throw new Error("invalid_backup_format");
       }
 
-      const oldStorageResult = await loadProductRecords();
+      const oldStorageResult = await loadProductRecords(storageMode);
       const oldRecords = oldStorageResult.records || [];
 
       const existingIds = new Set(
@@ -2274,20 +2307,10 @@ function App() {
       }, []);
 
       const nextRecords = [...uniqueImportedRecords, ...oldRecords];
-      const localSaveResult = saveLocalRecords(nextRecords);
-      const availability = await canUseCloudStorage();
-      const storageResult = availability.canUseCloud
-        ? await migrateLocalRecordsToCloud()
-        : {
-            ...localSaveResult,
-            warning: localSaveResult.warning || availability.warning,
-            error: availability.error || localSaveResult.error || "",
-            status: {
-              ...localSaveResult.status,
-              warning: localSaveResult.warning || availability.warning,
-              error: availability.error || localSaveResult.error || "",
-            },
-          };
+      const localSaveResult = saveLocalRecords(nextRecords, { selectedMode: storageMode });
+      const storageResult = storageMode === STORAGE_MODES.LOCAL
+        ? localSaveResult
+        : await migrateLocalRecordsToCloud(storageMode);
 
       setHistoryRecords(storageResult.records || nextRecords);
       applyStorageResult(storageResult, "产品库备份导入成功");
@@ -2342,7 +2365,7 @@ function App() {
         report: result?.report || "暂无报告内容",
       };
 
-      const storageResult = await saveProductRecord(localRecord);
+      const storageResult = await saveProductRecord(localRecord, storageMode);
 
       setHistoryRecords(storageResult.records || []);
       applyStorageResult(storageResult);
@@ -2358,20 +2381,20 @@ function App() {
     }
   }
 
-  async function loadHistoryRecords() {
+  async function loadHistoryRecords(modeOverride = storageMode, fallbackMessage = "") {
     try {
       setHistoryLoading(true);
       setHistoryMessage("");
 
-      const storageResult = await loadProductRecords();
+      const storageResult = await loadProductRecords(modeOverride);
       const records = storageResult.records || [];
 
       setHistoryRecords(records);
       applyStorageResult(
         storageResult,
-        records.length === 0
+        fallbackMessage || (records.length === 0
           ? "当前为本地/游客可用模式，保存的产品会优先同步云端；云端不可用时会记录在本浏览器中。"
-          : ""
+          : "")
       );
     } catch (error) {
       setHistoryMessage("读取产品库失败：" + error.message);
@@ -2384,7 +2407,7 @@ function App() {
     const ok = window.confirm("确定删除这条产品记录吗？");
     if (!ok) return;
 
-    const storageResult = await deleteProductRecord(id);
+    const storageResult = await deleteProductRecord(id, storageMode);
     setHistoryRecords(storageResult.records || []);
     applyStorageResult(storageResult, "已删除产品记录。");
   }
@@ -2562,22 +2585,12 @@ function App() {
       };
     });
 
-    const oldStorageResult = await loadProductRecords();
+    const oldStorageResult = await loadProductRecords(storageMode);
     const nextRecords = [...demoRecords, ...(oldStorageResult.records || [])];
-    const localSaveResult = saveLocalRecords(nextRecords);
-    const availability = await canUseCloudStorage();
-    const storageResult = availability.canUseCloud
-      ? await migrateLocalRecordsToCloud()
-      : {
-          ...localSaveResult,
-          warning: localSaveResult.warning || availability.warning,
-          error: availability.error || localSaveResult.error || "",
-          status: {
-            ...localSaveResult.status,
-            warning: localSaveResult.warning || availability.warning,
-            error: availability.error || localSaveResult.error || "",
-          },
-        };
+    const localSaveResult = saveLocalRecords(nextRecords, { selectedMode: storageMode });
+    const storageResult = storageMode === STORAGE_MODES.LOCAL
+      ? localSaveResult
+      : await migrateLocalRecordsToCloud(storageMode);
 
     setHistoryRecords(storageResult.records || nextRecords);
     applyStorageResult(storageResult, "已加载示例产品到产品库，可直接体验筛选、PK和复盘流程。");
@@ -2701,7 +2714,14 @@ function App() {
         )}
         {mode === "history" && (
           <div>
-            <StorageStatusBadge status={storageStatus} onMigrate={syncLocalRecordsToCloud} />
+            <StorageModeSelector mode={storageMode} onChange={handleStorageModeChange} disabled={historyLoading} />
+            <StorageStatusBadge status={storageStatus} onMigrate={syncLocalRecordsToCloud} onSignOut={handleCloudSignOut} />
+            {storageMode === STORAGE_MODES.CLOUD && (!storageStatus.hasSupabaseConfig || storageStatus.needsLogin) && (
+              <SupabaseLoginPanel
+                onAuthChange={handleCloudAuthChange}
+                onUseLocal={() => handleStorageModeChange(STORAGE_MODES.LOCAL)}
+              />
+            )}
             <HistoryView
               records={historyRecords}
               loading={historyLoading}
