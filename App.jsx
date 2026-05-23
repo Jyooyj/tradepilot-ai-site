@@ -19,11 +19,19 @@ import {
   painPoints,
   statusOptions,
 } from "./src/constants/uiContent";
+import CoverCard from "./src/components/CoverCard";
+import FloatingFeedback from "./src/components/FloatingFeedback";
+import OperateView from "./src/components/OperateView";
+import ResultView from "./src/components/ResultView";
+import HistoryView from "./src/components/HistoryView";
+import PKView from "./src/components/PKView";
+import ReviewView from "./src/components/ReviewView";
+import DemoView from "./src/components/DemoView";
 
 const ANALYZE_IMAGE_ENDPOINT =
   import.meta.env.VITE_ANALYZE_IMAGE_URL || "/api/analyze-image";
 
-const initialProduct = {
+export const initialProduct = {
   name: "蝴蝶结珍珠耳夹",
   category: "饰品 / 小商品",
   cost: "3.8",
@@ -39,7 +47,7 @@ const initialProduct = {
   note: "适合春夏穿搭、校园摆摊、礼物场景，建议先拿样拍图测款。",
 };
 
-const blankProduct = {
+export const blankProduct = {
   name: "",
   category: "",
   cost: "",
@@ -56,12 +64,12 @@ const blankProduct = {
 };
 
 
-function n(value) {
+export function n(value) {
   const parsed = parseNumberValue(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function money(value) {
+export function money(value) {
   return Number.isFinite(value) ? value.toFixed(2) : "0.00";
 }
 
@@ -119,7 +127,7 @@ function getEffectivePrice(product = {}, reportContext = {}) {
   };
 }
 
-function formatEffectivePrice(priceInfo, fallback = "待补充") {
+export function formatEffectivePrice(priceInfo, fallback = "待补充") {
   if (!priceInfo?.price) return fallback;
   return `¥${moneyDisplay(priceInfo.price)}${priceInfo.hasEstimatedPrice ? "（估算）" : ""}`;
 }
@@ -1900,11 +1908,11 @@ ${scoringItems.map((item, index) => `${index + 1}. ${item.title}：${item.score}
   };
 }
 
-function getRecordStatus(record) {
+export function getRecordStatus(record) {
   return record?.result?.status || record?.result?.level || record?.advice || (record?.score >= 85 ? "准备拿样" : record?.score >= 70 ? "正在测款" : "暂不考虑");
 }
 
-function getRecordMetrics(record) {
+export function getRecordMetrics(record) {
   const fallback = record?.product ? analyzeProduct(record.product, Boolean(record.product.imagePreview)) : null;
   const result = record?.result || {};
   return {
@@ -2125,7 +2133,7 @@ function generateProductLibraryWordDocument(records = []) {
 </html>`;
 }
 
-function getPkRecommendation(left, right) {
+export function getPkRecommendation(left, right) {
   if (!left || !right) return "请选择两个产品后生成优先级建议。";
   const leftMetrics = getRecordMetrics(left);
   const rightMetrics = getRecordMetrics(right);
@@ -2204,7 +2212,7 @@ function normalizeScoringItem(item) {
   return null;
 }
 
-function getScoringItems(result) {
+export function getScoringItems(result) {
   return safeArray(result?.scoringItems || result?.explanations)
     .map(normalizeScoringItem)
     .filter((item) => item && item.title.length > 1 && !["针", "对", "田"].includes(item.title));
@@ -3045,71 +3053,6 @@ function App() {
   );
 }
 
-function CoverCard({ title, desc, onClick, highlight }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-[2rem] border p-6 text-left transition hover:-translate-y-1 hover:shadow-2xl ${
-        highlight ? "border-emerald-300 bg-emerald-300 text-black shadow-emerald-300/20" : "border-white/10 bg-white/[0.06] text-white"
-      }`}
-    >
-      <h3 className="text-2xl font-black">{title}</h3>
-      <p className={`mt-3 text-sm leading-7 ${highlight ? "text-black/70" : "text-slate-400"}`}>{desc}</p>
-      <p className="mt-6 font-black">进入 →</p>
-    </button>
-  );
-}
-
-function FloatingFeedback({ open, setOpen }) {
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 rounded-full border border-emerald-300/40 bg-[#0d2017] px-4 py-3 text-sm font-black text-emerald-200 shadow-2xl shadow-black/40 transition hover:-translate-y-0.5 hover:bg-emerald-300 hover:text-black"
-      >
-        反馈建议
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 py-5 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-xl rounded-[2rem] border border-emerald-300/20 bg-[#08100d] p-5 text-white shadow-2xl shadow-black/50">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Feedback</p>
-                <h2 className="mt-2 text-2xl font-black leading-tight">帮助 TradePilot AI 变得更懂进货场景</h2>
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-sm font-black text-slate-200 hover:bg-white/10"
-              >
-                关闭
-              </button>
-            </div>
-
-            <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
-              如果你觉得报告不够准确，或希望增加功能，请通过问卷星反馈表提交建议。反馈会直接汇总到项目团队，方便后续优化。
-            </p>
-
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs leading-6 text-slate-400">
-                问卷约 1 分钟完成，感谢你帮助我们优化进货决策智能体。
-              </p>
-              <a
-                href={feedbackFormUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-2xl bg-emerald-300 px-5 py-3 text-center font-black text-black shadow-lg shadow-emerald-300/10"
-              >
-                填写反馈表
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 function Tab({ active, onClick, children }) {
   return (
     <button onClick={onClick} className={`rounded-full px-4 py-2 ${active ? "bg-emerald-300 text-black" : "bg-white/[0.06] text-slate-300 hover:bg-white/[0.1]"}`}>
@@ -3226,7 +3169,7 @@ function renderImageToJpegDataUrl(image, width, height, quality) {
   return canvas.toDataURL("image/jpeg", quality);
 }
 
-async function compressImageToDataUrl(file, options = {}) {
+export async function compressImageToDataUrl(file, options = {}) {
   const config = { ...IMAGE_COMPRESSION_OPTIONS, ...options };
   const sourceDataUrl = await readFileAsDataUrl(file);
   const image = await loadImageFromDataUrl(sourceDataUrl);
@@ -3277,242 +3220,7 @@ async function compressImageToDataUrl(file, options = {}) {
   };
 }
 
-function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode, analyzeImageWithAI, aiLoading }) {
-  async function handleImage(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      alert("请上传 JPG、PNG、WebP 等图片文件。");
-      return;
-    }
-
-    try {
-      const compressed = await compressImageToDataUrl(file);
-      setImage(compressed.dataUrl);
-      setAnalyzed(false);
-
-      if (compressed.tooLarge) {
-        alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
-      }
-    } catch (error) {
-      alert(error.message ? `${error.message}；也可以手动填写产品信息继续生成报告。` : "图片读取失败，请换一张图片再试；也可以手动填写产品信息继续生成报告。");
-    }
-  }
-
-  function analyze() {
-    setAnalyzed(true);
-    setMode("result");
-  }
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-        <h2 className="text-2xl font-black">第一步：上传产品图片</h2>
-        <p className="mt-2 text-sm leading-7 text-slate-400">建议上传进货样品图、供应商图或产品细节图。图片会参与信息完整度和内容潜力判断。</p>
-
-        <div className="mt-5 grid min-h-80 place-items-center rounded-3xl border border-dashed border-white/20 bg-black/25 p-4">
-          {image ? (
-            <img src={image} alt="产品图" className="max-h-80 rounded-3xl object-contain" />
-          ) : (
-            <div className="text-center text-slate-400">
-              <p className="text-5xl">📷</p>
-              <p className="mt-3 font-bold">暂未上传产品图</p>
-            </div>
-          )}
-        </div>
-
-        <label className="mt-4 block cursor-pointer rounded-2xl bg-emerald-300 px-5 py-3 text-center font-black text-black">
-          上传图片
-          <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
-        </label>
-        <p className="mt-2 text-xs leading-6 text-slate-400">图片已自动压缩后用于识别，不影响报告生成。</p>
-        <p className="mt-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-xs leading-6 text-cyan-100">
-          图片识别是加速入口，不是唯一入口。识别失败时，可手动填写产品名称、拿货价、建议售价、MOQ、材质、目标人群和销售渠道，系统仍可生成完整进货决策报告。
-        </p>
-
-        <button onClick={analyzeImageWithAI} disabled={aiLoading} className="mt-3 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black disabled:opacity-60">
-          {aiLoading ? "AI正在识别图片..." : "AI识别图片并自动填写"}
-        </button>
-
-        <button onClick={() => { setProduct(initialProduct); setAnalyzed(false); }} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white">套用示例产品</button>
-        <button onClick={() => { setProduct(blankProduct); setImage(null); setAnalyzed(false); }} className="mt-3 w-full rounded-2xl border border-white/10 bg-transparent px-5 py-3 font-bold text-slate-300">清空重填</button>
-      </section>
-
-      <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-2xl font-black">第二步：填写进货信息</h2>
-            <p className="mt-2 text-sm text-slate-400">字段越完整，AI判断越可靠。带价格和MOQ才能测算利润与压货风险。</p>
-          </div>
-          <div className="rounded-2xl bg-white/[0.06] px-4 py-3 text-sm font-bold text-slate-300">
-            当前评分：{result.totalScore}/100
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
-          <Input label="产品名称" value={product.name} onChange={(value) => update("name", value)} placeholder="如：珍珠项链" />
-          <Input label="产品类型" value={product.category} onChange={(value) => update("category", value)} placeholder="如：饰品/文创/家居" />
-          <Input label="拿货价 / 元" value={product.cost} onChange={(value) => update("cost", value)} placeholder="如：3.8" />
-          <Input label="建议售价 / 元" value={product.price} onChange={(value) => update("price", value)} placeholder="如：19.9" />
-          <Input label="MOQ 最小起订量 / 件" value={product.moq} onChange={(value) => update("moq", value)} placeholder="如：100" />
-          <Input label="材质" value={product.material} onChange={(value) => update("material", value)} placeholder="如：合金+仿珍珠" />
-          <Input label="目标人群" value={product.audience} onChange={(value) => update("audience", value)} placeholder="如：学生党、通勤人群" />
-          <Input label="销售渠道" value={product.channel} onChange={(value) => update("channel", value)} placeholder="如：小红书/抖音/私域" />
-          <Input label="供应商信息" value={product.supplier} onChange={(value) => update("supplier", value)} placeholder="如：支持混批，7天补货" wide />
-          <Input label="内容关键词" value={product.keywords} onChange={(value) => update("keywords", value)} placeholder="如：温柔风、礼物推荐" wide />
-          <Input label="竞品价格" value={product.competitorPrice} onChange={(value) => update("competitorPrice", value)} placeholder="如：15.9-29.9元" />
-          <Input label="物流/包装风险" value={product.logistics} onChange={(value) => update("logistics", value)} placeholder="如：小件轻货/易碎" />
-          <Input label="补充备注" value={product.note} onChange={(value) => update("note", value)} placeholder="如：适合礼物场景" wide />
-        </div>
-
-        <button onClick={analyze} className="mt-5 w-full rounded-2xl bg-emerald-300 px-5 py-4 text-lg font-black text-black">
-          生成进货决策报告
-        </button>
-      </section>
-    </div>
-  );
-}
-
-function ResultView({ product, image, result, analyzed, setMode, copyReport, copied, saveCurrentReport, saveMessage, aiInsight, downloadReport }) {
-  return (
-    <div className="space-y-6">
-      {!analyzed && (
-        <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">
-          当前展示的是实时预览结果，建议返回开始判断页面生成正式报告。
-        </div>
-      )}
-
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-sm text-emerald-300">Key Conclusion</p>
-            <h2 className="text-3xl font-black text-white">进货关键结论</h2>
-            <p className="mt-2 text-slate-400">先确认状态和关键指标，再展开查看评分依据与完整报告。</p>
-          </div>
-          <span className="text-sm font-bold text-cyan-200">状态：{result.status}</span>
-        </div>
-
-        <div className="mt-6 grid gap-3 md:grid-cols-4">
-          <Card label="综合评分" value={`${result.totalScore}/100`} />
-          <Card label="AI建议" value={result.level} />
-          <Card label="预计毛利率" value={`${Math.round(result.margin * 100)}%`} />
-          <Card label="首批压货" value={`¥${money(result.stockCost)}`} />
-        </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="space-y-4">
-          <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-            <p className="text-sm text-slate-400">当前产品</p>
-            <h2 className="mt-2 text-3xl font-black text-emerald-300">{result.productIdentity?.displayName || product.name || "未命名产品"}</h2>
-            <p className="mt-2 text-sm font-bold text-emerald-100">{result.productIdentity?.productTypeLabel || product.category || "未分类"}</p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Card label="单件利润" value={`¥${money(result.profit)}`} />
-              <Card label="单件成本" value={`¥${money(result.unitCost)}`} />
-              <Card label="建议售价" value={formatEffectivePrice(result.effectivePrice)} />
-              <Card label="竞品价格" value={product.competitorPrice || "待补充"} />
-            </div>
-            {image && <img src={image} alt="产品图" className="mt-5 max-h-80 w-full rounded-3xl object-contain bg-black/30" />}
-          </div>
-          <SamplingStrategyCard result={result} />
-          <MaterialChecklistCard result={result} />
-        </div>
-
-        <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
-          <h2 className="text-2xl font-black">AI评分依据</h2>
-          <div className="mt-5 space-y-4">
-            {getScoringItems(result).map((item) => (
-              <div key={item.title} className="rounded-3xl bg-white/[0.06] p-4">
-                <Score label={item.title} value={item.score} />
-                <p className="mt-3 text-sm leading-7 text-slate-300">{item.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {aiInsight && (
-        <section className="rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
-          <h2 className="text-2xl font-black text-cyan-200">AI图片识别结果</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <Card label="识别产品" value={aiInsight.product?.name || "未识别"} />
-            <Card label="推断品类" value={aiInsight.product?.category || "未识别"} />
-            <Card label="置信度" value={aiInsight.confidence || "中等"} />
-          </div>
-        </section>
-      )}
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-          <h2 className="text-2xl font-black">小红书内容包</h2>
-          <p className="mt-2 text-sm leading-7 text-slate-400">消费者视角的种草素材，商家策略单独放在最后，避免把经营分析写进对外文案。</p>
-          <div className="mt-4 grid gap-2">
-            {result.xhsPackage.coverHooks.map((hook) => (
-              <p key={hook} className="rounded-2xl bg-emerald-300 p-3 text-sm font-black text-black">封面钩子：{hook}</p>
-            ))}
-          </div>
-          <h3 className="mt-5 font-black text-white">标题建议</h3>
-          <div className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
-            {result.xhsPackage.titles.slice(0, 5).map((title, index) => (
-              <p key={title} className="rounded-2xl bg-black/25 p-4">标题{index + 1}：{title}</p>
-            ))}
-          </div>
-          <h3 className="mt-5 font-black text-white">图文结构</h3>
-          <ol className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
-            {result.xhsStructure.map((item, index) => <li key={item}>{index + 1}. {item}</li>)}
-          </ol>
-          <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm leading-7 text-emerald-50">
-            商家发布策略：{result.xhsPackage.merchantStrategy}
-          </p>
-        </div>
-
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-          <h2 className="text-2xl font-black">抖音视频脚本</h2>
-          <p className="mt-2 text-sm leading-7 text-slate-400">{result.douyinPackage.direction}</p>
-          <div className="mt-4 space-y-3 text-sm leading-7 text-slate-300">
-            {result.douyinPackage.shots.map((shot, index) => (
-              <div key={`${shot.time}-${shot.copy}`} className="rounded-2xl bg-black/25 p-4">
-                <p className="font-black text-emerald-200">镜头{index + 1}｜{shot.time}｜{shot.focus}</p>
-                <p className="mt-2">画面：{shot.visual}</p>
-                <p>口播/字幕：{shot.copy}</p>
-                <p className="text-slate-400">目的：{shot.purpose}</p>
-              </div>
-            ))}
-          </div>
-          <h3 className="mt-5 font-black text-white">封面文案</h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {result.douyinPackage.coverTexts.map((text) => (
-              <span key={text} className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-bold text-emerald-100">{text}</span>
-            ))}
-          </div>
-          <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-50">
-            商家测试目标：{result.douyinPackage.merchantGoal}
-          </p>
-        </div>
-      </section>
-
-      <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-2xl font-black">完整AI进货报告</h2>
-            <p className="mt-2 text-sm text-slate-400">报告可复制给团队、保存到产品库，也可以下载为可视化HTML留档。</p>
-            {saveMessage && <p className="mt-3 rounded-2xl bg-emerald-300/10 p-3 text-sm text-emerald-100">{saveMessage}</p>}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button onClick={() => setMode("operate")} className="rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-bold text-white">返回修改</button>
-            <button onClick={saveCurrentReport} className="rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">保存到我的产品库</button>
-            <button onClick={copyReport} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">{copied ? "已复制" : "复制给团队"}</button>
-            <button onClick={downloadReport} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-200">下载可视化报告</button>
-          </div>
-        </div>
-        <StructuredReport product={product} result={result} />
-      </section>
-    </div>
-  );
-}
-
-function StructuredReport({ product, result }) {
+export function StructuredReport({ product, result }) {
   const xhs = result.xhsPackage;
   const douyin = result.douyinPackage;
   const keywordPlan = result.keywordPlan;
@@ -3868,7 +3576,7 @@ function ShotCard({ index, shot }) {
   );
 }
 
-function SamplingStrategyCard({ result }) {
+export function SamplingStrategyCard({ result }) {
   return (
     <section className="rounded-[2rem] border border-emerald-300/15 bg-emerald-300/[0.07] p-5">
       <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Sampling Strategy</p>
@@ -3884,7 +3592,7 @@ function SamplingStrategyCard({ result }) {
   );
 }
 
-function MaterialChecklistCard({ result }) {
+export function MaterialChecklistCard({ result }) {
   return (
     <section className="rounded-[2rem] border border-white/10 bg-black/30 p-5">
       <p className="text-xs font-bold uppercase tracking-wide text-cyan-200">Content Materials</p>
@@ -3903,202 +3611,7 @@ function MaterialChecklistCard({ result }) {
   );
 }
 
-function ReviewView({ product, result, review, setReview, saveCurrentReport, saveMessage }) {
-  const views = n(review.views);
-  const likes = n(review.likes);
-  const saves = n(review.saves);
-  const comments = n(review.comments);
-  const inquiries = n(review.inquiries);
-  const orders = n(review.orders);
-  const cost = n(review.cost);
-
-  const engagementRate = views ? ((likes + saves + comments) / views) * 100 : 0;
-  const inquiryRate = views ? (inquiries / views) * 100 : 0;
-  const conversionRate = inquiries ? (orders / inquiries) * 100 : 0;
-  const costPerOrder = orders ? cost / orders : 0;
-
-  let suggestion = "继续观察";
-  let suggestionDetail = "先积累足够浏览和询单数据，再判断是否改内容、改价格或补货。";
-  if (engagementRate >= 8 && conversionRate < 20 && inquiries > 0) {
-    suggestion = "互动高但成交偏低";
-    suggestionDetail = "说明内容能吸引用户，但成交信任还没有建立。建议优化售价、详情页、包装展示、材质说明、评价证明和售后承诺。";
-  }
-  if (views > 0 && engagementRate < 3) {
-    suggestion = "内容吸引力不足";
-    suggestionDetail = "建议重做封面、标题和前3秒内容，把使用前后对比、佩戴/使用场景和价格利益点提前展示。";
-  }
-  if (inquiryRate >= 1 && conversionRate < 20 && inquiries >= 5) {
-    suggestion = "询单高但成交低";
-    suggestionDetail = "用户有购买兴趣，但下单链路可能卡住了。建议检查售价、运费、付款路径、库存说明和客服回复速度。";
-  }
-  if (orders >= 5 && conversionRate >= 25 && costPerOrder > 0 && costPerOrder <= Math.max(result.profit, 1) * 0.6) {
-    suggestion = "成交好且成本可控";
-    suggestionDetail = "可以进入小批量补货观察，但仍建议控制首单量，继续跟踪退换货、复购和真实利润。";
-  }
-
-  function updateReview(key, value) {
-    setReview((old) => ({ ...old, [key]: value }));
-  }
-
-  function applyReviewDemo() {
-    setReview({
-      views: "4200",
-      likes: "260",
-      saves: "180",
-      comments: "42",
-      inquiries: "68",
-      orders: "16",
-      cost: "120",
-    });
-  }
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-        <p className="text-sm text-emerald-300">Test Review</p>
-        <h2 className="text-3xl font-black">测款数据复盘</h2>
-        <p className="mt-2 text-sm leading-7 text-slate-400">把小红书、抖音或私域的真实反馈填进来，用测款数据辅助下一步补货判断。</p>
-        <button onClick={applyReviewDemo} className="mt-5 rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black shadow-lg shadow-emerald-300/10">
-          填入示例数据
-        </button>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
-          <Input label="浏览量" value={review.views} onChange={(value) => updateReview("views", value)} placeholder="如：3000" />
-          <Input label="点赞数" value={review.likes} onChange={(value) => updateReview("likes", value)} placeholder="如：120" />
-          <Input label="收藏数" value={review.saves} onChange={(value) => updateReview("saves", value)} placeholder="如：80" />
-          <Input label="评论数" value={review.comments} onChange={(value) => updateReview("comments", value)} placeholder="如：20" />
-          <Input label="私信/询单数" value={review.inquiries} onChange={(value) => updateReview("inquiries", value)} placeholder="如：15" />
-          <Input label="实际成交数" value={review.orders} onChange={(value) => updateReview("orders", value)} placeholder="如：5" />
-          <Input label="测款成本 / 元" value={review.cost} onChange={(value) => updateReview("cost", value)} placeholder="如：50" wide />
-        </div>
-      </section>
-
-      <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
-        <h2 className="text-2xl font-black">测款复盘结论</h2>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <Card label="当前产品" value={product.name || "未命名产品"} />
-          <Card label="进货评分" value={`${result.totalScore}/100`} />
-        </div>
-
-        <div className="mt-5 space-y-4">
-          <MetricBar label="互动率" value={engagementRate} max={12} suffix="%" desc="判断内容吸引力，收藏、点赞和评论越集中，说明封面与卖点越能抓住用户。" />
-          <MetricBar label="询单率" value={inquiryRate} max={3} suffix="%" desc="判断购买兴趣，用户愿意私信或评论问价，说明产品已经进入购买考虑。" />
-          <MetricBar label="成交转化率" value={conversionRate} max={35} suffix="%" desc="判断价格、信任和付款路径是否成立，高询单低成交时优先排查成交阻力。" />
-          <MetricBar label="单均测款成本" value={costPerOrder} max={Math.max(result.profit * 1.2, 20)} prefix="¥" desc="判断获客成本是否可接受，单均成本应低于可承受利润空间。" />
-        </div>
-
-        <div className="mt-6 rounded-3xl bg-emerald-300 p-5 text-black">
-          <p className="text-sm font-bold opacity-70">复盘建议</p>
-          <h3 className="mt-2 text-2xl font-black">{suggestion}</h3>
-          <p className="mt-3 text-sm leading-7 opacity-80">
-            {suggestionDetail}
-          </p>
-        </div>
-
-        <button onClick={saveCurrentReport} className="mt-5 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">
-          保存本次复盘到我的产品库
-        </button>
-        {saveMessage && <p className="mt-3 rounded-2xl bg-white/[0.06] p-3 text-sm text-emerald-100">{saveMessage}</p>}
-      </section>
-    </div>
-  );
-}
-
-function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, onExportBackup, onExportDocument, onImportBackup, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
-  const normalizedSearch = search.trim().toLowerCase();
-  const filteredRecords = records
-    .filter((record) => {
-      const status = getRecordStatus(record);
-      const name = `${record.product_name || ""} ${record.product?.name || ""}`.toLowerCase();
-      const category = `${record.category || ""} ${record.product?.category || ""}`.toLowerCase();
-      const matchSearch = !normalizedSearch || name.includes(normalizedSearch) || category.includes(normalizedSearch);
-      const matchStatus = statusFilter === "全部" || status.includes(statusFilter);
-      return matchSearch && matchStatus;
-    })
-    .sort((a, b) => {
-      if (sortMode === "score_desc") return (b.score || 0) - (a.score || 0);
-      if (sortMode === "score_asc") return (a.score || 0) - (b.score || 0);
-      if (sortMode === "saved_asc") return new Date(a.created_at || 0) - new Date(b.created_at || 0);
-      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-    });
-
-  return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-sm text-emerald-300">My Product Library</p>
-          <h2 className="text-3xl font-black text-white">我的产品库</h2>
-          <p className="mt-2 text-sm leading-7 text-slate-400">保存进货判断、测款结论和完整报告，形成长期选品资产。</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button onClick={onRefresh} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">刷新产品库</button>
-          <button onClick={onExportBackup} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-100">导出产品库备份</button>
-          <button onClick={onExportDocument} className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-3 font-black text-amber-100">导出产品库文档</button>
-          <label className="cursor-pointer rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-center font-black text-cyan-100">
-            导入产品库备份
-            <input type="file" accept="application/json,.json" className="hidden" onChange={onImportBackup} />
-          </label>
-        </div>
-      </div>
-
-      <div className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
-        游客模式下，产品库保存在当前浏览器中。建议定期导出备份；更换浏览器、设备或清理缓存后，可通过导入备份恢复记录。
-      </div>
-
-      <div className="mb-5 grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
-        <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
-          <span className="text-xs font-semibold text-slate-400">搜索产品名称 / 品类</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="如：珍珠、发饰、家居生活" className="mt-2 w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-600" />
-        </label>
-        <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
-          <span className="text-xs font-semibold text-slate-400">状态筛选</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold text-white outline-none">
-            {statusOptions.map((status) => <option key={status} value={status} className="bg-[#08100d]">{status}</option>)}
-          </select>
-        </label>
-        <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
-          <span className="text-xs font-semibold text-slate-400">排序</span>
-          <select value={sortMode} onChange={(event) => setSortMode(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold text-white outline-none">
-            <option value="saved_desc" className="bg-[#08100d]">保存时间：最新</option>
-            <option value="saved_asc" className="bg-[#08100d]">保存时间：最早</option>
-            <option value="score_desc" className="bg-[#08100d]">评分：高到低</option>
-            <option value="score_asc" className="bg-[#08100d]">评分：低到高</option>
-          </select>
-        </label>
-      </div>
-
-      {loading && <div className="rounded-3xl bg-black/25 p-6 text-slate-300">正在读取产品库...</div>}
-      {message && <div className="mb-4 rounded-3xl bg-amber-300/10 p-5 text-amber-100">{message}</div>}
-
-      {!loading && records.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center">
-          <h3 className="text-2xl font-black text-white">产品库还是空的</h3>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-            先生成一份进货报告，再点击“保存到我的产品库”。游客演示模式会把记录暂存在本浏览器中。
-          </p>
-          <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
-            <button onClick={onRefresh} className="rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-bold text-white">重新读取</button>
-            <button onClick={onLoadDemo} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">加载示例产品</button>
-          </div>
-        </div>
-      )}
-
-      {!loading && records.length > 0 && filteredRecords.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center text-slate-400">
-          没有匹配的产品记录。可以调整搜索词或状态筛选。
-        </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {filteredRecords.map((record) => (
-          <HistoryCard key={record.id} record={record} onDelete={onDelete} onRestore={onRestore} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function HistoryCard({ record, onDelete, onRestore }) {
+export function HistoryCard({ record, onDelete, onRestore }) {
   const metrics = getRecordMetrics(record);
   const displayReport = getRecordReport(record);
   return (
@@ -4132,127 +3645,7 @@ function HistoryCard({ record, onDelete, onRestore }) {
   );
 }
 
-function PKView({ records, loading, message, onRefresh, onRestore, leftId, setLeftId, rightId, setRightId }) {
-  const sorted = [...records].sort((a, b) => (b.score || 0) - (a.score || 0));
-  const left = sorted.find((record) => record.id === leftId) || sorted[0] || null;
-  const right = sorted.find((record) => record.id === rightId) || sorted.find((record) => record.id !== left?.id) || null;
-  const leftMetrics = left ? getRecordMetrics(left) : null;
-  const rightMetrics = right ? getRecordMetrics(right) : null;
-
-  return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-sm text-emerald-300">Candidate PK</p>
-          <h2 className="text-3xl font-black">候选产品PK</h2>
-          <p className="mt-2 text-sm leading-7 text-slate-400">按已保存产品的评分排序，帮助你快速比较哪些款更适合优先拿样、继续测款或进入补货观察。</p>
-        </div>
-        <button onClick={onRefresh} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">刷新候选池</button>
-      </div>
-
-      {loading && <div className="rounded-3xl bg-black/25 p-6 text-slate-300">正在读取候选产品...</div>}
-      {message && <div className="mb-4 rounded-3xl bg-amber-300/10 p-5 text-amber-100">{message}</div>}
-
-      {!loading && sorted.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center text-slate-400">
-          还没有候选产品。先保存几份进货报告，再回来比较候选款。
-        </div>
-      )}
-
-      {sorted.length === 1 && (
-        <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">
-          当前只有一个候选产品。保存至少两个产品后，就可以进行完整 PK。
-        </div>
-      )}
-
-      {sorted.length >= 2 && (
-        <div className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
-              <span className="text-xs font-semibold text-slate-400">候选产品 A</span>
-              <select value={left?.id || ""} onChange={(event) => setLeftId(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold text-white outline-none">
-                {sorted.map((record) => <option key={record.id} value={record.id} className="bg-[#08100d]">{getRecordMetrics(record).displayName}</option>)}
-              </select>
-            </label>
-            <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
-              <span className="text-xs font-semibold text-slate-400">候选产品 B</span>
-              <select value={right?.id || ""} onChange={(event) => setRightId(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold text-white outline-none">
-                {sorted.map((record) => <option key={record.id} value={record.id} className="bg-[#08100d]">{getRecordMetrics(record).displayName}</option>)}
-              </select>
-            </label>
-          </div>
-
-          <div className="rounded-3xl bg-emerald-300 p-6 text-black">
-            <p className="text-sm font-bold opacity-70">AI 推荐结论</p>
-            <h3 className="mt-2 text-2xl font-black">{getPkRecommendation(left, right)}</h3>
-          </div>
-
-          <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/30">
-            <div className="grid grid-cols-[0.9fr_1fr_1fr] border-b border-white/10 bg-white/[0.06] text-sm font-black text-slate-200">
-              <div className="p-4">对比维度</div>
-              <div className="p-4">{leftMetrics?.displayName}</div>
-              <div className="p-4">{rightMetrics?.displayName}</div>
-            </div>
-            <PkMetricRow label="评分" left={`${leftMetrics?.score || 0}/100`} right={`${rightMetrics?.score || 0}/100`} />
-            <PkMetricRow label="状态" left={`状态：${leftMetrics?.status || "待判断"}`} right={`状态：${rightMetrics?.status || "待判断"}`} />
-            <PkMetricRow label="毛利率" left={`${Math.round((leftMetrics?.margin || 0) * 100)}%`} right={`${Math.round((rightMetrics?.margin || 0) * 100)}%`} />
-            <PkMetricRow label="首批压货" left={`¥${money(leftMetrics?.stockCost || 0)}`} right={`¥${money(rightMetrics?.stockCost || 0)}`} />
-            <PkMetricRow label="风险数量" left={`${leftMetrics?.riskCount || 0} 个`} right={`${rightMetrics?.riskCount || 0} 个`} />
-            <PkMetricRow label="内容潜力" left={`${leftMetrics?.contentPotential || 0}/100`} right={`${rightMetrics?.contentPotential || 0}/100`} />
-            <PkMetricRow label="渠道适配" left={leftMetrics?.channelFit || "待补充"} right={rightMetrics?.channelFit || "待补充"} />
-            <div className="grid grid-cols-[0.9fr_1fr_1fr] border-t border-white/10">
-              <div className="p-4 text-sm font-bold text-slate-400">操作</div>
-              <div className="p-4"><button onClick={() => left && onRestore(left)} className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black">查看</button></div>
-              <div className="p-4"><button onClick={() => right && onRestore(right)} className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black">查看</button></div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-6 grid gap-4">
-        {sorted.map((record, index) => (
-          <div key={record.id} className="rounded-3xl border border-white/10 bg-black/30 p-5">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-black text-emerald-300">#{index + 1}</p>
-                <h3 className="text-2xl font-black">{getRecordMetrics(record).displayName}</h3>
-                <p className="mt-2 text-sm text-slate-400">{record.advice}</p>
-              </div>
-              <div className="grid gap-2 text-sm md:grid-cols-3">
-                <span className="rounded-full bg-emerald-300/10 px-3 py-2 font-bold text-emerald-200">评分 {record.score ?? 0}</span>
-                <span className="px-1 py-2 font-bold text-cyan-200">状态：{getRecordStatus(record)}</span>
-                <button onClick={() => onRestore(record)} className="rounded-full bg-emerald-300 px-3 py-2 font-black text-black">查看</button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function DemoView({ applyDemo }) {
-  return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-      <p className="text-sm text-emerald-300">Judge Demo</p>
-      <h2 className="text-3xl font-black">评委快速演示</h2>
-      <p className="mt-2 text-sm leading-7 text-slate-400">不用依赖实时识图接口，直接查看多个不同品类的完整判断结果，保证现场展示稳定。</p>
-
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {demoProducts.map((demo) => (
-          <button key={demo.name} onClick={() => applyDemo(demo)} className="rounded-[2rem] border border-white/10 bg-black/30 p-6 text-left transition hover:-translate-y-1 hover:bg-white/[0.08]">
-            <p className="text-sm text-emerald-300">{demo.category}</p>
-            <h3 className="mt-2 text-2xl font-black text-white">{demo.name}</h3>
-            <p className="mt-3 text-sm leading-7 text-slate-400">{demo.note}</p>
-            <p className="mt-5 font-black text-emerald-300">查看完整案例 →</p>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function Input({ label, value, onChange, placeholder, wide }) {
+export function Input({ label, value, onChange, placeholder, wide }) {
   return (
     <label className={`rounded-2xl border border-white/10 bg-black/25 p-4 ${wide ? "md:col-span-2" : ""}`}>
       <span className="text-xs font-semibold text-slate-400">{label}</span>
@@ -4261,7 +3654,7 @@ function Input({ label, value, onChange, placeholder, wide }) {
   );
 }
 
-function Card({ label, value }) {
+export function Card({ label, value }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-4">
       <p className="text-sm text-slate-400">{label}</p>
@@ -4270,7 +3663,7 @@ function Card({ label, value }) {
   );
 }
 
-function PkMetricRow({ label, left, right }) {
+export function PkMetricRow({ label, left, right }) {
   return (
     <div className="grid grid-cols-[0.9fr_1fr_1fr] border-b border-white/10 text-sm">
       <div className="p-4 font-bold text-slate-400">{label}</div>
@@ -4280,7 +3673,7 @@ function PkMetricRow({ label, left, right }) {
   );
 }
 
-function Score({ label, value }) {
+export function Score({ label, value }) {
   const scoreValue = clamp(Number(value) || 0, 0, 100);
   return (
     <div>
@@ -4295,7 +3688,7 @@ function Score({ label, value }) {
   );
 }
 
-function MetricBar({ label, value, max, desc, suffix = "", prefix = "" }) {
+export function MetricBar({ label, value, max, desc, suffix = "", prefix = "" }) {
   const safeMax = max > 0 ? max : 1;
   const width = clamp((value / safeMax) * 100, 0, 100);
   return (
