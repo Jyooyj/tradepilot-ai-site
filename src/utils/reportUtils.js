@@ -297,6 +297,86 @@ function normalizeDouyinPackage(packageValue = {}) {
 const marketEvidenceNotice = "当前为市场证据模式：未调用外部平台 API，不生成或伪造平台真实价格、销量、点赞、播放数据；系统基于用户填写信息和搜索入口进行辅助判断。";
 const defaultMarketRiskWarning = "暂无明确高风险，但建议继续核验同款价格、内容热度和成交反馈。";
 
+function preferArray(value, fallback = []) {
+  const safeValue = asArray(value);
+  if (safeValue.length) return safeValue;
+  return asArray(fallback);
+}
+
+function preferValue(value, fallback = "") {
+  return value === undefined || value === null || value === "" ? fallback : value;
+}
+
+function mergeKeywordPlatform(value, fallback = {}) {
+  const source = asObject(value);
+  const safeFallback = asObject(fallback);
+
+  return {
+    core: preferArray(source.core, safeFallback.core),
+    scene: preferArray(source.scene, safeFallback.scene),
+    pain: preferArray(source.pain, safeFallback.pain),
+    style: preferArray(source.style, safeFallback.style),
+    attribute: preferArray(source.attribute, safeFallback.attribute),
+    longTail: preferArray(source.longTail, safeFallback.longTail),
+  };
+}
+
+function mergeKeywordPlan(value, fallback = {}) {
+  const source = asObject(value);
+  const safeFallback = asObject(fallback);
+
+  return {
+    ...safeFallback,
+    ...source,
+    xhs: mergeKeywordPlatform(source.xhs, safeFallback.xhs),
+    douyin: mergeKeywordPlatform(source.douyin, safeFallback.douyin),
+    ecommerce: mergeKeywordPlatform(source.ecommerce, safeFallback.ecommerce),
+    titles: preferArray(source.titles, safeFallback.titles),
+  };
+}
+
+function mergeXhsPackage(value, fallback = {}) {
+  const source = asObject(value);
+  const safeFallback = asObject(fallback);
+
+  return {
+    ...safeFallback,
+    ...source,
+    coverHooks: preferArray(source.coverHooks, safeFallback.coverHooks),
+    titles: preferArray(source.titles, safeFallback.titles),
+    pages: preferArray(source.pages, safeFallback.pages),
+    interactions: preferArray(source.interactions, safeFallback.interactions),
+    tags: preferArray(source.tags, safeFallback.tags),
+    coverDesign: preferValue(source.coverDesign, safeFallback.coverDesign),
+    body: preferValue(source.body, safeFallback.body),
+    merchantStrategy: preferValue(source.merchantStrategy, safeFallback.merchantStrategy),
+  };
+}
+
+function mergeDouyinPackage(value, fallback = {}) {
+  const source = asObject(value);
+  const safeFallback = asObject(fallback);
+
+  return {
+    ...safeFallback,
+    ...source,
+    coverTexts: preferArray(source.coverTexts, safeFallback.coverTexts),
+    shots: preferArray(source.shots, safeFallback.shots).map((shot) => asObject(shot)),
+    shootingNotes: preferArray(source.shootingNotes, safeFallback.shootingNotes),
+    direction: preferValue(source.direction, safeFallback.direction),
+    merchantGoal: preferValue(source.merchantGoal, safeFallback.merchantGoal),
+  };
+}
+
+function formatKeywordTitle(item) {
+  if (Array.isArray(item)) {
+    const [platform, title] = item;
+    return `${platform || "平台"}标题：${title || "暂无"}`;
+  }
+
+  return String(item || "暂无");
+}
+
 function visiblePriceSearchLinks(links) {
   return asArray(links).filter((link) => link?.platform !== "1688" && !String(link?.label || "").includes("1688"));
 }
@@ -485,16 +565,29 @@ export function generateHtmlReport(product, result) {
   const fallbackMarket = result.market || inferMarketInfo(product);
   const fallbackChannelFit = result.channelFit || getChannelFit(product, fallbackMarket.categoryKey);
   const fallbackEffectivePrice = result.effectivePrice || getEffectivePrice(product);
-  const contentContext = result.contentContext || createContentContext(product, Boolean(product?.imagePreview), fallbackMarket, fallbackChannelFit, result.priceBand || getPriceBand(fallbackEffectivePrice.price), result.moqAdvice || getMoqAdvice(n(product.moq)));
+  const fallbackContentContext = createContentContext(product, Boolean(product?.imagePreview), fallbackMarket, fallbackChannelFit, result.priceBand || getPriceBand(fallbackEffectivePrice.price), result.moqAdvice || getMoqAdvice(n(product.moq)));
+  const resultContentContext = asObject(result.contentContext);
+  const contentContext = {
+    ...fallbackContentContext,
+    ...resultContentContext,
+    productIdentity: {
+      ...asObject(fallbackContentContext.productIdentity),
+      ...asObject(resultContentContext.productIdentity),
+    },
+  };
   const effectivePrice = result.effectivePrice || contentContext.effectivePrice || getEffectivePrice(product);
+  const productIdentity = asObject(contentContext.productIdentity);
   const identityProduct = {
     ...product,
-    name: contentContext.productIdentity.displayName,
-    category: contentContext.productIdentity.productTypeLabel,
+    name: productIdentity.displayName || product.name || contentContext.productName,
+    category: productIdentity.productTypeLabel || product.category || contentContext.category,
   };
-  const xhs = normalizeXhsPackage(validateGeneratedContent(contentContext, result.xhsPackage || getXhsContentPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "xhsPackage").content);
-  const douyin = normalizeDouyinPackage(validateGeneratedContent(contentContext, result.douyinPackage || getDouyinVideoPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "douyinPackage").content);
-  const keywordPlan = normalizeKeywordPlan(validateGeneratedContent(contentContext, result.keywordPlan || getPlatformKeywordPlan(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "keywordPlan").content);
+  const fallbackXhsPackage = getXhsContentPackage(identityProduct, contentContext.categoryKey, productIdentity);
+  const fallbackDouyinPackage = getDouyinVideoPackage(identityProduct, contentContext.categoryKey, productIdentity);
+  const fallbackKeywordPlan = getPlatformKeywordPlan(identityProduct, contentContext.categoryKey, productIdentity);
+  const xhs = mergeXhsPackage(normalizeXhsPackage(validateGeneratedContent(contentContext, result.xhsPackage || fallbackXhsPackage, "xhsPackage").content), fallbackXhsPackage);
+  const douyin = mergeDouyinPackage(normalizeDouyinPackage(validateGeneratedContent(contentContext, result.douyinPackage || fallbackDouyinPackage, "douyinPackage").content), fallbackDouyinPackage);
+  const keywordPlan = mergeKeywordPlan(normalizeKeywordPlan(validateGeneratedContent(contentContext, result.keywordPlan || fallbackKeywordPlan, "keywordPlan").content), fallbackKeywordPlan);
   const nextActions = (result.actions && result.actions.length)
     ? result.actions
     : [...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)];
@@ -527,6 +620,7 @@ export function generateHtmlReport(product, result) {
     ["供应商信息", product.supplier || "未填写"],
   ];
   const scoreRows = getScoringItems(result).map((item) => [item.title, item.score, item.description]);
+  const executiveSummary = asArray(result.executiveSummary);
 
   const html = `<!doctype html>
 <html lang="zh-CN">
@@ -595,7 +689,7 @@ export function generateHtmlReport(product, result) {
 
     <section>
       <h2>一、执行摘要</h2>
-      <div class="summary">${(result.executiveSummary || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>
+      <div class="summary">${executiveSummary.map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>
     </section>
 
     <section>
@@ -672,7 +766,7 @@ export function generateHtmlReport(product, result) {
         <div class="card"><h3>小红书搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.xhs.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.xhs.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.xhs.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.xhs.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.xhs.attribute.join("、"))}</p></div>
         <div class="card"><h3>抖音搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.douyin.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.douyin.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.douyin.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.douyin.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.douyin.attribute.join("、"))}</p></div>
         <div class="card"><h3>电商平台搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.ecommerce.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.ecommerce.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.ecommerce.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.ecommerce.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.ecommerce.attribute.join("、"))}</p>${keywordPlan.ecommerce.longTail?.length ? `<p><strong>长尾词：</strong>${escapeHtml(keywordPlan.ecommerce.longTail.join("、"))}</p>` : ""}</div>
-        <div class="card"><h3>标题组合建议</h3>${htmlList(keywordPlan.titles.map(([platform, title]) => `${platform}标题：${title}`))}</div>
+        <div class="card"><h3>标题组合建议</h3>${htmlList(keywordPlan.titles.map(formatKeywordTitle))}</div>
       </div>
     </section>
 
