@@ -65,7 +65,28 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
   const priceEvidence = getPriceEvidence(result);
   const manualMarketEvidence = getManualMarketEvidence(result);
   const priceRiskWarnings = asArray(priceEvidence?.riskWarnings);
-  const priceSearchLinks = asArray(priceEvidence?.searchLinks);
+  const visiblePriceSearchLinks = asArray(priceEvidence?.searchLinks).filter((link) => link?.platform !== "1688" && !String(link?.label || "").includes("1688"));
+  const priceSearchLinks = visiblePriceSearchLinks.length
+    ? visiblePriceSearchLinks
+    : priceEvidence?.query
+      ? [{
+          label: "淘宝搜索参考",
+          url: `https://s.taobao.com/search?q=${encodeURIComponent(priceEvidence.query)}`,
+          purpose: "人工查看零售价、竞品标题、主图和价格带。",
+        }]
+      : [];
+  const priceAnalysisConclusions = asArray(priceEvidence?.analysisConclusions);
+  const priceNextActions = asArray(priceEvidence?.nextActions);
+  const manualRiskWarnings = asArray(manualMarketEvidence?.riskWarnings);
+  const manualAnalysisConclusions = asArray(manualMarketEvidence?.analysisConclusions);
+  const manualNextActions = asArray(manualMarketEvidence?.nextActions);
+  const manualPositiveSignals = asArray(manualMarketEvidence?.positiveSignals);
+  const douyinRiskWarnings = asArray(douyinEvidence?.riskWarnings);
+  const douyinAnalysisConclusions = asArray(douyinEvidence?.analysisConclusions);
+  const douyinNextActions = asArray(douyinEvidence?.nextActions);
+  const douyinManualSignals = asArray(douyinEvidence?.manualSignals);
+  const douyinSearchLinks = asArray(douyinEvidence?.searchLinks).slice(0, 1);
+  const marketEvidenceNotice = "当前为市场证据模式：未调用外部平台 API，不生成或伪造平台真实价格、销量、点赞、播放数据；系统基于用户填写信息和搜索入口进行辅助判断。";
 
   return (
     <div className="space-y-6">
@@ -139,14 +160,14 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
         <section className="rounded-[2rem] border border-amber-300/20 bg-amber-300/10 p-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-bold text-amber-200">1688 / Taobao Price Reference</p>
-              <h2 className="mt-2 text-2xl font-black text-white">1688 / 淘宝价格参考</h2>
+              <p className="text-sm font-bold text-amber-200">Price Evidence Analysis</p>
+              <h2 className="mt-2 text-2xl font-black text-white">淘宝/竞品价格证据分析</h2>
               <p className="mt-2 text-sm leading-7 text-slate-300">
-                当前用于回应批发价和竞品价参考需求；无平台授权时只展示搜索入口和用户填写竞品价格区间，不生成真实平台价格。
+                该评分根据用户是否填写批发价、零售价、参考链接等证据项计算，不代表平台真实数据准确率。
               </p>
             </div>
             <span className="rounded-full border border-amber-200/30 bg-black/20 px-4 py-2 text-xs font-black text-amber-100">
-              {priceEvidence.sourceTypeLabel || (priceEvidence.sourceType === "api_real" ? "真实 API" : "API 未配置 / 搜索参考")}
+              证据完整度：{dataCompletenessText[priceEvidence.dataCompleteness] || "低"}
             </span>
           </div>
 
@@ -154,14 +175,17 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
             <Card label="搜索关键词" value={priceEvidence.query || "待补充"} />
             <Card label="竞品价格区间" value={formatPriceRange(priceEvidence.competitorPriceRange)} />
             <Card label="价格位置" value={pricePositionText[priceEvidence.pricePosition] || "未知"} />
-            <Card label="可信度评分" value={`${priceEvidence.confidenceScore ?? 0}/100`} />
+            <Card label="证据完整度评分" value={`${priceEvidence.evidenceScore ?? priceEvidence.confidenceScore ?? 0}/100`} />
           </div>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
-              <h3 className="font-black text-amber-100">数据完整度</h3>
-              <p className="mt-3 text-3xl font-black text-white">{dataCompletenessText[priceEvidence.dataCompleteness] || "低"}</p>
-              <p className="mt-3 text-sm leading-7 text-slate-300">{priceEvidence.evidenceSummary}</p>
+              <h3 className="font-black text-amber-100">价格分析结论</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+                {(priceAnalysisConclusions.length ? priceAnalysisConclusions : [priceEvidence.evidenceSummary]).map((item) => (
+                  <li key={item}>· {item}</li>
+                ))}
+              </ul>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
@@ -174,9 +198,18 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
             </div>
           </div>
 
+          <div className="mt-5 rounded-3xl border border-amber-200/20 bg-black/20 p-5">
+            <h3 className="font-black text-amber-100">下一步建议</h3>
+            <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+              {priceNextActions.map((action) => (
+                <li key={action}>· {action}</li>
+              ))}
+            </ul>
+          </div>
+
           <div className="mt-5 rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-5">
-            <h3 className="font-black text-emerald-100">1688 / 淘宝搜索参考入口</h3>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <h3 className="font-black text-emerald-100">淘宝搜索参考入口</h3>
+            <div className="mt-3 grid gap-3">
               {priceSearchLinks.map((link) => (
                 <a
                   key={`${link.label}-${link.url}`}
@@ -190,7 +223,7 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
                 </a>
               ))}
             </div>
-            <p className="mt-4 text-xs leading-6 text-emerald-100/80">{priceEvidence.sourceNotice}</p>
+            <p className="mt-4 text-xs leading-6 text-emerald-100/80">{marketEvidenceNotice}</p>
           </div>
         </section>
       )}
@@ -202,7 +235,7 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
               <p className="text-sm font-bold text-teal-200">Manual Market Evidence</p>
               <h2 className="mt-2 text-2xl font-black text-white">人工市场证据参考</h2>
               <p className="mt-2 text-sm leading-7 text-slate-300">
-                这些信息来自用户手动填写的市场调研记录，用于在平台 API 未授权或不可用时辅助判断，不等同于平台自动抓取数据。
+                该评分根据用户是否填写批发价、零售价、热度观察、参考链接、竞品数量、同质化程度等证据项计算，不代表平台真实数据准确率。
               </p>
             </div>
             <span className="rounded-full border border-teal-200/30 bg-black/20 px-4 py-2 text-xs font-black text-teal-100">
@@ -211,10 +244,39 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
           </div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-4">
-            <Card label="可信度评分" value={`${manualMarketEvidence.confidenceScore ?? 0}/100`} />
+            <Card label="证据完整度评分" value={`${manualMarketEvidence.evidenceScore ?? manualMarketEvidence.confidenceScore ?? 0}/100`} />
             <Card label="1688 批发价参考" value={manualMarketEvidence.evidence?.wholesalePriceReference || "未填写"} />
             <Card label="淘宝/拼多多零售价参考" value={manualMarketEvidence.evidence?.retailPriceReference || "未填写"} />
             <Card label="评分修正" value={`${manualMarketEvidence.scoreAdjustment ?? 0}`} />
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <h3 className="font-black text-teal-100">证据结论</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+                {(manualAnalysisConclusions.length ? manualAnalysisConclusions : [manualMarketEvidence.evidenceSummary]).map((item) => (
+                  <li key={item}>· {item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <h3 className="font-black text-teal-100">风险判断</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+                {manualRiskWarnings.map((warning) => (
+                  <li key={warning}>· {warning}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <h3 className="font-black text-teal-100">下一步建议</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+                {manualNextActions.map((action) => (
+                  <li key={action}>· {action}</li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -230,26 +292,17 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
-              <h3 className="font-black text-teal-100">风险提示</h3>
-              <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
-                {(manualMarketEvidence.riskWarnings || []).map((warning) => (
-                  <li key={warning}>· {warning}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-3xl border border-teal-300/20 bg-black/20 p-5">
-            <h3 className="font-black text-teal-100">证据摘要</h3>
-            <p className="mt-3 text-sm leading-7 text-slate-300">{manualMarketEvidence.evidenceSummary}</p>
-            {!!manualMarketEvidence.positiveSignals?.length && (
+              <h3 className="font-black text-teal-100">证据标签</h3>
+              {!!manualPositiveSignals.length ? (
               <div className="mt-3 flex flex-wrap gap-2">
-                {manualMarketEvidence.positiveSignals.map((signal) => (
+                {manualPositiveSignals.map((signal) => (
                   <span key={signal} className="rounded-full bg-teal-300/15 px-3 py-2 text-xs font-bold text-teal-100">{signal}</span>
                 ))}
               </div>
-            )}
-            <p className="mt-4 text-xs leading-6 text-teal-100/80">{manualMarketEvidence.sourceNotice}</p>
+              ) : (
+                <p className="mt-3 text-sm leading-7 text-slate-400">暂无可归类的正向证据标签。</p>
+              )}
+            </div>
           </div>
         </section>
       )}
@@ -258,52 +311,71 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
         <section className="rounded-[2rem] border border-violet-300/20 bg-violet-300/10 p-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-bold text-violet-200">Douyin Fallback Reference</p>
-              <h2 className="mt-2 text-2xl font-black text-white">抖音内容热度参考</h2>
+              <p className="text-sm font-bold text-violet-200">Short Video Evidence</p>
+              <h2 className="mt-2 text-2xl font-black text-white">抖音内容测款参考</h2>
               <p className="mt-2 text-sm leading-7 text-slate-300">
-                当前状态：API 未授权 / 搜索参考模式。此模块不调用真实抖音 API，也不生成真实点赞、评论、播放或收藏数据。
+                基于用户填写的内容热度观察和搜索参考入口，辅助判断短视频测款优先级。
               </p>
             </div>
             <span className="rounded-full border border-violet-200/30 bg-black/20 px-4 py-2 text-xs font-black text-violet-100">
-              {douyinEvidence.sourceTypeLabel || "API 未授权降级"}
+              热度等级：{douyinEvidence.heatLevelLabel || douyinHeatLevelText[douyinEvidence.heatLevel] || "未知"}
             </span>
           </div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <Card label="搜索关键词" value={douyinEvidence.query || "待补充"} />
             <Card label="热度等级" value={douyinEvidence.heatLevelLabel || douyinHeatLevelText[douyinEvidence.heatLevel] || "未知"} />
-            <Card label="可信度评分" value={`${douyinEvidence.confidenceScore ?? 0}/100`} />
+            <Card label="证据可信度" value={`${douyinEvidence.evidenceScore ?? douyinEvidence.confidenceScore ?? 0}/100`} />
           </div>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
-              <h3 className="font-black text-violet-100">用户填写的热度信号</h3>
-              {douyinEvidence.manualSignals?.length ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {douyinEvidence.manualSignals.map((signal) => (
-                    <span key={signal} className="rounded-full bg-violet-300/15 px-3 py-2 text-xs font-bold text-violet-100">{signal}</span>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm leading-7 text-slate-400">暂未识别到用户填写的抖音内容热度备注。</p>
-              )}
-              <p className="mt-4 text-sm leading-7 text-slate-300">{douyinEvidence.evidenceSummary}</p>
+              <h3 className="font-black text-violet-100">内容测款分析结论</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+                {(douyinAnalysisConclusions.length ? douyinAnalysisConclusions : [douyinEvidence.evidenceSummary]).map((item) => (
+                  <li key={item}>· {item}</li>
+                ))}
+              </ul>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
               <h3 className="font-black text-violet-100">风险提示</h3>
               <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
-                {(douyinEvidence.riskWarnings || []).map((warning) => (
+                {douyinRiskWarnings.map((warning) => (
                   <li key={warning}>· {warning}</li>
                 ))}
               </ul>
             </div>
           </div>
 
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <h3 className="font-black text-violet-100">下一步建议</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+                {douyinNextActions.map((action) => (
+                  <li key={action}>· {action}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <h3 className="font-black text-violet-100">用户填写的热度信号</h3>
+              {douyinManualSignals.length ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {douyinManualSignals.map((signal) => (
+                    <span key={signal} className="rounded-full bg-violet-300/15 px-3 py-2 text-xs font-bold text-violet-100">{signal}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm leading-7 text-slate-400">暂未提供抖音/小红书热度观察，建议先人工搜索同款关键词后再判断测款优先级。</p>
+              )}
+            </div>
+          </div>
+
           <div className="mt-5 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
             <h3 className="font-black text-cyan-100">抖音搜索参考入口</h3>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              {(douyinEvidence.searchLinks || []).map((link) => (
+            <div className="mt-3 grid gap-3">
+              {douyinSearchLinks.map((link) => (
                 <a
                   key={`${link.label}-${link.url}`}
                   href={link.url}
@@ -316,7 +388,7 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
                 </a>
               ))}
             </div>
-            <p className="mt-4 text-xs leading-6 text-cyan-100/80">{douyinEvidence.sourceNotice}</p>
+            <p className="mt-4 text-xs leading-6 text-cyan-100/80">{marketEvidenceNotice}</p>
           </div>
         </section>
       )}
