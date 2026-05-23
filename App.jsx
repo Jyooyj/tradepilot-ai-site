@@ -2158,15 +2158,36 @@ function App() {
   }
 
   function downloadReport() {
-    const html = generateHtmlReport(product, result);
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    const cleanName = cleanFileName(result.productIdentity?.displayName || product.name);
-    anchor.href = url;
-    anchor.download = cleanName ? `TradePilot-${cleanName}-进货决策报告.html` : "TradePilot-进货决策报告.html";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    if (!result || !product) {
+      alert("请先生成进货报告，再下载可视化报告。");
+      return;
+    }
+
+    let url = "";
+
+    try {
+      const html = generateHtmlReport(product, result);
+      if (!html || typeof html !== "string") {
+        throw new Error("empty_report_html");
+      }
+
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const cleanName = cleanFileName(result.productIdentity?.displayName || product.name || "tradepilot-report");
+      anchor.href = url;
+      anchor.download = cleanName ? `TradePilot-${cleanName}-进货决策报告.html` : "TradePilot-进货决策报告.html";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } catch (error) {
+      console.error("下载可视化报告失败：", error);
+      alert("下载报告失败，请先确认报告已生成。");
+    } finally {
+      if (url) {
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+      }
+    }
   }
 
   async function exportRecordsBackup() {
