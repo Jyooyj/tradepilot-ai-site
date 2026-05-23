@@ -1,8 +1,27 @@
 import { hasSupabaseConfig, supabase } from "../../supabaseClient";
 
 export const LOCAL_STORAGE_KEY = "tradepilot_local_records";
+export const STORAGE_MODE_KEY = "tradepilot_storage_mode";
 export const LOCAL_RECORD_LIMIT = 100;
 export const PRODUCT_RECORDS_TABLE = "tradepilot_product_records";
+
+export const STORAGE_MODES = {
+  AUTO: "auto",
+  LOCAL: "local",
+  CLOUD: "cloud",
+};
+
+const selectedModeLabels = {
+  auto: "自动选择",
+  local: "仅本地保存",
+  cloud: "云端同步",
+};
+
+const effectiveModeLabels = {
+  local: "本地模式",
+  cloud: "云端同步",
+  cloud_unavailable: "云端不可用",
+};
 
 function storageAvailable() {
   return typeof window !== "undefined" && Boolean(window.localStorage);
@@ -11,6 +30,29 @@ function storageAvailable() {
 function normalizeError(error) {
   if (!error) return "";
   return error.message || error.error_description || error.details || String(error);
+}
+
+function normalizeSelectedMode(mode) {
+  return [STORAGE_MODES.AUTO, STORAGE_MODES.LOCAL, STORAGE_MODES.CLOUD].includes(mode)
+    ? mode
+    : STORAGE_MODES.AUTO;
+}
+
+export function getStorageMode() {
+  if (!storageAvailable()) return STORAGE_MODES.AUTO;
+  return normalizeSelectedMode(window.localStorage.getItem(STORAGE_MODE_KEY));
+}
+
+export function saveStorageMode(mode) {
+  const nextMode = normalizeSelectedMode(mode);
+  if (storageAvailable()) {
+    window.localStorage.setItem(STORAGE_MODE_KEY, nextMode);
+  }
+  return nextMode;
+}
+
+function resolveMode(mode) {
+  return normalizeSelectedMode(mode || getStorageMode());
 }
 
 function isPlainRecord(record) {
@@ -53,93 +95,126 @@ function getLimitWarning(count) {
   return "";
 }
 
-function buildStatus({ mode, warning = "", error = "", user = null, localCount = 0 }) {
-  const isCloud = mode === "cloud";
+function getStatusDescription(selectedMode, effectiveMode) {
+  if (effectiveMode === "cloud") {
+    return `产品库已连接 Supabase 表 ${PRODUCT_RECORDS_TABLE}，当前读写云端并保留本地缓存。`;
+  }
+
+  if (effectiveMode === "cloud_unavailable") {
+    if (!hasSupabaseConfig) {
+      return "当前未配置 Supabase，无法启用云端同步；你仍可使用本地模式体验。";
+    }
+    return "云端同步尚未启用，请登录或检查 Supabase 配置；当前未完成云端同步。";
+  }
+
+  if (selectedMode === STORAGE_MODES.LOCAL) {
+    return "当前已强制使用本地浏览器存储，不会调用 Supabase。";
+  }
+
+  return "自动选择：当前使用本地浏览器存储；登录且云端可用时会优先同步 Supabase。";
+}
+
+function buildStatus({
+  selectedMode,
+  effectiveMode,
+  warning = "",
+  error = "",
+  user = null,
+  localCount = 0,
+}) {
+  const normalizedSelectedMode = resolveMode(selectedMode);
+  const normalizedEffectiveMode = effectiveMode || "local";
+  const userEmail = user?.email || "";
+
   return {
-    mode,
-    label: isCloud ? "云端同步" : "本地模式",
-    description: isCloud
-      ? "已登录并启用 Supabase 云端同步，同时保留本地缓存。"
-      : hasSupabaseConfig
-        ? "Supabase 已配置，但当前未登录或云端暂不可用，正在使用本地浏览器存储。"
-        : "Supabase 未配置，当前使用本地浏览器存储。",
+    selectedMode: normalizedSelectedMode,
+    selectedModeLabel: selectedModeLabels[normalizedSelectedMode],
+    effectiveMode: normalizedEffectiveMode,
+    effectiveModeLabel: effectiveModeLabels[normalizedEffectiveMode] || effectiveModeLabels.local,
+    mode: normalizedEffectiveMode,
+    label: effectiveModeLabels[normalizedEffectiveMode] || effectiveModeLabels.local,
+    description: getStatusDescription(normalizedSelectedMode, normalizedEffectiveMode),
     warning,
     error,
-    userEmail: user?.email || "",
+    userEmail,
     localCount,
     localRecordLimit: LOCAL_RECORD_LIMIT,
     hasSupabaseConfig,
     tableName: PRODUCT_RECORDS_TABLE,
-    canUseCloud: isCloud,
+    canUseCloud: normalizedEffectiveMode === "cloud",
+    needsLogin: normalizedSelectedMode === STORAGE_MODES.CLOUD && hasSupabaseConfig && !userEmail && normalizedEffectiveMode !== "cloud",
   };
 }
 
-function localResult(records, extra = {}) {
+function buildResult(records, selectedMode, effectiveMode, extra = {}) {
   const normalized = normalizeRecords(records);
   const warning = extra.warning || getLimitWarning(normalized.length);
-  return {
-    records: normalized,
-    mode: "local",
+  const status = buildStatus({
+    selectedMode,
+    effectiveMode,
     warning,
     error: extra.error || "",
-    status: buildStatus({
-      mode: "local",
-      warning,
-      error: extra.error || "",
-      localCount: normalized.length,
-    }),
+    user: extra.user || null,
+    localCount: normalized.length,
+  });
+
+  return {
+    records: normalized,
+    selectedMode: status.selectedMode,
+    effectiveMode,
+    mode: effectiveMode,
+    warning,
+    error: extra.error || "",
+    status,
   };
 }
 
-function cloudResult(records, user, extra = {}) {
-  const normalized = normalizeRecords(records);
-  const warning = extra.warning || getLimitWarning(normalized.length);
-  return {
-    records: normalized,
-    mode: "cloud",
-    warning,
-    error: extra.error || "",
-    status: buildStatus({
-      mode: "cloud",
-      warning,
-      error: extra.error || "",
-      user,
-      localCount: normalized.length,
-    }),
-  };
+function localResult(records, selectedMode, extra = {}) {
+  return buildResult(records, selectedMode, "local", extra);
 }
 
-export function getLocalRecords() {
+function cloudResult(records, selectedMode, user, extra = {}) {
+  return buildResult(records, selectedMode, "cloud", { ...extra, user });
+}
+
+function cloudUnavailableResult(records, selectedMode, extra = {}) {
+  return buildResult(records, selectedMode, "cloud_unavailable", extra);
+}
+
+export function getLocalRecords(options = {}) {
+  const selectedMode = resolveMode(options.selectedMode);
+
   if (!storageAvailable()) {
-    return localResult([], { warning: "当前环境无法访问 localStorage，产品库只能保存在本次页面会话中。" });
+    return localResult([], selectedMode, { warning: "当前环境无法访问 localStorage，产品库只能保存在本次页面会话中。" });
   }
 
   try {
     const parsed = JSON.parse(window.localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
     if (!Array.isArray(parsed)) {
-      return localResult([], { warning: "本地产品库格式异常，已临时按空产品库处理。" });
+      return localResult([], selectedMode, { warning: "本地产品库格式异常，已临时按空产品库处理。" });
     }
-    return localResult(parsed);
+    return localResult(parsed, selectedMode);
   } catch (error) {
-    return localResult([], {
+    return localResult([], selectedMode, {
       warning: "本地产品库读取失败，已临时按空产品库处理。",
       error: normalizeError(error),
     });
   }
 }
 
-export function saveLocalRecords(records = []) {
+export function saveLocalRecords(records = [], options = {}) {
+  const selectedMode = resolveMode(options.selectedMode);
   const normalized = normalizeRecords(records);
 
   if (!storageAvailable()) {
-    return localResult(normalized, { warning: "当前环境无法访问 localStorage，产品库只能保存在本次页面会话中。" });
+    return localResult(normalized, selectedMode, { warning: "当前环境无法访问 localStorage，产品库只能保存在本次页面会话中。" });
   }
 
   try {
     window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(normalized));
-    return localResult(normalized);
+    return localResult(normalized, selectedMode);
   } catch (error) {
-    return localResult(normalized, {
+    return localResult(normalized, selectedMode, {
       warning: "本地产品库写入失败，请导出备份或减少图片预览后再试。",
       error: normalizeError(error),
     });
@@ -160,60 +235,82 @@ function removeRecord(records, recordId) {
 
 async function getCloudUser() {
   if (!hasSupabaseConfig || !supabase) {
-    return { user: null, warning: "Supabase 未配置，当前使用本地模式。" };
+    return { user: null, warning: "当前未配置 Supabase，无法启用云端同步。" };
   }
 
   try {
     const { data, error } = await supabase.auth.getUser();
     if (error) {
-      return { user: null, warning: "Supabase 登录状态不可用，当前使用本地模式。", error: normalizeError(error) };
+      return { user: null, warning: "Supabase 登录状态不可用，请重新登录后启用云端同步。", error: normalizeError(error) };
     }
     if (!data?.user) {
-      return { user: null, warning: "当前未登录，产品库使用本地模式。" };
+      return { user: null, warning: "请登录后启用云端同步。" };
     }
     return { user: data.user, warning: "" };
   } catch (error) {
-    return { user: null, warning: "Supabase 登录状态检查失败，当前使用本地模式。", error: normalizeError(error) };
+    return { user: null, warning: "Supabase 登录状态检查失败，请稍后重试。", error: normalizeError(error) };
   }
 }
 
-export async function canUseCloudStorage() {
-  const local = getLocalRecords();
-  const cloud = await getCloudUser();
+export async function canUseCloudStorage(mode) {
+  const selectedMode = resolveMode(mode);
+  const local = getLocalRecords({ selectedMode });
 
-  if (!cloud.user) {
+  if (selectedMode === STORAGE_MODES.LOCAL) {
     return {
       canUseCloud: false,
+      selectedMode,
+      effectiveMode: "local",
       mode: "local",
-      warning: local.warning || cloud.warning,
-      error: cloud.error || local.error || "",
-      status: buildStatus({
-        mode: "local",
-        warning: local.warning || cloud.warning,
-        error: cloud.error || local.error || "",
-        localCount: local.records.length,
-      }),
+      warning: local.warning,
+      error: local.error || "",
+      status: local.status,
     };
   }
 
-  return {
-    canUseCloud: true,
-    mode: "cloud",
-    user: cloud.user,
+  const cloud = await getCloudUser();
+  if (!cloud.user) {
+    const result = selectedMode === STORAGE_MODES.CLOUD
+      ? cloudUnavailableResult(local.records, selectedMode, {
+          warning: cloud.warning,
+          error: cloud.error || local.error || "",
+        })
+      : localResult(local.records, selectedMode, {
+          warning: local.warning,
+          error: local.error || "",
+        });
+
+    return {
+      canUseCloud: false,
+      selectedMode,
+      effectiveMode: result.effectiveMode,
+      mode: result.mode,
+      warning: result.warning,
+      error: result.error,
+      status: result.status,
+    };
+  }
+
+  const result = cloudResult(local.records, selectedMode, cloud.user, {
     warning: local.warning,
     error: local.error || "",
-    status: buildStatus({
-      mode: "cloud",
-      warning: local.warning,
-      error: local.error || "",
-      user: cloud.user,
-      localCount: local.records.length,
-    }),
+  });
+
+  return {
+    canUseCloud: true,
+    selectedMode,
+    effectiveMode: "cloud",
+    mode: "cloud",
+    user: cloud.user,
+    warning: result.warning,
+    error: result.error,
+    status: result.status,
   };
 }
 
-export async function getStorageStatus() {
-  const availability = await canUseCloudStorage();
+export async function getStorageStatus(mode) {
+  const selectedMode = resolveMode(mode);
+  const availability = await canUseCloudStorage(selectedMode);
   return availability.status;
 }
 
@@ -279,161 +376,236 @@ function cloudRowToRecord(row) {
   });
 }
 
-export async function loadProductRecords() {
-  const local = getLocalRecords();
-  const availability = await canUseCloudStorage();
+export async function loadProductRecords(mode) {
+  const selectedMode = resolveMode(mode);
+  const local = getLocalRecords({ selectedMode });
 
-  if (!availability.canUseCloud) {
-    return {
-      ...local,
-      warning: local.warning || availability.warning,
-      error: availability.error || local.error || "",
-      status: availability.status,
-    };
+  if (selectedMode === STORAGE_MODES.LOCAL) {
+    return localResult(local.records, selectedMode, {
+      warning: local.warning,
+      error: local.error || "",
+    });
+  }
+
+  const cloud = await getCloudUser();
+  if (!cloud.user) {
+    if (selectedMode === STORAGE_MODES.CLOUD) {
+      return cloudUnavailableResult(local.records, selectedMode, {
+        warning: cloud.warning,
+        error: cloud.error || local.error || "",
+      });
+    }
+
+    return localResult(local.records, selectedMode, {
+      warning: local.warning,
+      error: local.error || "",
+    });
   }
 
   try {
     const { data, error } = await supabase
       .from(PRODUCT_RECORDS_TABLE)
       .select("id,user_id,product,result,review,created_at,updated_at")
-      .eq("user_id", availability.user.id)
+      .eq("user_id", cloud.user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
     const records = normalizeRecords((data || []).map(cloudRowToRecord));
-    saveLocalRecords(records);
-    return cloudResult(records, availability.user);
+    saveLocalRecords(records, { selectedMode });
+    return cloudResult(records, selectedMode, cloud.user);
   } catch (error) {
-    const warning = `云端产品库读取失败，已自动切换到本地模式。${normalizeError(error)}`;
-    return localResult(local.records, { warning, error: normalizeError(error) });
+    const errorText = normalizeError(error);
+    const warning = selectedMode === STORAGE_MODES.CLOUD
+      ? `云端产品库读取失败，当前未成功云端同步。${errorText}`
+      : `自动选择：云端读取失败，已回退本地。${errorText}`;
+
+    return selectedMode === STORAGE_MODES.CLOUD
+      ? cloudUnavailableResult(local.records, selectedMode, { warning, error: errorText, user: cloud.user })
+      : localResult(local.records, selectedMode, { warning, error: errorText });
   }
 }
 
-export async function saveProductRecord(record) {
-  const local = getLocalRecords();
+export async function saveProductRecord(record, mode) {
+  const selectedMode = resolveMode(mode);
+  const local = getLocalRecords({ selectedMode });
   const nextLocalRecords = upsertRecord(local.records, record);
-  const localSave = saveLocalRecords(nextLocalRecords);
-  const availability = await canUseCloudStorage();
+  const localSave = saveLocalRecords(nextLocalRecords, { selectedMode });
 
-  if (!availability.canUseCloud) {
-    return {
-      ...localSave,
-      warning: localSave.warning || availability.warning,
-      error: availability.error || localSave.error || "",
-      status: availability.status,
-    };
+  if (selectedMode === STORAGE_MODES.LOCAL) {
+    return localSave;
+  }
+
+  const cloud = await getCloudUser();
+  if (!cloud.user) {
+    if (selectedMode === STORAGE_MODES.CLOUD) {
+      return cloudUnavailableResult(localSave.records, selectedMode, {
+        warning: `${cloud.warning} 本次记录已先保存在本地缓存，未完成云端同步。`,
+        error: cloud.error || localSave.error || "",
+      });
+    }
+
+    return localResult(localSave.records, selectedMode, {
+      warning: localSave.warning,
+      error: localSave.error || "",
+    });
   }
 
   try {
     const { error } = await supabase
       .from(PRODUCT_RECORDS_TABLE)
-      .upsert(recordToCloudRow(record, availability.user), { onConflict: "id" });
+      .upsert(recordToCloudRow(record, cloud.user), { onConflict: "id" });
 
     if (error) throw error;
-
-    const cloudLoad = await loadProductRecords();
-    return {
-      ...cloudLoad,
-      warning: localSave.warning || cloudLoad.warning,
-      status: buildStatus({
-        mode: cloudLoad.mode,
-        warning: localSave.warning || cloudLoad.warning,
-        error: cloudLoad.error,
-        user: availability.user,
-        localCount: cloudLoad.records.length,
-      }),
-    };
+    return loadProductRecords(selectedMode);
   } catch (error) {
-    const warning = `云端保存失败，已保存在本地模式。${normalizeError(error)}`;
-    return localResult(localSave.records, { warning, error: normalizeError(error) });
+    const errorText = normalizeError(error);
+    const warning = selectedMode === STORAGE_MODES.CLOUD
+      ? `云端保存失败；本次记录已先保存在本地缓存，未完成云端同步。${errorText}`
+      : `自动选择：云端保存失败，已回退本地。${errorText}`;
+
+    return selectedMode === STORAGE_MODES.CLOUD
+      ? cloudUnavailableResult(localSave.records, selectedMode, { warning, error: errorText, user: cloud.user })
+      : localResult(localSave.records, selectedMode, { warning, error: errorText });
   }
 }
 
-export async function deleteProductRecord(recordId) {
-  const local = getLocalRecords();
+export async function deleteProductRecord(recordId, mode) {
+  const selectedMode = resolveMode(mode);
+  const local = getLocalRecords({ selectedMode });
   const nextLocalRecords = removeRecord(local.records, recordId);
-  const localSave = saveLocalRecords(nextLocalRecords);
-  const availability = await canUseCloudStorage();
+  const localSave = saveLocalRecords(nextLocalRecords, { selectedMode });
 
-  if (!availability.canUseCloud) {
-    return {
-      ...localSave,
-      warning: localSave.warning || availability.warning,
-      error: availability.error || localSave.error || "",
-      status: availability.status,
-    };
+  if (selectedMode === STORAGE_MODES.LOCAL) {
+    return localSave;
+  }
+
+  const cloud = await getCloudUser();
+  if (!cloud.user) {
+    if (selectedMode === STORAGE_MODES.CLOUD) {
+      return cloudUnavailableResult(localSave.records, selectedMode, {
+        warning: `${cloud.warning} 已先删除本地缓存，云端未执行删除。`,
+        error: cloud.error || localSave.error || "",
+      });
+    }
+
+    return localResult(localSave.records, selectedMode, {
+      warning: localSave.warning,
+      error: localSave.error || "",
+    });
   }
 
   try {
     const { error } = await supabase
       .from(PRODUCT_RECORDS_TABLE)
       .delete()
-      .eq("user_id", availability.user.id)
+      .eq("user_id", cloud.user.id)
       .eq("id", String(recordId));
 
     if (error) throw error;
-    return loadProductRecords();
+    return loadProductRecords(selectedMode);
   } catch (error) {
-    const warning = `云端删除失败，已先删除本地缓存。${normalizeError(error)}`;
-    return localResult(localSave.records, { warning, error: normalizeError(error) });
+    const errorText = normalizeError(error);
+    const warning = selectedMode === STORAGE_MODES.CLOUD
+      ? `云端删除失败，已先删除本地缓存。${errorText}`
+      : `自动选择：云端删除失败，已先删除本地缓存。${errorText}`;
+
+    return selectedMode === STORAGE_MODES.CLOUD
+      ? cloudUnavailableResult(localSave.records, selectedMode, { warning, error: errorText, user: cloud.user })
+      : localResult(localSave.records, selectedMode, { warning, error: errorText });
   }
 }
 
-export async function clearProductRecords() {
-  const localSave = saveLocalRecords([]);
-  const availability = await canUseCloudStorage();
+export async function clearProductRecords(mode) {
+  const selectedMode = resolveMode(mode);
+  const localSave = saveLocalRecords([], { selectedMode });
 
-  if (!availability.canUseCloud) {
-    return {
-      ...localSave,
-      warning: localSave.warning || availability.warning,
-      error: availability.error || localSave.error || "",
-      status: availability.status,
-    };
+  if (selectedMode === STORAGE_MODES.LOCAL) {
+    return localSave;
+  }
+
+  const cloud = await getCloudUser();
+  if (!cloud.user) {
+    if (selectedMode === STORAGE_MODES.CLOUD) {
+      return cloudUnavailableResult([], selectedMode, {
+        warning: `${cloud.warning} 已清空本地缓存，云端未执行清空。`,
+        error: cloud.error || localSave.error || "",
+      });
+    }
+
+    return localResult([], selectedMode, {
+      warning: localSave.warning,
+      error: localSave.error || "",
+    });
   }
 
   try {
     const { error } = await supabase
       .from(PRODUCT_RECORDS_TABLE)
       .delete()
-      .eq("user_id", availability.user.id);
+      .eq("user_id", cloud.user.id);
 
     if (error) throw error;
-    return cloudResult([], availability.user);
+    return cloudResult([], selectedMode, cloud.user);
   } catch (error) {
-    const warning = `云端清空失败，已清空本地缓存。${normalizeError(error)}`;
-    return localResult([], { warning, error: normalizeError(error) });
+    const errorText = normalizeError(error);
+    return selectedMode === STORAGE_MODES.CLOUD
+      ? cloudUnavailableResult([], selectedMode, { warning: `云端清空失败，已清空本地缓存。${errorText}`, error: errorText, user: cloud.user })
+      : localResult([], selectedMode, { warning: `自动选择：云端清空失败，已清空本地缓存。${errorText}`, error: errorText });
   }
 }
 
-export async function migrateLocalRecordsToCloud() {
-  const local = getLocalRecords();
-  const availability = await canUseCloudStorage();
+export async function migrateLocalRecordsToCloud(mode) {
+  const selectedMode = resolveMode(mode);
+  const local = getLocalRecords({ selectedMode });
 
-  if (!availability.canUseCloud) {
-    return {
-      ...local,
-      warning: local.warning || availability.warning || "当前无法使用云端同步，已保留本地产品库。",
-      error: availability.error || local.error || "",
-      status: availability.status,
-    };
+  if (selectedMode === STORAGE_MODES.LOCAL) {
+    return localResult(local.records, selectedMode, {
+      warning: "当前选择了仅本地保存；如需同步，请先切换到云端同步或自动选择。",
+      error: local.error || "",
+    });
+  }
+
+  const cloud = await getCloudUser();
+  if (!cloud.user) {
+    if (selectedMode === STORAGE_MODES.CLOUD) {
+      return cloudUnavailableResult(local.records, selectedMode, {
+        warning: `${cloud.warning} 本地记录仍保留在浏览器中。`,
+        error: cloud.error || local.error || "",
+      });
+    }
+
+    return localResult(local.records, selectedMode, {
+      warning: "当前未登录，自动选择仍使用本地模式；本地记录未同步到云端。",
+      error: cloud.error || local.error || "",
+    });
   }
 
   if (local.records.length === 0) {
-    return cloudResult([], availability.user);
+    return loadProductRecords(selectedMode);
   }
 
   try {
-    const rows = local.records.map((record) => recordToCloudRow(record, availability.user));
+    const rows = local.records.map((record) => recordToCloudRow(record, cloud.user));
     const { error } = await supabase
       .from(PRODUCT_RECORDS_TABLE)
       .upsert(rows, { onConflict: "id" });
 
     if (error) throw error;
-    return loadProductRecords();
+    const loaded = await loadProductRecords(selectedMode);
+    return {
+      ...loaded,
+      warning: loaded.warning || "已同步本地记录到云端。",
+      status: {
+        ...loaded.status,
+        warning: loaded.status?.warning || "已同步本地记录到云端。",
+      },
+    };
   } catch (error) {
-    const warning = `本地记录迁移到云端失败，已继续保留本地记录。${normalizeError(error)}`;
-    return localResult(local.records, { warning, error: normalizeError(error) });
+    const errorText = normalizeError(error);
+    const warning = `本地记录迁移到云端失败，已继续保留本地记录。${errorText}`;
+    return selectedMode === STORAGE_MODES.CLOUD
+      ? cloudUnavailableResult(local.records, selectedMode, { warning, error: errorText, user: cloud.user })
+      : localResult(local.records, selectedMode, { warning, error: errorText });
   }
 }
