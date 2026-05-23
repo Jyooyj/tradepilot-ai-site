@@ -11,8 +11,32 @@ function getDouyinEvidence(result) {
   return result?.douyinEvidence || result?.marketEvidence?.douyin || null;
 }
 
+const pricePositionText = {
+  below_market: "低于竞品区间",
+  within_market: "处于竞品区间",
+  above_market: "高于竞品区间",
+  unknown: "未知",
+};
+
+const dataCompletenessText = {
+  high: "高",
+  medium: "中",
+  low: "低",
+};
+
+function getPriceEvidence(result) {
+  return result?.priceEvidence || result?.marketEvidence?.price || null;
+}
+
+function formatPriceRange(range) {
+  if (!range?.isValid) return "待补充";
+  if (range.min === range.max) return `¥${range.min}`;
+  return `¥${range.min} - ¥${range.max}`;
+}
+
 export default function ResultView({ product, image, result, analyzed, setMode, copyReport, copied, saveCurrentReport, saveMessage, aiInsight, downloadReport }) {
   const douyinEvidence = getDouyinEvidence(result);
+  const priceEvidence = getPriceEvidence(result);
 
   return (
     <div className="space-y-6">
@@ -78,6 +102,66 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
             <Card label="识别产品" value={aiInsight.product?.name || "未识别"} />
             <Card label="推断品类" value={aiInsight.product?.category || "未识别"} />
             <Card label="置信度" value={aiInsight.confidence || "中等"} />
+          </div>
+        </section>
+      )}
+
+      {priceEvidence && (
+        <section className="rounded-[2rem] border border-amber-300/20 bg-amber-300/10 p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-sm font-bold text-amber-200">1688 / Taobao Price Reference</p>
+              <h2 className="mt-2 text-2xl font-black text-white">1688 / 淘宝价格参考</h2>
+              <p className="mt-2 text-sm leading-7 text-slate-300">
+                当前用于回应批发价和竞品价参考需求；无平台授权时只展示搜索入口和用户填写竞品价格区间，不生成真实平台价格。
+              </p>
+            </div>
+            <span className="rounded-full border border-amber-200/30 bg-black/20 px-4 py-2 text-xs font-black text-amber-100">
+              {priceEvidence.sourceTypeLabel || (priceEvidence.sourceType === "api_real" ? "真实 API" : "API 未配置 / 搜索参考")}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            <Card label="搜索关键词" value={priceEvidence.query || "待补充"} />
+            <Card label="竞品价格区间" value={formatPriceRange(priceEvidence.competitorPriceRange)} />
+            <Card label="价格位置" value={pricePositionText[priceEvidence.pricePosition] || "未知"} />
+            <Card label="可信度评分" value={`${priceEvidence.confidenceScore ?? 0}/100`} />
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <h3 className="font-black text-amber-100">数据完整度</h3>
+              <p className="mt-3 text-3xl font-black text-white">{dataCompletenessText[priceEvidence.dataCompleteness] || "低"}</p>
+              <p className="mt-3 text-sm leading-7 text-slate-300">{priceEvidence.evidenceSummary}</p>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+              <h3 className="font-black text-amber-100">价格风险提示</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+                {(priceEvidence.riskWarnings || []).map((warning) => (
+                  <li key={warning}>· {warning}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-5">
+            <h3 className="font-black text-emerald-100">1688 / 淘宝搜索参考入口</h3>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {(priceEvidence.searchLinks || []).map((link) => (
+                <a
+                  key={`${link.label}-${link.url}`}
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-2xl border border-emerald-200/20 bg-black/20 p-4 text-sm leading-7 text-emerald-50 transition hover:border-emerald-200/50 hover:bg-emerald-300/10"
+                >
+                  <span className="block font-black">{link.label}</span>
+                  <span className="mt-1 block text-xs text-emerald-100/80">{link.purpose}</span>
+                </a>
+              ))}
+            </div>
+            <p className="mt-4 text-xs leading-6 text-emerald-100/80">{priceEvidence.sourceNotice}</p>
           </div>
         </section>
       )}

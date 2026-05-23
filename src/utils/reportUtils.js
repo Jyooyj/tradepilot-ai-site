@@ -302,6 +302,60 @@ function renderDouyinEvidenceSection(douyinEvidence) {
   `;
 }
 
+function renderPriceEvidenceSection(priceEvidence) {
+  if (!priceEvidence) return "";
+
+  const pricePositionText = {
+    below_market: "低于竞品区间",
+    within_market: "处于竞品区间",
+    above_market: "高于竞品区间",
+    unknown: "未知",
+  };
+  const dataCompletenessText = {
+    high: "高",
+    medium: "中",
+    low: "低",
+  };
+  const range = priceEvidence.competitorPriceRange || {};
+  const rangeText = range.isValid
+    ? range.min === range.max ? `¥${range.min}` : `¥${range.min} - ¥${range.max}`
+    : "待补充";
+  const searchLinks = priceEvidence.searchLinks || [];
+  const linkCards = searchLinks.length
+    ? searchLinks.map((link) => `
+        <div class="card">
+          <h3>${escapeHtml(link.label)}</h3>
+          <p>${escapeHtml(link.purpose)}</p>
+          <p><a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer">${escapeHtml(link.url)}</a></p>
+        </div>
+      `).join("")
+    : '<div class="card"><p>暂无搜索入口。</p></div>';
+
+  return `
+    <section>
+      <h2>1688 / 淘宝价格参考</h2>
+      <p class="footer">当前用于批发价和竞品售价参考；API 未配置时仅使用平台搜索入口和用户填写竞品价格区间，不生成真实平台价格、销量、店铺或供应商数据。</p>
+      ${htmlTable(["项目", "内容"], [
+        ["当前状态", priceEvidence.sourceTypeLabel || (priceEvidence.sourceType === "api_real" ? "真实 API" : "API 未配置 / 搜索参考")],
+        ["搜索关键词", priceEvidence.query || "待补充"],
+        ["竞品价格区间", rangeText],
+        ["价格位置", pricePositionText[priceEvidence.pricePosition] || "未知"],
+        ["可信度评分", `${priceEvidence.confidenceScore ?? 0}/100`],
+        ["数据完整度", dataCompletenessText[priceEvidence.dataCompleteness] || "低"],
+        ["评分小幅修正", `${priceEvidence.scoreAdjustment ?? 0}`],
+      ])}
+      <h3>证据摘要</h3>
+      <p class="card">${escapeHtml(priceEvidence.evidenceSummary)}</p>
+      <h3>风险提示</h3>
+      ${htmlList(priceEvidence.riskWarnings || [], false)}
+      <h3>1688 / 淘宝搜索参考入口</h3>
+      <div class="grid">${linkCards}</div>
+      <h3>数据来源说明</h3>
+      <p class="card">${escapeHtml(priceEvidence.sourceNotice)}</p>
+    </section>
+  `;
+}
+
 export function generateHtmlReport(product, result) {
   const fallbackMarket = result.market || inferMarketInfo(product);
   const fallbackChannelFit = result.channelFit || getChannelFit(product, fallbackMarket.categoryKey);
@@ -321,6 +375,7 @@ export function generateHtmlReport(product, result) {
     : [...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)];
   const channelScore = getScoreValue(result, "渠道", result.channelFit?.score || "");
   const douyinEvidence = result.douyinEvidence || result.marketEvidence?.douyin || null;
+  const priceEvidence = result.priceEvidence || result.marketEvidence?.price || null;
   const basicRows = [
     ["产品名称", contentContext.productIdentity?.displayName || product.name || "未填写"],
     ["产品类型", contentContext.productIdentity?.productTypeLabel || product.category || result.market?.marketType || "未填写"],
@@ -482,6 +537,8 @@ export function generateHtmlReport(product, result) {
         <div class="card"><h3>标题组合建议</h3>${htmlList(keywordPlan.titles.map(([platform, title]) => `${platform}标题：${title}`))}</div>
       </div>
     </section>
+
+    ${renderPriceEvidenceSection(priceEvidence)}
 
     ${renderDouyinEvidenceSection(douyinEvidence)}
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { demoProducts } from "./src/constants/demoData";
 import {
   categoryTemplates,
@@ -36,6 +36,11 @@ import {
   applyDouyinFallbackToResult,
   evaluateDouyinFallbackEvidence,
 } from "./src/utils/douyinFallbackUtils";
+import { fetchAlibabaPriceEvidence } from "./src/utils/alibabaPriceClient";
+import {
+  applyPriceEvidenceToResult,
+  evaluatePriceEvidence,
+} from "./src/utils/priceEvidenceUtils";
 
 
 const ANALYZE_IMAGE_ENDPOINT =
@@ -2049,12 +2054,29 @@ function App() {
     cost: "",
   });
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [priceEvidence, setPriceEvidence] = useState(null);
+
+  const baseResult = useMemo(() => analyzeProduct(product, Boolean(image)), [product, image]);
+  const fallbackPriceEvidence = useMemo(() => evaluatePriceEvidence(product, null), [product]);
+
+  useEffect(() => {
+    let isActive = true;
+    setPriceEvidence(fallbackPriceEvidence);
+
+    fetchAlibabaPriceEvidence(product).then((nextPriceEvidence) => {
+      if (isActive) setPriceEvidence(nextPriceEvidence);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [product, fallbackPriceEvidence]);
 
   const result = useMemo(() => {
-    const baseResult = analyzeProduct(product, Boolean(image));
     const douyinEvidence = evaluateDouyinFallbackEvidence(product, baseResult);
-    return applyDouyinFallbackToResult(baseResult, douyinEvidence);
-  }, [product, image]);
+    const resultWithDouyinEvidence = applyDouyinFallbackToResult(baseResult, douyinEvidence);
+    return applyPriceEvidenceToResult(resultWithDouyinEvidence, priceEvidence || fallbackPriceEvidence);
+  }, [baseResult, product, priceEvidence, fallbackPriceEvidence]);
 
   function update(key, value) {
     setProduct((old) => ({ ...old, [key]: value }));
