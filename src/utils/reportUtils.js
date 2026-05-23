@@ -241,6 +241,19 @@ function asObject(value) {
   return value && typeof value === "object" ? value : {};
 }
 
+function getScoreValue(resultOrValue, keywordOrFallback = "-", fallback = "-") {
+  const isScoreLookup = resultOrValue && typeof resultOrValue === "object" && !Array.isArray(resultOrValue);
+  const value = isScoreLookup
+    ? asArray(resultOrValue?.scores).find((item) => Array.isArray(item) && String(item[0] ?? "").includes(keywordOrFallback))?.[1] ?? fallback
+    : resultOrValue ?? keywordOrFallback;
+
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : value;
+}
+
 function safeKeywordPlatform(platform = {}) {
   const source = asObject(platform);
   return {
