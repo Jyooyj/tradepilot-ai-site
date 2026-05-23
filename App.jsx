@@ -2157,8 +2157,11 @@ function App() {
     setTimeout(() => setCopied(false), 1200);
   }
 
-  function downloadReport() {
-    if (!result || !product) {
+  function downloadReport(currentProduct = product, currentResult = result) {
+    const safeProduct = currentProduct && typeof currentProduct === "object" ? currentProduct : product;
+    const safeResult = currentResult && typeof currentResult === "object" ? currentResult : result;
+
+    if (!safeResult || !Object.keys(safeResult).length) {
       alert("请先生成进货报告，再下载可视化报告。");
       return;
     }
@@ -2166,7 +2169,7 @@ function App() {
     let url = "";
 
     try {
-      const html = generateHtmlReport(product, result);
+      const html = generateHtmlReport(safeProduct || {}, safeResult);
       if (!html || typeof html !== "string") {
         throw new Error("empty_report_html");
       }
@@ -2174,9 +2177,9 @@ function App() {
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
-      const cleanName = cleanFileName(result.productIdentity?.displayName || product.name || "tradepilot-report");
+      const cleanName = cleanFileName(safeProduct?.name || "tradepilot-report");
       anchor.href = url;
-      anchor.download = cleanName ? `TradePilot-${cleanName}-进货决策报告.html` : "TradePilot-进货决策报告.html";
+      anchor.download = `${cleanName || "tradepilot-report"}.html`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
