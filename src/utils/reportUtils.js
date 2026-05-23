@@ -241,6 +241,59 @@ function asObject(value) {
   return value && typeof value === "object" ? value : {};
 }
 
+function safeKeywordPlatform(platform = {}) {
+  const source = asObject(platform);
+  return {
+    core: asArray(source.core),
+    scene: asArray(source.scene),
+    pain: asArray(source.pain),
+    style: asArray(source.style),
+    attribute: asArray(source.attribute),
+    longTail: asArray(source.longTail),
+  };
+}
+
+function normalizeKeywordPlan(plan = {}) {
+  const source = asObject(plan);
+  return {
+    ...source,
+    xhs: safeKeywordPlatform(source.xhs),
+    douyin: safeKeywordPlatform(source.douyin),
+    ecommerce: safeKeywordPlatform(source.ecommerce),
+    titles: asArray(source.titles).map((item) => {
+      if (Array.isArray(item)) return [item[0] || "平台", item[1] || ""];
+      return ["平台", item];
+    }),
+  };
+}
+
+function normalizeXhsPackage(packageValue = {}) {
+  const source = asObject(packageValue);
+  return {
+    ...source,
+    coverHooks: asArray(source.coverHooks),
+    titles: asArray(source.titles),
+    pages: asArray(source.pages),
+    interactions: asArray(source.interactions),
+    tags: asArray(source.tags),
+    coverDesign: source.coverDesign || "暂无",
+    body: source.body || "暂无",
+    merchantStrategy: source.merchantStrategy || "暂无",
+  };
+}
+
+function normalizeDouyinPackage(packageValue = {}) {
+  const source = asObject(packageValue);
+  return {
+    ...source,
+    coverTexts: asArray(source.coverTexts),
+    shots: asArray(source.shots).map((shot) => asObject(shot)),
+    shootingNotes: asArray(source.shootingNotes),
+    direction: source.direction || "暂无",
+    merchantGoal: source.merchantGoal || "暂无",
+  };
+}
+
 const marketEvidenceNotice = "当前为市场证据模式：未调用外部平台 API，不生成或伪造平台真实价格、销量、点赞、播放数据；系统基于用户填写信息和搜索入口进行辅助判断。";
 const defaultMarketRiskWarning = "暂无明确高风险，但建议继续核验同款价格、内容热度和成交反馈。";
 
@@ -422,6 +475,13 @@ function renderManualMarketEvidenceSection(manualEvidence) {
 }
 
 export function generateHtmlReport(product, result) {
+  product = asObject(product);
+  result = asObject(result);
+
+  if (!Object.keys(result).length) {
+    throw new Error("missing_report_result");
+  }
+
   const fallbackMarket = result.market || inferMarketInfo(product);
   const fallbackChannelFit = result.channelFit || getChannelFit(product, fallbackMarket.categoryKey);
   const fallbackEffectivePrice = result.effectivePrice || getEffectivePrice(product);
@@ -432,9 +492,9 @@ export function generateHtmlReport(product, result) {
     name: contentContext.productIdentity.displayName,
     category: contentContext.productIdentity.productTypeLabel,
   };
-  const xhs = validateGeneratedContent(contentContext, result.xhsPackage || getXhsContentPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "xhsPackage").content;
-  const douyin = validateGeneratedContent(contentContext, result.douyinPackage || getDouyinVideoPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "douyinPackage").content;
-  const keywordPlan = validateGeneratedContent(contentContext, result.keywordPlan || getPlatformKeywordPlan(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "keywordPlan").content;
+  const xhs = normalizeXhsPackage(validateGeneratedContent(contentContext, result.xhsPackage || getXhsContentPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "xhsPackage").content);
+  const douyin = normalizeDouyinPackage(validateGeneratedContent(contentContext, result.douyinPackage || getDouyinVideoPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "douyinPackage").content);
+  const keywordPlan = normalizeKeywordPlan(validateGeneratedContent(contentContext, result.keywordPlan || getPlatformKeywordPlan(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "keywordPlan").content);
   const nextActions = (result.actions && result.actions.length)
     ? result.actions
     : [...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)];
