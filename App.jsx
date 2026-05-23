@@ -41,6 +41,10 @@ import {
   applyPriceEvidenceToResult,
   evaluatePriceEvidence,
 } from "./src/utils/priceEvidenceUtils";
+import {
+  applyManualMarketEvidenceToResult,
+  evaluateManualMarketEvidence,
+} from "./src/utils/manualMarketEvidenceUtils";
 
 
 const ANALYZE_IMAGE_ENDPOINT =
@@ -60,6 +64,13 @@ export const initialProduct = {
   competitorPrice: "15.9-29.9元",
   logistics: "小件轻货，包装成本低",
   note: "适合春夏穿搭、校园摆摊、礼物场景，建议先拿样拍图测款。",
+  wholesalePriceReference: "",
+  retailPriceReference: "",
+  contentHeatReference: "",
+  marketReferenceLinks: "",
+  competitorDensity: "未观察",
+  contentHomogeneity: "未观察",
+  manualMarketNote: "",
 };
 
 export const blankProduct = {
@@ -76,6 +87,13 @@ export const blankProduct = {
   competitorPrice: "",
   logistics: "",
   note: "",
+  wholesalePriceReference: "",
+  retailPriceReference: "",
+  contentHeatReference: "",
+  marketReferenceLinks: "",
+  competitorDensity: "未观察",
+  contentHomogeneity: "未观察",
+  manualMarketNote: "",
 };
 
 
@@ -2075,7 +2093,9 @@ function App() {
   const result = useMemo(() => {
     const douyinEvidence = evaluateDouyinFallbackEvidence(product, baseResult);
     const resultWithDouyinEvidence = applyDouyinFallbackToResult(baseResult, douyinEvidence);
-    return applyPriceEvidenceToResult(resultWithDouyinEvidence, priceEvidence || fallbackPriceEvidence);
+    const resultWithPriceEvidence = applyPriceEvidenceToResult(resultWithDouyinEvidence, priceEvidence || fallbackPriceEvidence);
+    const manualEvidence = evaluateManualMarketEvidence(product, resultWithPriceEvidence);
+    return applyManualMarketEvidenceToResult(resultWithPriceEvidence, manualEvidence);
   }, [baseResult, product, priceEvidence, fallbackPriceEvidence]);
 
   function update(key, value) {
