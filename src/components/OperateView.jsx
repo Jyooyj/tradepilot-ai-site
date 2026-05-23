@@ -1,22 +1,71 @@
 import { IMAGE_TOO_LARGE_FALLBACK_MESSAGE } from "../constants/uiContent";
+import { SUPPORTED_IMAGE_TYPES } from "../constants/imageQualityConfig";
 import {
   competitorDensityOptions,
   contentHomogeneityOptions,
   manualMarketEvidenceTips,
 } from "../constants/manualMarketEvidenceConfig";
+import {
+  analyzeImageQuality,
+  buildImageQualityMessage,
+  validateImageFile,
+} from "../utils/imageQualityUtils";
 import { blankProduct, compressImageToDataUrl, initialProduct, Input } from "../../App.jsx";
 
-export default function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode, analyzeImageWithAI, aiLoading }) {
+export default function OperateView({
+  product,
+  update,
+  image,
+  setImage,
+  result,
+  setProduct,
+  setAnalyzed,
+  setMode,
+  analyzeImageWithAI,
+  aiLoading,
+  imageQualityNotice,
+  setImageQualityNotice,
+  imageRecognitionNotice,
+  setImageRecognitionNotice,
+}) {
   async function handleImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      alert("请上传 JPG、PNG、WebP 等图片文件。");
-      return;
-    }
-
     try {
+      setImageRecognitionNotice?.(null);
+      const fileValidation = validateImageFile(file);
+
+      if (!fileValidation.ok) {
+        setImage(null);
+        setAnalyzed(false);
+        setImageQualityNotice?.(buildImageQualityMessage(fileValidation));
+        alert(`${fileValidation.issues.join("；")}；也可以手动填写产品信息继续生成报告。`);
+        return;
+      }
+
+      let qualityResult = null;
+      try {
+        qualityResult = await analyzeImageQuality(file);
+      } catch (error) {
+        qualityResult = {
+          level: fileValidation.level === "warning" ? "warning" : "ok",
+          issues: fileValidation.issues,
+          suggestions: [
+            ...fileValidation.suggestions,
+            "图片质量预检测未完成，但仍可继续上传和手动填写。",
+          ],
+        };
+      }
+
+      const mergedQuality = buildImageQualityMessage({
+        ...qualityResult,
+        level: fileValidation.level === "warning" || qualityResult?.level === "warning" ? "warning" : qualityResult?.level || "ok",
+        issues: [...(fileValidation.issues || []), ...(qualityResult?.issues || [])],
+        suggestions: [...(fileValidation.suggestions || []), ...(qualityResult?.suggestions || [])],
+      });
+      setImageQualityNotice?.(mergedQuality);
+
       const compressed = await compressImageToDataUrl(file);
       setImage(compressed.dataUrl);
       setAnalyzed(false);
@@ -26,7 +75,17 @@ export default function OperateView({ product, update, image, setImage, result, 
       }
     } catch (error) {
       alert(error.message ? `${error.message}；也可以手动填写产品信息继续生成报告。` : "图片读取失败，请换一张图片再试；也可以手动填写产品信息继续生成报告。");
+    } finally {
+      e.target.value = "";
     }
+  }
+
+  function clearAll() {
+    setProduct(blankProduct);
+    setImage(null);
+    setAnalyzed(false);
+    setImageQualityNotice?.(null);
+    setImageRecognitionNotice?.(null);
   }
 
   function analyze() {
@@ -53,19 +112,17 @@ export default function OperateView({ product, update, image, setImage, result, 
 
         <label className="mt-4 block cursor-pointer rounded-2xl bg-emerald-300 px-5 py-3 text-center font-black text-black">
           上传图片
-          <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
+          <input type="file" accept={SUPPORTED_IMAGE_TYPES.join(",")} className="hidden" onChange={handleImage} />
         </label>
         <p className="mt-2 text-xs leading-6 text-slate-400">图片已自动压缩后用于识别，不影响报告生成。</p>
-        <p className="mt-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-xs leading-6 text-cyan-100">
-          图片识别是加速入口，不是唯一入口。识别失败时，可手动填写产品名称、拿货价、建议售价、MOQ、材质、目标人群和销售渠道，系统仍可生成完整进货决策报告。
-        </p>
+        <ImageDiagnosticPanel qualityNotice={imageQualityNotice} recognitionNotice={imageRecognitionNotice} />
 
         <button onClick={analyzeImageWithAI} disabled={aiLoading} className="mt-3 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black disabled:opacity-60">
           {aiLoading ? "AI正在识别图片..." : "AI识别图片并自动填写"}
         </button>
 
         <button onClick={() => { setProduct(initialProduct); setAnalyzed(false); }} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white">套用示例产品</button>
-        <button onClick={() => { setProduct(blankProduct); setImage(null); setAnalyzed(false); }} className="mt-3 w-full rounded-2xl border border-white/10 bg-transparent px-5 py-3 font-bold text-slate-300">清空重填</button>
+        <button onClick={clearAll} className="mt-3 w-full rounded-2xl border border-white/10 bg-transparent px-5 py-3 font-bold text-slate-300">清空重填</button>
       </section>
 
       <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
@@ -143,6 +200,72 @@ export default function OperateView({ product, update, image, setImage, result, 
           生成进货决策报告
         </button>
       </section>
+    </div>
+  );
+}
+
+function ImageDiagnosticPanel({ qualityNotice, recognitionNotice }) {
+  const notices = [qualityNotice, recognitionNotice].filter(Boolean);
+
+  if (!notices.length) {
+    return (
+      <div className="mt-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-xs leading-6 text-cyan-100">
+        <p className="font-black text-cyan-50">图片质量提示 / 识别状态提示</p>
+        <p className="mt-2">
+          上传后会自动检查格式、大小、分辨率、亮度、对比度和清晰度。图片识别是加速入口，不是唯一入口；识别失败时，可手动填写产品信息继续生成报告。
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-3">
+      {notices.map((notice) => (
+        <DiagnosticNotice key={notice.title + notice.summary} notice={notice} />
+      ))}
+      <p className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-xs leading-6 text-cyan-100">
+        手动填写兜底：即使图片模糊、商品遮挡、多个商品同时出现或大图上传失败，也可以继续填写产品名称、拿货价、建议售价、MOQ、材质、目标人群和销售渠道，系统仍会生成完整进货决策报告。
+      </p>
+    </div>
+  );
+}
+
+function DiagnosticNotice({ notice }) {
+  const colorClass = notice.level === "error"
+    ? "border-rose-300/25 bg-rose-300/10 text-rose-100"
+    : notice.level === "warning"
+      ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
+      : "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
+  const issues = Array.isArray(notice.issues) ? notice.issues : [];
+  const suggestions = Array.isArray(notice.suggestions) ? notice.suggestions : [];
+  const metrics = notice.metrics || {};
+  const hasMetrics = metrics.width || metrics.height || metrics.brightness || metrics.contrast || metrics.blurScore;
+
+  return (
+    <div className={`rounded-2xl border p-4 text-xs leading-6 ${colorClass}`}>
+      <p className="font-black">{notice.title}</p>
+      <p className="mt-1">{notice.summary}</p>
+      {hasMetrics && (
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px] opacity-90">
+          {metrics.width && metrics.height && <span className="rounded-full bg-black/20 px-2 py-1">尺寸 {metrics.width}×{metrics.height}</span>}
+          {metrics.brightness !== undefined && <span className="rounded-full bg-black/20 px-2 py-1">亮度 {metrics.brightness}</span>}
+          {metrics.contrast !== undefined && <span className="rounded-full bg-black/20 px-2 py-1">对比度 {metrics.contrast}</span>}
+          {metrics.blurScore !== undefined && <span className="rounded-full bg-black/20 px-2 py-1">清晰度 {metrics.blurScore}</span>}
+        </div>
+      )}
+      {issues.length > 0 && (
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          {issues.map((issue) => <li key={issue}>{issue}</li>)}
+        </ul>
+      )}
+      {suggestions.length > 0 && (
+        <div className="mt-2 rounded-2xl bg-black/20 p-3">
+          <p className="font-black">下一步建议</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {suggestions.map((suggestion) => <li key={suggestion}>{suggestion}</li>)}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

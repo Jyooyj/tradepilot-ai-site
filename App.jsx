@@ -49,6 +49,10 @@ import {
   generateProductLibraryWordDocument,
 } from "./src/utils/reportUtils";
 import {
+  buildImageRecognitionErrorMessage,
+  buildImageRecognitionMessage,
+} from "./src/utils/imageQualityUtils";
+import {
   applyDouyinFallbackToResult,
   evaluateDouyinFallbackEvidence,
 } from "./src/utils/douyinFallbackUtils";
@@ -2069,6 +2073,8 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState(null);
+  const [imageQualityNotice, setImageQualityNotice] = useState(null);
+  const [imageRecognitionNotice, setImageRecognitionNotice] = useState(null);
   const [historyRecords, setHistoryRecords] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMessage, setHistoryMessage] = useState("");
@@ -2452,9 +2458,24 @@ function App() {
 
     if (getTextByteSize(image) > IMAGE_COMPRESSION_OPTIONS.maxDataUrlBytes) {
       alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
+      setImageRecognitionNotice(buildImageRecognitionErrorMessage("payload", IMAGE_TOO_LARGE_FALLBACK_MESSAGE));
       return;
     }
 
+    if (imageQualityNotice?.level === "error") {
+      alert("当前图片未通过上传检查，请重新上传清晰单品图；也可以直接手动填写产品信息生成报告。");
+      return;
+    }
+
+    setImageRecognitionNotice({
+      level: "ok",
+      title: "正在识别图片",
+      summary: imageQualityNotice?.level === "warning"
+        ? "当前图片存在质量预警，识别结果可能不稳定，请稍后重点核对自动回填字段。"
+        : "正在调用图片识别接口，请稍候。",
+      issues: imageQualityNotice?.level === "warning" ? imageQualityNotice.issues || [] : [],
+      suggestions: ["识别完成后请核对商品名称、品类、材质、价格和 MOQ。"],
+    });
     setAiLoading(true);
 
     const controller = new AbortController();
@@ -2496,6 +2517,7 @@ function App() {
         data = JSON.parse(text);
       } catch (error) {
         console.error("接口返回不是 JSON：", text);
+        setImageRecognitionNotice(buildImageRecognitionErrorMessage("network", "接口返回不是 JSON"));
         alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
         return;
       }
@@ -2504,14 +2526,17 @@ function App() {
         console.error("AI识别接口错误：", data);
         const apiMessage = data.error || data.message || "";
         if (/EXCEED_MAX_PAYLOAD_SIZE|payload|请求体|too large/i.test(apiMessage)) {
+          setImageRecognitionNotice(buildImageRecognitionErrorMessage("payload", apiMessage));
           alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
           return;
         }
+        setImageRecognitionNotice(buildImageRecognitionErrorMessage("network", apiMessage));
         alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
         return;
       }
 
       const aiProduct = data?.product || {};
+      const recognitionMessage = buildImageRecognitionMessage(data, aiProduct);
 
       const hasAiProductInfo = Object.values(aiProduct).some((value) => {
         if (Array.isArray(value)) return value.length > 0;
@@ -2521,11 +2546,19 @@ function App() {
 
       if (!hasAiProductInfo) {
         setAiInsight(data);
+        setImageRecognitionNotice({
+          ...recognitionMessage,
+          level: "error",
+          issues: recognitionMessage.issues?.length
+            ? recognitionMessage.issues
+            : ["模型返回内容为空，未能提取商品名称或品类。"],
+        });
         alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
         return;
       }
 
       setAiInsight(data);
+      setImageRecognitionNotice(recognitionMessage);
 
       setProduct((old) => ({
         ...old,
@@ -2545,14 +2578,16 @@ function App() {
       }));
 
       setAnalyzed(false);
-      alert("AI识别完成，已自动回填产品信息");
+      alert(recognitionMessage.level === "warning" ? "AI识别完成，但图片识别不够稳定，请重点核对自动回填字段。" : "AI识别完成，已自动回填产品信息");
     } catch (error) {
       clearTimeout(timer);
 
       if (error.name === "AbortError") {
+        setImageRecognitionNotice(buildImageRecognitionErrorMessage("network", "请求超时或被中断"));
         alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
       } else {
         console.error(error);
+        setImageRecognitionNotice(buildImageRecognitionErrorMessage("network", error.message));
         alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
       }
     } finally {
@@ -2567,6 +2602,8 @@ function App() {
       setProduct({ ...blankProduct, ...restProduct });
       setImage(imagePreview || null);
     }
+    setImageQualityNotice(null);
+    setImageRecognitionNotice(null);
     setAnalyzed(true);
     setMode("result");
   }
@@ -2575,6 +2612,8 @@ function App() {
     setProduct(demo);
     setImage(null);
     setAiInsight(null);
+    setImageQualityNotice(null);
+    setImageRecognitionNotice(null);
     setAnalyzed(true);
     setSaveMessage("");
     setPage("app");
@@ -2727,6 +2766,10 @@ function App() {
             setMode={setMode}
             analyzeImageWithAI={analyzeImageWithAI}
             aiLoading={aiLoading}
+            imageQualityNotice={imageQualityNotice}
+            setImageQualityNotice={setImageQualityNotice}
+            imageRecognitionNotice={imageRecognitionNotice}
+            setImageRecognitionNotice={setImageRecognitionNotice}
           />
         )}
         {mode === "result" && (
