@@ -26,7 +26,17 @@ import ResultView from "./src/components/ResultView";
 import HistoryView from "./src/components/HistoryView";
 import PKView from "./src/components/PKView";
 import ReviewView from "./src/components/ReviewView";
+import StorageStatusBadge from "./src/components/StorageStatusBadge";
 import DemoView from "./src/components/DemoView";
+import {
+  canUseCloudStorage,
+  deleteProductRecord,
+  getStorageStatus,
+  loadProductRecords,
+  migrateLocalRecordsToCloud,
+  saveLocalRecords,
+  saveProductRecord,
+} from "./src/services/productStorage";
 import {
   cleanFileName,
   generateHtmlReport,
@@ -2056,6 +2066,14 @@ function App() {
   const [historyRecords, setHistoryRecords] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMessage, setHistoryMessage] = useState("");
+  const [storageStatus, setStorageStatus] = useState({
+    mode: "local",
+    label: "本地模式",
+    description: "正在检测产品库存储状态。",
+    localCount: 0,
+    localRecordLimit: 100,
+    canUseCloud: false,
+  });
   const [saveMessage, setSaveMessage] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatus, setHistoryStatus] = useState("全部");
@@ -2090,6 +2108,16 @@ function App() {
     };
   }, [product, fallbackPriceEvidence]);
 
+  useEffect(() => {
+    let isActive = true;
+    getStorageStatus().then((status) => {
+      if (isActive) setStorageStatus(status);
+    });
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const result = useMemo(() => {
     const douyinEvidence = evaluateDouyinFallbackEvidence(product, baseResult);
     const resultWithDouyinEvidence = applyDouyinFallbackToResult(baseResult, douyinEvidence);
@@ -2102,6 +2130,25 @@ function App() {
     setProduct((old) => ({ ...old, [key]: value }));
     setAnalyzed(false);
     setSaveMessage("");
+  }
+
+  function applyStorageResult(storageResult, fallbackMessage = "") {
+    if (storageResult?.status) setStorageStatus(storageResult.status);
+    if (storageResult?.warning) {
+      setHistoryMessage(storageResult.warning);
+    } else if (fallbackMessage) {
+      setHistoryMessage(fallbackMessage);
+    }
+  }
+
+  async function syncLocalRecordsToCloud() {
+    setHistoryMessage("正在尝试同步本地产品库到云端...");
+    const storageResult = await migrateLocalRecordsToCloud();
+    setHistoryRecords(storageResult.records || []);
+    applyStorageResult(
+      storageResult,
+      storageResult.mode === "cloud" ? "本地产品库已同步到云端。" : "当前仍使用本地模式。"
+    );
   }
 
   function copyReport() {
@@ -2122,9 +2169,12 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
-  function exportRecordsBackup() {
+  async function exportRecordsBackup() {
     try {
-      const records = JSON.parse(localStorage.getItem("tradepilot_local_records") || "[]");
+      const storageResult = await loadProductRecords();
+      const records = storageResult.records || [];
+      setHistoryRecords(records);
+      applyStorageResult(storageResult);
 
       if (!Array.isArray(records) || records.length === 0) {
         alert("当前暂无可导出的产品记录");
@@ -2138,7 +2188,7 @@ function App() {
       anchor.download = "tradepilot_records_backup.json";
       anchor.click();
       URL.revokeObjectURL(url);
-      setHistoryMessage("产品库备份已导出。");
+      setHistoryMessage(storageResult.mode === "cloud" ? "云端产品库备份已导出。" : "本地产品库备份已导出。");
     } catch (error) {
       alert("产品库备份导出失败：" + error.message);
     }
@@ -2175,13 +2225,8 @@ function App() {
         throw new Error("invalid_backup_format");
       }
 
-      let oldRecords = [];
-      try {
-        const parsed = JSON.parse(localStorage.getItem("tradepilot_local_records") || "[]");
-        oldRecords = Array.isArray(parsed) ? parsed : [];
-      } catch (error) {
-        oldRecords = [];
-      }
+      const oldStorageResult = await loadProductRecords();
+      const oldRecords = oldStorageResult.records || [];
 
       const existingIds = new Set(
         oldRecords
@@ -2205,9 +2250,23 @@ function App() {
       }, []);
 
       const nextRecords = [...uniqueImportedRecords, ...oldRecords];
-      localStorage.setItem("tradepilot_local_records", JSON.stringify(nextRecords));
-      setHistoryRecords(nextRecords);
-      setHistoryMessage("产品库备份导入成功");
+      const localSaveResult = saveLocalRecords(nextRecords);
+      const availability = await canUseCloudStorage();
+      const storageResult = availability.canUseCloud
+        ? await migrateLocalRecordsToCloud()
+        : {
+            ...localSaveResult,
+            warning: localSaveResult.warning || availability.warning,
+            error: availability.error || localSaveResult.error || "",
+            status: {
+              ...localSaveResult.status,
+              warning: localSaveResult.warning || availability.warning,
+              error: availability.error || localSaveResult.error || "",
+            },
+          };
+
+      setHistoryRecords(storageResult.records || nextRecords);
+      applyStorageResult(storageResult, "产品库备份导入成功");
       alert("产品库备份导入成功");
     } catch (error) {
       setHistoryMessage("备份文件格式不正确，请选择 TradePilot 导出的 JSON 文件");
@@ -2259,19 +2318,17 @@ function App() {
         report: result?.report || "暂无报告内容",
       };
 
-      const oldRecords = JSON.parse(
-        localStorage.getItem("tradepilot_local_records") || "[]"
+      const storageResult = await saveProductRecord(localRecord);
+
+      setHistoryRecords(storageResult.records || []);
+      applyStorageResult(storageResult);
+      setSaveMessage(
+        storageResult.mode === "cloud"
+          ? "已保存到我的产品库 ✓（云端同步已启用）"
+          : storageResult.warning
+            ? `已保存到我的产品库 ✓（本地模式）${storageResult.warning}`
+            : "已保存到我的产品库 ✓（本地模式）"
       );
-
-      const nextRecords = [localRecord, ...oldRecords].slice(0, 50);
-
-      localStorage.setItem(
-        "tradepilot_local_records",
-        JSON.stringify(nextRecords)
-      );
-
-      setHistoryRecords(nextRecords);
-      setSaveMessage("已保存到我的产品库 ✓（游客演示模式，本地保存）");
     } catch (error) {
       setSaveMessage("保存失败：" + error.message);
     }
@@ -2282,15 +2339,16 @@ function App() {
       setHistoryLoading(true);
       setHistoryMessage("");
 
-      const localRecords = JSON.parse(
-        localStorage.getItem("tradepilot_local_records") || "[]"
+      const storageResult = await loadProductRecords();
+      const records = storageResult.records || [];
+
+      setHistoryRecords(records);
+      applyStorageResult(
+        storageResult,
+        records.length === 0
+          ? "当前为本地/游客可用模式，保存的产品会优先同步云端；云端不可用时会记录在本浏览器中。"
+          : ""
       );
-
-      setHistoryRecords(localRecords);
-
-      if (localRecords.length === 0) {
-        setHistoryMessage("当前为游客演示模式，保存的产品会记录在本浏览器中。");
-      }
     } catch (error) {
       setHistoryMessage("读取产品库失败：" + error.message);
     } finally {
@@ -2302,18 +2360,9 @@ function App() {
     const ok = window.confirm("确定删除这条产品记录吗？");
     if (!ok) return;
 
-    const oldRecords = JSON.parse(
-      localStorage.getItem("tradepilot_local_records") || "[]"
-    );
-
-    const nextRecords = oldRecords.filter((record) => record.id !== id);
-
-    localStorage.setItem(
-      "tradepilot_local_records",
-      JSON.stringify(nextRecords)
-    );
-
-    setHistoryRecords(nextRecords);
+    const storageResult = await deleteProductRecord(id);
+    setHistoryRecords(storageResult.records || []);
+    applyStorageResult(storageResult, "已删除产品记录。");
   }
 
   async function analyzeImageWithAI() {
@@ -2453,7 +2502,7 @@ function App() {
     setMode("result");
   }
 
-  function loadDemoRecords() {
+  async function loadDemoRecords() {
     const demoRecords = demoProducts.map((demo, index) => {
       const demoResult = analyzeProduct(demo, false);
       return {
@@ -2489,11 +2538,25 @@ function App() {
       };
     });
 
-    const oldRecords = JSON.parse(localStorage.getItem("tradepilot_local_records") || "[]");
-    const nextRecords = [...demoRecords, ...oldRecords].slice(0, 50);
-    localStorage.setItem("tradepilot_local_records", JSON.stringify(nextRecords));
-    setHistoryRecords(nextRecords);
-    setHistoryMessage("已加载示例产品到本浏览器产品库，可直接体验筛选、PK和复盘流程。");
+    const oldStorageResult = await loadProductRecords();
+    const nextRecords = [...demoRecords, ...(oldStorageResult.records || [])];
+    const localSaveResult = saveLocalRecords(nextRecords);
+    const availability = await canUseCloudStorage();
+    const storageResult = availability.canUseCloud
+      ? await migrateLocalRecordsToCloud()
+      : {
+          ...localSaveResult,
+          warning: localSaveResult.warning || availability.warning,
+          error: availability.error || localSaveResult.error || "",
+          status: {
+            ...localSaveResult.status,
+            warning: localSaveResult.warning || availability.warning,
+            error: availability.error || localSaveResult.error || "",
+          },
+        };
+
+    setHistoryRecords(storageResult.records || nextRecords);
+    applyStorageResult(storageResult, "已加载示例产品到产品库，可直接体验筛选、PK和复盘流程。");
   }
 
   if (page === "cover") {
@@ -2519,7 +2582,7 @@ function App() {
             面向小商品进货、内容电商测款和大学生创业场景的 AI 决策工作台，覆盖义乌拿货、校园零售和小微电商，让用户从凭感觉拿货转向先测算、再测款、后复盘。
           </p>
           <div className="mt-5 max-w-4xl rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
-            当前为游客演示模式：无需注册即可体验完整流程；产品记录将暂存在本浏览器中，正式版可接入账号体系实现云端同步。
+            当前为游客演示模式：无需注册即可体验完整流程；未登录或云端不可用时记录保存在本浏览器，Supabase 已配置且已登录时会自动启用云端同步。
           </div>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
@@ -2566,7 +2629,7 @@ function App() {
           </button>
 
           <div className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs font-bold text-cyan-100">
-            游客演示模式 · 本地体验不强制登录
+            游客模式可用 · Supabase 可选同步
           </div>
 
           <nav className="flex flex-wrap gap-2 text-sm font-bold">
@@ -2613,24 +2676,27 @@ function App() {
           />
         )}
         {mode === "history" && (
-          <HistoryView
-            records={historyRecords}
-            loading={historyLoading}
-            message={historyMessage}
-            onDelete={deleteHistoryRecord}
-            onRestore={restoreRecord}
-            onRefresh={loadHistoryRecords}
-            onLoadDemo={loadDemoRecords}
-            onExportBackup={exportRecordsBackup}
-            onExportDocument={exportProductLibraryDocument}
-            onImportBackup={importRecordsBackup}
-            search={historySearch}
-            setSearch={setHistorySearch}
-            statusFilter={historyStatus}
-            setStatusFilter={setHistoryStatus}
-            sortMode={historySort}
-            setSortMode={setHistorySort}
-          />
+          <div>
+            <StorageStatusBadge status={storageStatus} onMigrate={syncLocalRecordsToCloud} />
+            <HistoryView
+              records={historyRecords}
+              loading={historyLoading}
+              message={historyMessage}
+              onDelete={deleteHistoryRecord}
+              onRestore={restoreRecord}
+              onRefresh={loadHistoryRecords}
+              onLoadDemo={loadDemoRecords}
+              onExportBackup={exportRecordsBackup}
+              onExportDocument={exportProductLibraryDocument}
+              onImportBackup={importRecordsBackup}
+              search={historySearch}
+              setSearch={setHistorySearch}
+              statusFilter={historyStatus}
+              setStatusFilter={setHistoryStatus}
+              sortMode={historySort}
+              setSortMode={setHistorySort}
+            />
+          </div>
         )}
         {mode === "pk" && (
           <PKView
