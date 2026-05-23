@@ -356,6 +356,44 @@ function renderPriceEvidenceSection(priceEvidence) {
   `;
 }
 
+function renderManualMarketEvidenceSection(manualEvidence) {
+  if (!manualEvidence) return "";
+
+  const dataCompletenessText = {
+    high: "高",
+    medium: "中",
+    low: "低",
+  };
+  const evidence = manualEvidence.evidence || {};
+
+  return `
+    <section>
+      <h2>人工市场证据参考</h2>
+      <p class="footer">本章节来自用户手动填写的市场调研信息，用于在平台 API 未授权或不可用时辅助判断；不代表平台真实 API 数据，也不伪造销量、热度、点赞、播放或价格。</p>
+      ${htmlTable(["项目", "内容"], [
+        ["数据完整度", dataCompletenessText[manualEvidence.dataCompleteness] || "低"],
+        ["可信度评分", `${manualEvidence.confidenceScore ?? 0}/100`],
+        ["1688 批发价参考", evidence.wholesalePriceReference || "未填写"],
+        ["淘宝/拼多多零售价参考", evidence.retailPriceReference || "未填写"],
+        ["抖音/小红书内容热度观察", evidence.contentHeatReference || "未填写"],
+        ["同类竞品数量观察", evidence.competitorDensity || "未观察"],
+        ["内容同质化程度", evidence.contentHomogeneity || "未观察"],
+        ["市场参考链接", evidence.marketReferenceLinks || "未填写"],
+        ["人工市场调研备注", evidence.manualMarketNote || "未填写"],
+        ["评分小幅修正", `${manualEvidence.scoreAdjustment ?? 0}`],
+      ])}
+      <h3>证据摘要</h3>
+      <p class="card">${escapeHtml(manualEvidence.evidenceSummary)}</p>
+      <h3>正向信号</h3>
+      ${htmlList(manualEvidence.positiveSignals?.length ? manualEvidence.positiveSignals : ["暂无"], false)}
+      <h3>风险提示</h3>
+      ${htmlList(manualEvidence.riskWarnings || [], false)}
+      <h3>数据来源说明</h3>
+      <p class="card">${escapeHtml(manualEvidence.sourceNotice)}</p>
+    </section>
+  `;
+}
+
 export function generateHtmlReport(product, result) {
   const fallbackMarket = result.market || inferMarketInfo(product);
   const fallbackChannelFit = result.channelFit || getChannelFit(product, fallbackMarket.categoryKey);
@@ -376,6 +414,7 @@ export function generateHtmlReport(product, result) {
   const channelScore = getScoreValue(result, "渠道", result.channelFit?.score || "");
   const douyinEvidence = result.douyinEvidence || result.marketEvidence?.douyin || null;
   const priceEvidence = result.priceEvidence || result.marketEvidence?.price || null;
+  const manualMarketEvidence = result.manualMarketEvidence || result.marketEvidence?.manual || null;
   const basicRows = [
     ["产品名称", contentContext.productIdentity?.displayName || product.name || "未填写"],
     ["产品类型", contentContext.productIdentity?.productTypeLabel || product.category || result.market?.marketType || "未填写"],
@@ -537,6 +576,8 @@ export function generateHtmlReport(product, result) {
         <div class="card"><h3>标题组合建议</h3>${htmlList(keywordPlan.titles.map(([platform, title]) => `${platform}标题：${title}`))}</div>
       </div>
     </section>
+
+    ${renderManualMarketEvidenceSection(manualMarketEvidence)}
 
     ${renderPriceEvidenceSection(priceEvidence)}
 
