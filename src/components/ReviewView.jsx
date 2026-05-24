@@ -125,17 +125,17 @@ export default function ReviewView({
           </p>
         </div>
 
-        {hasReviewData && (
-          <div className="mt-5">
-            <AiInsightPanel
-              title="AI 测款复盘总结"
-              scenario="review_summary"
-              insight={aiReviewInsight}
-              loading={aiReasoningLoading && !aiReviewInsight}
-              compact
-            />
-          </div>
-        )}
+       {hasReviewData && (
+  <div className="mt-5">
+    <AiInsightPanel
+      title={aiReviewInsight?.source === "llm" ? "AI 测款复盘总结" : "基础测款复盘建议"}
+      scenario="review_summary"
+      insight={aiReviewInsight}
+      loading={aiReasoningLoading && !aiReviewInsight}
+      compact
+    />
+  </div>
+)}
 
         <button onClick={saveCurrentReport} className="mt-5 min-h-11 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">
           保存本次复盘到我的产品库
