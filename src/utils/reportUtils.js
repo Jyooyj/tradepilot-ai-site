@@ -478,6 +478,79 @@ function renderSupplierCommunicationReportSection(product, result) {
   `;
 }
 
+const REPORT_TECHNICAL_TEXT_PATTERNS = [
+  /fallback/gi,
+  /timeout/gi,
+  /请求超时/g,
+  /接口异常/g,
+  /AI\s*推理补充暂不可用/g,
+  /AI\s*内容测款策略暂不可用/g,
+  /AI\s*测款复盘总结暂不可用/g,
+  /未取得可用\s*LLM/g,
+  /已保留原内容包和规则报告/g,
+  /已保留规则报告/g,
+  /已保留规则复盘结论/g,
+];
+
+function hasTechnicalReportText(value) {
+  const text = String(value ?? "");
+  return REPORT_TECHNICAL_TEXT_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function safeReportText(value, fallback = "暂无") {
+  const text = String(value ?? "").trim();
+  if (!text || hasTechnicalReportText(text)) return fallback;
+  return text;
+}
+
+function safeReportList(items, fallback = ["暂无"]) {
+  const safeItems = asArray(items)
+    .map((item) => String(item ?? "").trim())
+    .filter(Boolean)
+    .filter((item) => !hasTechnicalReportText(item))
+    .slice(0, 5);
+
+  return safeItems.length ? safeItems : fallback;
+}
+
+function getReportInsightFallbackTitle(scenario) {
+  if (scenario === "content_testing") return "基础内容测款建议";
+  if (scenario === "review_summary") return "基础测款复盘建议";
+  return "基础进货策略建议";
+}
+
+function getReportInsightTitle(scenario, insight) {
+  const isLlm = insight?.source === "llm";
+  if (isLlm) {
+    return AI_INSIGHT_SCENARIOS[scenario]?.title || "AI 智能推理";
+  }
+  return AI_INSIGHT_SCENARIOS[scenario]?.fallbackTitle || getReportInsightFallbackTitle(scenario);
+}
+
+function getReportInsightFallbackSummary(scenario) {
+  if (scenario === "content_testing") {
+    return "当前已基于商品信息、目标人群、销售渠道和规则报告生成基础内容测款建议，可用于首轮小范围测试。";
+  }
+
+  if (scenario === "review_summary") {
+    return "当前已基于用户填写的测款数据和规则指标生成基础复盘建议，可用于判断是否继续测试、调整内容或谨慎补货。";
+  }
+
+  return "当前已基于商品信息、规则评分、利润测算和风险判断生成基础进货建议，可先用于小批量拿样决策。";
+}
+
+function getReportInsightFallbackNote(scenario) {
+  if (scenario === "content_testing") {
+    return "当前展示为基础策略建议，已保留内容测款方向和风险提示，不影响报告使用。";
+  }
+
+  if (scenario === "review_summary") {
+    return "当前展示为基础策略建议，已保留测款复盘判断和下一步动作，不影响报告使用。";
+  }
+
+  return "当前展示为基础策略建议，已保留进货判断、利润测算和风险提示，不影响报告使用。";
+}
+
 function getAiReasoningInsights(result = {}) {
   const insights = asObject(result.aiReasoningInsights || result.aiInsights);
 
@@ -489,20 +562,42 @@ function getAiReasoningInsights(result = {}) {
   }, {});
 }
 
-function renderAiInsightCard(title, insight) {
-  const normalizedInsight = normalizeAiInsight(insight, insight?.scenario);
+function renderAiInsightCard(scenario, insight) {
+  const fallback = buildAiInsightFallback(scenario);
+  const normalizedInsight = normalizeAiInsight(insight || fallback, scenario);
+  const title = getReportInsightTitle(scenario, normalizedInsight);
+  const summary = safeReportText(
+    normalizedInsight.summary,
+    getReportInsightFallbackSummary(scenario)
+  );
+  const reasoningPoints = safeReportList(
+    normalizedInsight.reasoningPoints,
+    fallback.reasoningPoints
+  );
+  const nextActions = safeReportList(
+    normalizedInsight.nextActions,
+    fallback.nextActions
+  );
+  const riskWarnings = safeReportList(
+    normalizedInsight.riskWarnings,
+    fallback.riskWarnings
+  );
+  const confidenceNote = safeReportText(
+    normalizedInsight.confidenceNote,
+    getReportInsightFallbackNote(scenario)
+  );
 
   return `
     <div class="card">
       <h3>${escapeHtml(title)}</h3>
-      <p>${escapeHtml(normalizedInsight.summary)}</p>
+      <p>${escapeHtml(summary)}</p>
       <h3>推理要点</h3>
-      ${htmlList(normalizedInsight.reasoningPoints, false)}
+      ${htmlList(reasoningPoints, false)}
       <h3>下一步建议</h3>
-      ${htmlList(normalizedInsight.nextActions, false)}
+      ${htmlList(nextActions, false)}
       <h3>风险提醒</h3>
-      ${htmlList(normalizedInsight.riskWarnings, false)}
-      <p class="footer">${escapeHtml(normalizedInsight.confidenceNote)}</p>
+      ${htmlList(riskWarnings, false)}
+      <p class="footer">${escapeHtml(confidenceNote)}</p>
     </div>
   `;
 }
@@ -515,29 +610,25 @@ function renderAiInsightReportSection(result = {}) {
   if (!hasInsight) {
     return `
       <section>
-        <h2>AI 智能推理补充</h2>
-        <p class="footer">暂无 AI 推理补充；规则评分、利润测算、MOQ 判断和原报告内容不受影响。</p>
+        <h2>智能策略补充</h2>
+        <p class="footer">当前为基础策略建议，系统已基于规则报告和用户填写信息生成可执行建议。规则评分、利润测算、MOQ 判断和原报告内容不受影响。</p>
       </section>
     `;
   }
 
   return `
     <section>
-      <h2>AI 智能推理补充</h2>
-      <p class="footer">规则评分继续负责稳定数值计算；LLM 只补充解释、策略建议和复盘洞察，不覆盖综合评分、利润率、MOQ 或风险等级，也不伪造真实平台数据。</p>
+      <h2>智能策略补充</h2>
+      <p class="footer">规则评分继续负责稳定数值计算；智能策略层用于补充解释、内容测款建议和复盘思路，不覆盖综合评分、利润率、MOQ 或风险等级，也不伪造真实平台数据。</p>
       <div class="grid">
         ${scenarios
           .filter((scenario) => Boolean(insights[scenario]))
-          .map((scenario) => renderAiInsightCard(
-            AI_INSIGHT_SCENARIOS[scenario]?.title || "AI 推理补充",
-            insights[scenario] || buildAiInsightFallback(scenario)
-          ))
+          .map((scenario) => renderAiInsightCard(scenario, insights[scenario]))
           .join("")}
       </div>
     </section>
   `;
 }
-
 function renderDouyinEvidenceSection(douyinEvidence) {
   if (!douyinEvidence) return "";
 
