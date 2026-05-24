@@ -34,14 +34,14 @@ export default function ProductPKBarChart({ candidates }) {
 
   if (!chartData.length || !hasChartData) {
     return (
-      <div className="rounded-3xl border border-dashed border-white/15 bg-black/25 p-5 text-sm leading-7 text-slate-400">
+      <div className="break-words rounded-3xl border border-dashed border-white/15 bg-black/25 p-5 text-sm leading-7 text-slate-400">
         暂无足够评分数据，保存候选产品后将生成柱状对比。
       </div>
     );
   }
 
   return (
-    <div className="h-72 w-full">
+    <div className="h-64 min-w-[480px] sm:h-72 sm:min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
           <CartesianGrid stroke="rgba(255,255,255,0.12)" vertical={false} />

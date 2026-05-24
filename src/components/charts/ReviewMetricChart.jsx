@@ -74,7 +74,7 @@ export default function ReviewMetricChart({ review, records }) {
 
   if (!chartRows.length) {
     return (
-      <div className="rounded-3xl border border-dashed border-white/15 bg-black/25 p-5 text-sm leading-7 text-slate-400">
+      <div className="break-words rounded-3xl border border-dashed border-white/15 bg-black/25 p-5 text-sm leading-7 text-slate-400">
         暂无复盘数据，完成测款记录后将生成可视化图表。
       </div>
     );
@@ -82,7 +82,7 @@ export default function ReviewMetricChart({ review, records }) {
 
   if (chartRows.length >= 2) {
     return (
-      <div className="h-80 w-full">
+      <div className="h-64 min-w-[520px] sm:h-80 sm:min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartRows} margin={{ top: 10, right: 16, left: -14, bottom: 0 }}>
             <CartesianGrid stroke="rgba(255,255,255,0.12)" vertical={false} />
@@ -119,14 +119,14 @@ export default function ReviewMetricChart({ review, records }) {
 
   if (!metricRows.length) {
     return (
-      <div className="rounded-3xl border border-dashed border-white/15 bg-black/25 p-5 text-sm leading-7 text-slate-400">
+      <div className="break-words rounded-3xl border border-dashed border-white/15 bg-black/25 p-5 text-sm leading-7 text-slate-400">
         暂无复盘数据，完成测款记录后将生成可视化图表。
       </div>
     );
   }
 
   return (
-    <div className="h-80 w-full">
+    <div className="h-64 min-w-[480px] sm:h-80 sm:min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={metricRows} layout="vertical" margin={{ top: 10, right: 18, left: 10, bottom: 0 }}>
           <CartesianGrid stroke="rgba(255,255,255,0.12)" horizontal={false} />

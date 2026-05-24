@@ -1,7 +1,8 @@
 import { statusOptions } from "../constants/uiContent";
 import { getRecordStatus, HistoryCard } from "../../App.jsx";
+import ProductBackupActions from "./ProductBackupActions";
 
-export default function HistoryView({ records, storageStatus, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, onExportBackup, onExportDocument, onImportBackup, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
+export default function HistoryView({ records, storageStatus, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, onExportBackup, onExportCsv, onExportDocument, onImportBackup, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
   const safeRecords = Array.isArray(records) ? records : [];
   const normalizedSearch = String(search || "").trim().toLowerCase();
   const effectiveMode = storageStatus?.effectiveMode || storageStatus?.mode || "local";
@@ -23,31 +24,33 @@ export default function HistoryView({ records, storageStatus, loading, message, 
     });
 
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+    <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-emerald-300">My Product Library</p>
-          <h2 className="text-3xl font-black text-white">我的产品库</h2>
-          <p className="mt-2 text-sm leading-7 text-slate-400">保存进货判断、测款结论和完整报告，形成长期选品资产。</p>
+          <h2 className="break-words text-2xl font-black text-white sm:text-3xl">我的产品库</h2>
+          <p className="mt-2 break-words text-sm leading-7 text-slate-400">保存进货判断、测款结论和完整报告，形成长期选品资产。</p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button onClick={onRefresh} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">刷新产品库</button>
-          <button onClick={onExportBackup} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-100">导出产品库备份</button>
-          <button onClick={onExportDocument} className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-3 font-black text-amber-100">导出产品库文档</button>
-          <label className="cursor-pointer rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-center font-black text-cyan-100">
-            导入产品库备份
-            <input type="file" accept="application/json,.json" className="hidden" onChange={onImportBackup} />
-          </label>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap md:justify-end">
+          <button onClick={onRefresh} className="min-h-11 w-full rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black sm:w-auto">刷新产品库</button>
+          <button onClick={onExportDocument} className="min-h-11 w-full rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-3 font-black text-amber-100 sm:w-auto">导出产品库文档</button>
         </div>
       </div>
 
+      <ProductBackupActions
+        storageStatus={storageStatus}
+        onExportJson={onExportBackup}
+        onExportCsv={onExportCsv}
+        onImportJson={onImportBackup}
+      />
+
       {showLocalStorageRisk && (
-        <div className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
+        <div className="mb-5 break-words rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
           备份提示：可用“导出产品库备份”保存 JSON 文件；更换浏览器、设备或清理缓存后，可通过“导入产品库备份”恢复记录。
         </div>
       )}
 
-      <div className="mb-5 grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
+      <div className="mb-5 grid min-w-0 gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
         <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
           <span className="text-xs font-semibold text-slate-400">搜索产品名称 / 品类</span>
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="如：珍珠、发饰、家居生活" className="mt-2 w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-600" />
@@ -70,7 +73,7 @@ export default function HistoryView({ records, storageStatus, loading, message, 
       </div>
 
       {loading && <div className="rounded-3xl bg-black/25 p-6 text-slate-300">正在读取产品库...</div>}
-      {message && <div className="mb-4 rounded-3xl bg-amber-300/10 p-5 text-amber-100">{message}</div>}
+      {message && <div className="mb-4 break-words rounded-3xl bg-amber-300/10 p-5 text-amber-100">{message}</div>}
 
       {!loading && safeRecords.length === 0 && (
         <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center">
@@ -91,7 +94,7 @@ export default function HistoryView({ records, storageStatus, loading, message, 
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2">
         {filteredRecords.map((record) => (
           <HistoryCard key={record.id} record={record} onDelete={onDelete} onRestore={onRestore} />
         ))}

@@ -32,10 +32,8 @@ import SupabaseLoginPanel from "./src/components/SupabaseLoginPanel";
 import DemoView from "./src/components/DemoView";
 import {
   deleteProductRecord,
-  exportLocalRecordsBackup,
   getStorageMode,
   getStorageStatus,
-  importLocalRecordsBackup,
   loadProductRecords,
   migrateLocalRecordsToCloud,
   saveStorageMode,
@@ -73,6 +71,13 @@ import {
   buildAiInsightMarketEvidence,
   hasReviewInsightData,
 } from "./src/utils/aiInsightUtils";
+import {
+  downloadTextFile,
+  exportProductRecordsToCsv,
+  exportProductRecordsToJson,
+  importProductRecordsFromJson,
+  mergeProductRecords,
+} from "./src/utils/productBackupUtils";
 
 
 const ANALYZE_IMAGE_ENDPOINT =
@@ -2342,20 +2347,40 @@ function App() {
 
       if (!Array.isArray(records) || records.length === 0) {
         alert("当前暂无可导出的产品记录");
-        return;
+        return { ok: false, message: "当前暂无可导出的产品记录" };
       }
 
-      const backup = exportLocalRecordsBackup(records);
-      const blob = new Blob([backup.json], { type: "application/json;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = backup.fileName;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setHistoryMessage(storageResult.mode === "cloud" ? "产品库 JSON 备份已导出，文件仅保存在本机。" : "本地产品库 JSON 备份已导出。");
+      const backup = exportProductRecordsToJson(records);
+      downloadTextFile(backup.content, backup.fileName, "application/json;charset=utf-8");
+      const successMessage = storageResult.mode === "cloud" ? "产品库 JSON 备份已导出，文件仅保存在本机。" : "本地产品库 JSON 备份已导出。";
+      setHistoryMessage(successMessage);
+      return { ok: true, message: successMessage };
     } catch (error) {
       alert("产品库备份导出失败：" + error.message);
+      return { ok: false, message: "产品库备份导出失败：" + error.message };
+    }
+  }
+
+  async function exportRecordsCsv() {
+    try {
+      const storageResult = await loadProductRecords(storageMode);
+      const records = storageResult.records || [];
+      setHistoryRecords(records);
+      applyStorageResult(storageResult);
+
+      if (!Array.isArray(records) || records.length === 0) {
+        alert("当前暂无可导出的产品记录");
+        return { ok: false, message: "当前暂无可导出的产品记录" };
+      }
+
+      const csv = exportProductRecordsToCsv(records);
+      downloadTextFile(csv.content, csv.fileName, "text/csv;charset=utf-8");
+      const successMessage = "产品库 CSV 表格已导出，可用 Excel / WPS 打开。";
+      setHistoryMessage(successMessage);
+      return { ok: true, message: successMessage };
+    } catch (error) {
+      alert("产品库 CSV 导出失败：" + error.message);
+      return { ok: false, message: "产品库 CSV 导出失败：" + error.message };
     }
   }
 
@@ -2384,18 +2409,14 @@ function App() {
 
     try {
       const oldStorageResult = await loadProductRecords(storageMode);
-      const storageResult = await importLocalRecordsBackup(file, {
-        selectedMode: storageMode,
-        existingRecords: oldStorageResult.records || [],
-      });
+      const importedRecords = await importProductRecordsFromJson(file);
+      const mergedRecords = mergeProductRecords(oldStorageResult.records || [], importedRecords);
+      const storageResult = saveLocalRecords(mergedRecords, { selectedMode: storageMode });
       const records = storageResult.records || [];
       const cloudSyncTip = storageMode === STORAGE_MODES.CLOUD || storageMode === STORAGE_MODES.AUTO
         ? " 当前备份已先合并到本地产品库；如需上传到云端，请手动点击“同步本地记录到云端”。"
         : "";
-      const skippedTip = storageResult.skippedCount
-        ? ` 已跳过 ${storageResult.skippedCount} 条格式不完整的记录。`
-        : "";
-      const successMessage = `产品库备份导入成功，已合并 ${storageResult.importedCount || 0} 条记录。${skippedTip}${cloudSyncTip}`;
+      const successMessage = `产品库备份导入成功，已合并 ${importedRecords.length || 0} 条记录。${cloudSyncTip}`;
 
       setHistoryRecords(records);
       applyStorageResult(
@@ -2410,9 +2431,11 @@ function App() {
         successMessage
       );
       alert(successMessage);
+      return { ok: true, message: successMessage };
     } catch (error) {
       setHistoryMessage("备份文件格式不正确");
       alert("备份文件格式不正确");
+      return { ok: false, message: "备份文件格式不正确" };
     } finally {
       event.target.value = "";
     }
@@ -2880,6 +2903,7 @@ function App() {
               onRefresh={loadHistoryRecords}
               onLoadDemo={loadDemoRecords}
               onExportBackup={exportRecordsBackup}
+              onExportCsv={exportRecordsCsv}
               onExportDocument={exportProductLibraryDocument}
               onImportBackup={importRecordsBackup}
               search={historySearch}
@@ -3330,12 +3354,12 @@ export function StructuredReport({ product, result }) {
 
 function ReportSection({ number, title, children }) {
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.045] p-5">
+    <section className="min-w-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.045] p-4 sm:p-5">
       <div className="flex items-center gap-3 border-b border-white/10 pb-4">
         <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-emerald-300 px-3 text-sm font-black text-black">{number}</span>
-        <h3 className="text-xl font-black text-white">{title}</h3>
+        <h3 className="break-words text-lg font-black text-white sm:text-xl">{title}</h3>
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-4 min-w-0 break-words">{children}</div>
     </section>
   );
 }
@@ -3489,12 +3513,12 @@ export function HistoryCard({ record, onDelete, onRestore }) {
   const metrics = getRecordMetrics(record);
   const displayReport = getRecordReport(record);
   return (
-    <article className="rounded-3xl border border-white/10 bg-black/30 p-5">
-      <div className="flex gap-4">
-        {record.product?.imagePreview && <img src={record.product.imagePreview} alt="" className="h-24 w-24 rounded-2xl object-cover" />}
+    <article className="min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-4 sm:p-5">
+      <div className="flex flex-col gap-4 sm:flex-row">
+        {record.product?.imagePreview && <img src={record.product.imagePreview} alt="" className="max-h-64 w-full rounded-2xl object-cover sm:h-24 sm:w-24" />}
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-xl font-black text-white">{metrics.displayName || record.product_name || "未命名产品"}</h3>
-          <p className="mt-2 text-sm text-slate-400">{metrics.productTypeLabel || record.category || "未分类"} · {new Date(record.created_at).toLocaleString()}</p>
+          <h3 className="break-words text-lg font-black text-white sm:text-xl sm:truncate">{metrics.displayName || record.product_name || "未命名产品"}</h3>
+          <p className="mt-2 break-words text-sm text-slate-400">{metrics.productTypeLabel || record.category || "未分类"} · {new Date(record.created_at).toLocaleString()}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-sm">
             <span className="rounded-full bg-emerald-300/10 px-3 py-1 font-bold text-emerald-200">评分：{record.score ?? "暂无"}</span>
             <span className="px-1 py-1 font-bold text-cyan-200">状态：{metrics.status}</span>
@@ -3505,8 +3529,8 @@ export function HistoryCard({ record, onDelete, onRestore }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button onClick={() => onRestore(record)} className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black">查看报告</button>
-        <button onClick={() => onDelete(record.id)} className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-white">删除</button>
+        <button onClick={() => onRestore(record)} className="min-h-11 w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black sm:w-auto">查看报告</button>
+        <button onClick={() => onDelete(record.id)} className="min-h-11 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-white sm:w-auto">删除</button>
       </div>
 
       {displayReport && (
@@ -3521,28 +3545,28 @@ export function HistoryCard({ record, onDelete, onRestore }) {
 
 export function Input({ label, value, onChange, placeholder, wide }) {
   return (
-    <label className={`rounded-2xl border border-white/10 bg-black/25 p-4 ${wide ? "md:col-span-2" : ""}`}>
+    <label className={`min-w-0 rounded-2xl border border-white/10 bg-black/25 p-4 ${wide ? "md:col-span-2" : ""}`}>
       <span className="text-xs font-semibold text-slate-400">{label}</span>
-      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-2 w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-600" />
+      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-2 w-full min-w-0 bg-transparent text-sm text-white outline-none placeholder:text-slate-600" />
     </label>
   );
 }
 
 export function Card({ label, value }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-4">
+    <div className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.06] p-4">
       <p className="text-sm text-slate-400">{label}</p>
-      <p className="mt-2 text-lg font-black text-white">{value}</p>
+      <p className="mt-2 break-words text-base font-black text-white sm:text-lg">{value}</p>
     </div>
   );
 }
 
 export function PkMetricRow({ label, left, right }) {
   return (
-    <div className="grid grid-cols-[0.9fr_1fr_1fr] border-b border-white/10 text-sm">
-      <div className="p-4 font-bold text-slate-400">{label}</div>
-      <div className="p-4 font-semibold text-slate-100">{left}</div>
-      <div className="p-4 font-semibold text-slate-100">{right}</div>
+    <div className="grid grid-cols-[minmax(120px,0.9fr)_minmax(160px,1fr)_minmax(160px,1fr)] border-b border-white/10 text-sm">
+      <div className="break-words p-4 font-bold text-slate-400">{label}</div>
+      <div className="break-words p-4 font-semibold text-slate-100">{left}</div>
+      <div className="break-words p-4 font-semibold text-slate-100">{right}</div>
     </div>
   );
 }

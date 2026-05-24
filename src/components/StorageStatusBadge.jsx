@@ -19,25 +19,25 @@ export default function StorageStatusBadge({ status, onMigrate, onSignOut, onUse
   const canSwitchLocal = effectiveMode === "cloud_unavailable" && onUseLocal;
 
   return (
-    <section className="mb-4 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm text-cyan-100">
-      <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-center">
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+    <section className="mb-4 min-w-0 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm text-cyan-100">
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-center">
+        <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 p-4">
           <p className="text-xs font-bold text-cyan-100/60">当前选择</p>
-          <p className="mt-1 font-black text-cyan-50">{selectedLabel}</p>
+          <p className="mt-1 break-words font-black text-cyan-50">{selectedLabel}</p>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+        <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 p-4">
           <p className="text-xs font-bold text-cyan-100/60">实际状态</p>
-          <p className="mt-1 font-black text-cyan-50">{effectiveLabel}</p>
+          <p className="mt-1 break-words font-black text-cyan-50">{effectiveLabel}</p>
         </div>
         <div className={`w-fit rounded-full px-3 py-1 text-xs font-black ${statusTone[effectiveMode] || statusTone.local}`}>
           {effectiveMode === "cloud" ? "Cloud Ready" : effectiveMode === "cloud_unavailable" ? "Cloud Unavailable" : "Local Active"}
         </div>
       </div>
 
-      <p className="mt-3 leading-6 text-cyan-100/80">{description}</p>
+      <p className="mt-3 break-words leading-6 text-cyan-100/80">{description}</p>
 
       {showLocalRisk && (
-        <div className="mt-3 rounded-2xl border border-cyan-300/20 bg-black/20 px-4 py-3 text-xs leading-6 text-cyan-100">
+        <div className="mt-3 break-words rounded-2xl border border-cyan-300/20 bg-black/20 px-4 py-3 text-xs leading-6 text-cyan-100">
           当前为本地保存模式，数据仅保存在本浏览器中。清除浏览器缓存、更换设备或使用无痕模式可能导致产品库记录丢失。建议定期导出备份，或登录后开启云端同步。
         </div>
       )}
