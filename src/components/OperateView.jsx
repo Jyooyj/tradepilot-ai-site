@@ -29,7 +29,6 @@ export default function OperateView({
   setAnalyzed,
   setMode,
   analyzeImageWithAI,
-  applyDemoRecognitionFallback,
   aiLoading,
   imageQualityNotice,
   setImageQualityNotice,
@@ -129,18 +128,7 @@ export default function OperateView({
           {aiLoading ? "AI正在识别图片..." : "AI识别图片并自动填写"}
         </button>
 
-        {applyDemoRecognitionFallback && (
-          <>
-            <button onClick={applyDemoRecognitionFallback} className="mt-3 min-h-11 w-full rounded-2xl border border-amber-200/30 bg-amber-200/10 px-5 py-3 font-black text-amber-100">
-              使用示例识别结果（演示 fallback）
-            </button>
-            <p className="mt-2 text-xs leading-6 text-amber-100/80">
-              演示 fallback 不代表真实识别结果；价格、销量、播放量和点赞量不会被伪造，价格分析仍需人工市场证据和搜索参考入口。
-            </p>
-          </>
-        )}
-
-        <button onClick={() => { setProduct(initialProduct); setAnalyzed(false); }} className="mt-3 min-h-11 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white">套用示例产品</button>
+        <button onClick={() => { setProduct(initialProduct); setAnalyzed(false); }} className="mt-3 min-h-11 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white">使用示例数据体验完整流程</button>
         <button onClick={clearAll} className="mt-3 min-h-11 w-full rounded-2xl border border-white/10 bg-transparent px-5 py-3 font-bold text-slate-300">清空重填</button>
       </section>
 

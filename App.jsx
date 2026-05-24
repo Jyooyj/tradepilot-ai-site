@@ -12,14 +12,12 @@ import {
 } from "./src/constants/contentTemplates";
 import {
   IMAGE_COMPRESSION_OPTIONS,
-  IMAGE_RECOGNITION_FALLBACK_MESSAGE,
   IMAGE_TOO_LARGE_FALLBACK_MESSAGE,
   feedbackFormUrl,
   flowSteps,
   painPoints,
   statusOptions,
 } from "./src/constants/uiContent";
-import { IMAGE_RECOGNITION_API_FALLBACK_COPY } from "./src/constants/imageQualityConfig";
 import CoverCard from "./src/components/CoverCard";
 import FloatingFeedback from "./src/components/FloatingFeedback";
 import OperateView from "./src/components/OperateView";
@@ -130,29 +128,8 @@ export const blankProduct = {
   manualMarketNote: "",
 };
 
-const demoRecognitionFallbackProduct = {
-  name: "蝴蝶结珍珠耳夹",
-  category: "饰品 / 耳饰",
-  cost: "3.8",
-  price: "19.9",
-  moq: "100",
-  material: "合金 + 仿珍珠",
-  audience: "18-25岁女生、学生党、通勤人群",
-  channel: "小红书 / 抖音 / 校园私域",
-  supplier: "待人工补充供应商信息",
-  keywords: "温柔风、法式、不打耳洞、春夏氛围感",
-  competitorPrice: "",
-  logistics: "小件轻货，包装成本低",
-  note: "演示 fallback 示例识别结果，请按实际商品手动核对；不代表真实图片识别或平台数据。",
-  wholesalePriceReference: "",
-  retailPriceReference: "",
-  contentHeatReference: "",
-  marketReferenceLinks: "",
-  competitorDensity: "未观察",
-  contentHomogeneity: "未观察",
-  manualMarketNote: "演示 fallback：未调用真实视觉识别，不包含真实平台价格、销量、播放量或点赞量。",
-};
-
+const IMAGE_RECOGNITION_UNAVAILABLE_MESSAGE =
+  "识别接口暂不可用，也可以手动填写商品信息，或使用示例数据体验完整流程。";
 
 export function n(value) {
   const parsed = parseNumberValue(value);
@@ -2557,32 +2534,7 @@ function App() {
   function showImageRecognitionFallbackNotice(detail = "") {
     const notice = buildImageRecognitionErrorMessage("api_unavailable", detail);
     setImageRecognitionNotice(notice);
-    alert(IMAGE_RECOGNITION_API_FALLBACK_COPY.summary);
-  }
-
-  function applyDemoRecognitionFallback() {
-    setProduct({ ...blankProduct, ...demoRecognitionFallbackProduct });
-    setAiInsight({
-      ok: true,
-      fallback: true,
-      fallbackMode: "demo",
-      fallbackMessage: IMAGE_RECOGNITION_API_FALLBACK_COPY.summary,
-      sourceNotice: IMAGE_RECOGNITION_API_FALLBACK_COPY.demoDisclaimer,
-      product: demoRecognitionFallbackProduct,
-      confidence: "demo_fallback",
-    });
-    setImageRecognitionNotice({
-      level: "warning",
-      title: IMAGE_RECOGNITION_API_FALLBACK_COPY.demoTitle,
-      summary: IMAGE_RECOGNITION_API_FALLBACK_COPY.summary,
-      issues: [IMAGE_RECOGNITION_API_FALLBACK_COPY.demoDisclaimer],
-      suggestions: [
-        IMAGE_RECOGNITION_API_FALLBACK_COPY.manualSuggestion,
-        IMAGE_RECOGNITION_API_FALLBACK_COPY.marketEvidenceSuggestion,
-      ],
-    });
-    setAnalyzed(false);
-    alert(IMAGE_RECOGNITION_API_FALLBACK_COPY.summary);
+    alert(IMAGE_RECOGNITION_UNAVAILABLE_MESSAGE);
   }
 
   async function analyzeImageWithAI() {
@@ -2671,7 +2623,7 @@ function App() {
       }
 
       if (data?.fallback) {
-        setAiInsight(data);
+        setAiInsight(null);
         showImageRecognitionFallbackNotice(data.fallbackMessage || data.detail || data.reason);
         return;
       }
@@ -2694,7 +2646,7 @@ function App() {
             ? recognitionMessage.issues
             : ["模型返回内容为空，未能提取商品名称或品类。"],
         });
-        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
+        alert(IMAGE_RECOGNITION_UNAVAILABLE_MESSAGE);
         return;
       }
 
@@ -2905,7 +2857,6 @@ function App() {
             setAnalyzed={setAnalyzed}
             setMode={setMode}
             analyzeImageWithAI={analyzeImageWithAI}
-            applyDemoRecognitionFallback={applyDemoRecognitionFallback}
             aiLoading={aiLoading}
             imageQualityNotice={imageQualityNotice}
             setImageQualityNotice={setImageQualityNotice}

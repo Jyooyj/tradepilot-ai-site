@@ -381,7 +381,7 @@ export function buildImageRecognitionErrorMessage(errorType = "unknown", detail 
       apiUnavailable
         ? IMAGE_RECOGNITION_API_FALLBACK_COPY.manualSuggestion
         : "重新上传主体更清晰的单品图后再试。",
-      "如需快速演示，可点击“使用示例识别结果（演示 fallback）”。",
+      "也可以点击“使用示例数据体验完整流程”。",
       IMAGE_RECOGNITION_API_FALLBACK_COPY.marketEvidenceSuggestion,
       "产品库、候选产品 PK、测款复盘和报告导出仍可正常使用。",
     ],
