@@ -2063,6 +2063,12 @@ function getScoreValue(result, keyword, fallback = "") {
   return found?.[1] ?? fallback;
 }
 
+function hasAgentReviewData(reviewData = {}) {
+  return ["views", "likes", "saves", "comments", "inquiries", "orders", "cost"].some((key) => {
+    return String(reviewData?.[key] ?? "").trim().length > 0;
+  });
+}
+
 function App() {
   const [page, setPage] = useState("cover");
   const [mode, setMode] = useState("intro");
@@ -2140,6 +2146,13 @@ function App() {
     const manualEvidence = evaluateManualMarketEvidence(product, resultWithPriceEvidence);
     return applyManualMarketEvidenceToResult(resultWithPriceEvidence, manualEvidence);
   }, [baseResult, product, priceEvidence, fallbackPriceEvidence]);
+  const agentReviewRecords = useMemo(() => {
+    const savedReviewRecords = (Array.isArray(historyRecords) ? historyRecords : [])
+      .map((record) => record?.review)
+      .filter(hasAgentReviewData);
+
+    return hasAgentReviewData(review) ? [review, ...savedReviewRecords] : savedReviewRecords;
+  }, [historyRecords, review]);
 
   function update(key, value) {
     setProduct((old) => ({ ...old, [key]: value }));
@@ -2780,6 +2793,10 @@ function App() {
             image={image}
             result={result}
             analyzed={analyzed}
+            records={historyRecords}
+            reviewRecords={agentReviewRecords}
+            imageQuality={imageQualityNotice}
+            recognitionStatus={imageRecognitionNotice}
             setMode={setMode}
             copyReport={copyReport}
             copied={copied}
