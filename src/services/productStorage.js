@@ -29,7 +29,11 @@ function storageAvailable() {
 
 function normalizeError(error) {
   if (!error) return "";
-  return error.message || error.error_description || error.details || String(error);
+  const message = error.message || error.error_description || error.details || String(error);
+  if (/failed to fetch|network|fetch/i.test(message)) {
+    return "Supabase 当前不可达，建议检查网络或环境变量。你仍可切换到本地模式继续使用。";
+  }
+  return message;
 }
 
 function normalizeSelectedMode(mode) {
@@ -64,12 +68,14 @@ function normalizeRecord(record, index = 0) {
   const id = record?.id !== undefined && record?.id !== null && String(record.id).trim()
     ? String(record.id)
     : `local-${Date.now()}-${index}`;
+  const createdAt = record?.created_at || record?.createdAt || now;
+  const updatedAt = record?.updated_at || record?.updatedAt || createdAt || now;
 
   return {
     ...record,
     id,
-    created_at: record?.created_at || now,
-    updated_at: record?.updated_at || now,
+    created_at: createdAt,
+    updated_at: updatedAt,
   };
 }
 
@@ -85,6 +91,62 @@ function normalizeRecords(records = []) {
     });
 }
 
+function getRecordTimestamp(record) {
+  const value = record?.updated_at || record?.updatedAt || record?.created_at || record?.createdAt || "";
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function sortRecordsByUpdatedAt(records = []) {
+  return normalizeRecords(records).sort((a, b) => getRecordTimestamp(b) - getRecordTimestamp(a));
+}
+
+function hasRecordPayload(record) {
+  if (!isPlainRecord(record)) return false;
+  return Boolean(
+    record.id ||
+    record.product_name ||
+    record.category ||
+    isPlainRecord(record.product) ||
+    isPlainRecord(record.result) ||
+    isPlainRecord(record.review) ||
+    record.report
+  );
+}
+
+function normalizeBackupRecords(records = []) {
+  return (Array.isArray(records) ? records : [])
+    .filter(hasRecordPayload)
+    .map((record, index) => normalizeRecord(record, index));
+}
+
+function getBackupRecordsFromPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (isPlainRecord(payload) && Array.isArray(payload.records)) return payload.records;
+  throw new Error("invalid_backup_format");
+}
+
+function formatBackupTimestamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    "-",
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+  ].join("");
+}
+
+function toBackupRecord(record) {
+  const normalized = normalizeRecord(record);
+  return {
+    ...normalized,
+    createdAt: normalized.created_at,
+    updatedAt: normalized.updated_at,
+  };
+}
+
 function getLimitWarning(count) {
   if (count > LOCAL_RECORD_LIMIT) {
     return `本地模式最多建议保存 ${LOCAL_RECORD_LIMIT} 条，当前已有 ${count} 条；已保留全部记录，建议后续开启云端同步。`;
@@ -97,21 +159,21 @@ function getLimitWarning(count) {
 
 function getStatusDescription(selectedMode, effectiveMode) {
   if (effectiveMode === "cloud") {
-    return `产品库已连接 Supabase 表 ${PRODUCT_RECORDS_TABLE}，当前读写云端并保留本地缓存。`;
+    return "云端同步：登录 Supabase 后可跨设备保存产品库，当前云端读写已启用。";
   }
 
   if (effectiveMode === "cloud_unavailable") {
     if (!hasSupabaseConfig) {
-      return "当前未配置 Supabase，无法启用云端同步；你仍可使用本地模式体验。";
+      return "云端同步当前不可用：未配置 Supabase。系统会保留本地模式体验，建议定期导出备份。";
     }
-    return "云端同步尚未启用，请登录或检查 Supabase 配置；当前未完成云端同步。";
+    return "云端同步当前不可用：请登录或检查 Supabase 配置。系统不会阻断本地产品库使用。";
   }
 
   if (selectedMode === STORAGE_MODES.LOCAL) {
-    return "当前已强制使用本地浏览器存储，不会调用 Supabase。";
+    return "仅本地保存：适合游客体验和国内网络不稳定场景，但需要定期导出备份。";
   }
 
-  return "自动选择：当前使用本地浏览器存储；登录且云端可用时会优先同步 Supabase。";
+  return "自动选择：云端可用时优先云端，否则回退本地；当前使用本地浏览器存储。";
 }
 
 function buildStatus({
@@ -221,6 +283,85 @@ export function saveLocalRecords(records = [], options = {}) {
   }
 }
 
+export function mergeProductRecords(existingRecords = [], importedRecords = []) {
+  const mergedById = new Map();
+
+  normalizeRecords(existingRecords).forEach((record) => {
+    mergedById.set(record.id, record);
+  });
+
+  normalizeBackupRecords(importedRecords).forEach((record) => {
+    const oldRecord = mergedById.get(record.id);
+    if (!oldRecord || getRecordTimestamp(record) >= getRecordTimestamp(oldRecord)) {
+      mergedById.set(record.id, record);
+    }
+  });
+
+  return sortRecordsByUpdatedAt([...mergedById.values()]);
+}
+
+export function exportLocalRecordsBackup(records = [], options = {}) {
+  const normalized = sortRecordsByUpdatedAt(records);
+
+  if (!normalized.length) {
+    throw new Error("empty_records");
+  }
+
+  const exportedAtDate = options.exportedAt ? new Date(options.exportedAt) : new Date();
+  const exportedAt = Number.isFinite(exportedAtDate.getTime())
+    ? exportedAtDate.toISOString()
+    : new Date().toISOString();
+  const fileName = `tradepilot-product-backup-${formatBackupTimestamp(new Date(exportedAt))}.json`;
+  const payload = {
+    app: "TradePilot AI",
+    version: 1,
+    exportedAt,
+    localStorageKey: LOCAL_STORAGE_KEY,
+    records: normalized.map(toBackupRecord),
+  };
+
+  return {
+    fileName,
+    payload,
+    records: payload.records,
+    json: JSON.stringify(payload, null, 2),
+  };
+}
+
+export async function importLocalRecordsBackup(file, options = {}) {
+  if (!file || typeof file.text !== "function") {
+    throw new Error("invalid_backup_format");
+  }
+
+  let payload = null;
+  try {
+    payload = JSON.parse(await file.text());
+  } catch (error) {
+    throw new Error("invalid_backup_format");
+  }
+
+  const rawImportedRecords = getBackupRecordsFromPayload(payload);
+  const importedRecords = normalizeBackupRecords(rawImportedRecords);
+
+  if (!importedRecords.length && rawImportedRecords.length > 0) {
+    throw new Error("invalid_backup_format");
+  }
+
+  const selectedMode = resolveMode(options.selectedMode);
+  const currentRecords = Array.isArray(options.existingRecords)
+    ? options.existingRecords
+    : getLocalRecords({ selectedMode }).records;
+  const mergedRecords = mergeProductRecords(currentRecords, importedRecords);
+  const saveResult = saveLocalRecords(mergedRecords, { selectedMode });
+
+  return {
+    ...saveResult,
+    importedCount: importedRecords.length,
+    skippedCount: Math.max(0, rawImportedRecords.length - importedRecords.length),
+    mergedCount: mergedRecords.length,
+  };
+}
+
 function upsertRecord(records, record) {
   const normalizedRecord = normalizeRecord(record);
   return [
@@ -241,14 +382,16 @@ async function getCloudUser() {
   try {
     const { data, error } = await supabase.auth.getUser();
     if (error) {
-      return { user: null, warning: "Supabase 登录状态不可用，请重新登录后启用云端同步。", error: normalizeError(error) };
+      const errorText = normalizeError(error);
+      return { user: null, warning: errorText || "Supabase 登录状态不可用，请重新登录后启用云端同步。", error: errorText };
     }
     if (!data?.user) {
       return { user: null, warning: "请登录后启用云端同步。" };
     }
     return { user: data.user, warning: "" };
   } catch (error) {
-    return { user: null, warning: "Supabase 登录状态检查失败，请稍后重试。", error: normalizeError(error) };
+    const errorText = normalizeError(error);
+    return { user: null, warning: errorText || "Supabase 登录状态检查失败，请稍后重试。", error: errorText };
   }
 }
 
