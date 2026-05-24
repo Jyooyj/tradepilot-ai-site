@@ -1,6 +1,7 @@
 import { Card, formatEffectivePrice, getScoringItems, MaterialChecklistCard, money, SamplingStrategyCard, Score, StructuredReport } from "../../App.jsx";
 import AgentStatusPanel from "./AgentStatusPanel";
 import AiInsightPanel from "./AiInsightPanel";
+import SupplierCommunicationPanel from "./SupplierCommunicationPanel";
 import { hasReviewInsightData } from "../utils/aiInsightUtils";
 
 const douyinHeatLevelText = {
@@ -277,6 +278,8 @@ export default function ResultView({
           </p>
         </div>
       </section>
+
+      <SupplierCommunicationPanel product={product} result={result} />
 
       <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
