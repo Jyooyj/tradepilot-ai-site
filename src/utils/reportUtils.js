@@ -23,6 +23,7 @@ import {
   buildAiInsightFallback,
   normalizeAiInsight,
 } from "./aiInsightUtils";
+import { generateSupplierCommunicationPack } from "./supplierCommunicationUtils";
 
 export function formatRecordDate(value) {
   if (!value) return "未填写";
@@ -434,6 +435,49 @@ export function htmlPills(items) {
   return `<div class="pills">${safeItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("") || "<span>暂无</span>"}</div>`;
 }
 
+function renderSupplierCommunicationReportSection(product, result) {
+  let pack = null;
+
+  try {
+    pack = generateSupplierCommunicationPack(asObject(product), asObject(result));
+  } catch (error) {
+    pack = null;
+  }
+
+  const safePack = asObject(pack);
+  const copyBlocks = asArray(safePack.copyBlocks).filter((block) => block?.title || block?.content);
+  const riskQuestions = asArray(safePack.riskCheckQuestions).filter(Boolean);
+  const hasContent = Boolean(safePack.summary || copyBlocks.length || riskQuestions.length);
+
+  if (!hasContent) {
+    return `
+    <section>
+      <h2>八、供应商沟通 Skill</h2>
+      <p class="footer">暂无供应商沟通建议</p>
+    </section>
+    `;
+  }
+
+  return `
+    <section>
+      <h2>八、供应商沟通 Skill</h2>
+      <p class="footer">该模块基于当前商品信息、利润空间、MOQ 和风险提示生成话术；未接入真实供应商 API，也不会自动联系供应商。</p>
+      <h3>沟通重点摘要</h3>
+      <p class="card">${escapeHtml(safePack.summary || "暂无供应商沟通建议")}</p>
+      <div class="grid">
+        ${copyBlocks.map((block) => `
+          <div class="card">
+            <h3>${escapeHtml(block.title || "沟通话术")}</h3>
+            <p>${escapeHtml(block.content || "暂无供应商沟通建议")}</p>
+          </div>
+        `).join("")}
+      </div>
+      <h3>风险确认清单</h3>
+      ${riskQuestions.length ? htmlChecklist(riskQuestions) : '<p class="footer">暂无供应商沟通建议</p>'}
+    </section>
+  `;
+}
+
 function getAiReasoningInsights(result = {}) {
   const insights = asObject(result.aiReasoningInsights || result.aiInsights);
 
@@ -822,10 +866,7 @@ export function generateHtmlReport(product, result) {
       ${htmlList(result.testStandards || [], false)}
     </section>
 
-    <section>
-      <h2>八、供应商沟通清单</h2>
-      ${htmlChecklist(result.supplierQuestions || [])}
-    </section>
+    ${renderSupplierCommunicationReportSection(product, result)}
 
     <section>
       <h2>九、产品差异化建议</h2>
@@ -1037,6 +1078,7 @@ function generatePrintableFallbackReport(product, result) {
       <h2>AI 评分依据</h2>
       ${scoreRows.length ? htmlTable(["维度", "分数", "说明"], scoreRows) : '<p class="footer">暂无评分明细。</p>'}
     </section>
+    ${renderSupplierCommunicationReportSection(safeProduct, safeResult)}
     ${renderAiInsightReportSection(safeResult)}
     ${renderPriceEvidenceSection(priceEvidence)}
     ${renderDouyinEvidenceSection(douyinEvidence)}
