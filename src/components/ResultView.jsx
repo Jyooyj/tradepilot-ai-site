@@ -1,4 +1,5 @@
 import { Card, formatEffectivePrice, getScoringItems, MaterialChecklistCard, money, SamplingStrategyCard, Score, StructuredReport } from "../../App.jsx";
+import AgentStatusPanel from "./AgentStatusPanel";
 
 const douyinHeatLevelText = {
   high: "高",
@@ -60,7 +61,24 @@ function formatPriceRange(range) {
   return `¥${range.min} - ¥${range.max}`;
 }
 
-export default function ResultView({ product, image, result, analyzed, setMode, copyReport, copied, saveCurrentReport, saveMessage, aiInsight, downloadReport, onExportPdfReport }) {
+export default function ResultView({
+  product,
+  image,
+  result,
+  analyzed,
+  records,
+  reviewRecords,
+  imageQuality,
+  recognitionStatus,
+  setMode,
+  copyReport,
+  copied,
+  saveCurrentReport,
+  saveMessage,
+  aiInsight,
+  downloadReport,
+  onExportPdfReport,
+}) {
   const douyinEvidence = getDouyinEvidence(result);
   const priceEvidence = getPriceEvidence(result);
   const manualMarketEvidence = getManualMarketEvidence(result);
@@ -87,6 +105,7 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
   const douyinSearchLinks = asArray(douyinEvidence?.searchLinks).slice(0, 1);
   const marketEvidenceNotice = "当前为市场证据模式：未调用外部平台 API，不生成或伪造平台真实价格、销量、点赞、播放数据；系统基于用户填写信息和搜索入口进行辅助判断。";
   const hasMarketEvidence = Boolean(priceEvidence || douyinEvidence || manualMarketEvidence);
+  const agentResult = analyzed ? result : null;
 
   return (
     <div className="space-y-6">
@@ -95,6 +114,15 @@ export default function ResultView({ product, image, result, analyzed, setMode, 
           当前展示的是实时预览结果，建议返回开始判断页面生成正式报告。
         </div>
       )}
+
+      <AgentStatusPanel
+        product={product}
+        result={agentResult}
+        records={records}
+        reviewRecords={reviewRecords}
+        imageQuality={imageQuality}
+        recognitionStatus={recognitionStatus}
+      />
 
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
