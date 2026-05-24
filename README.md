@@ -13,23 +13,11 @@ https://github.com/Jyooyj/tradepilot-ai-site
 
 ---
 
-## 项目说明
-
-TradePilot AI｜拿货搭子 是一个面向小商品进货、内容电商测款和大学生创业场景的 AI 进货选品与爆款测款智能体。项目围绕“产品信息采集—图片识别—进货决策报告—内容测款建议—产品库沉淀—候选产品 PK—测款复盘”形成完整业务闭环。
-
-项目不是单纯的图片识别工具，也不是简单的文案生成器，而是围绕“进货前如何判断一个商品值不值得拿样、测款、补货”这一真实场景，提供结构化辅助判断。
-
-核心功能包括：游客演示模式、上传产品图片识别、图片质量检测、手动填写产品信息、生成进货决策报告、市场证据补充、保存到我的产品库、产品库搜索筛选排序、候选产品 PK、测款复盘、数据可视化图表、HTML 可视化报告下载、PDF 报告导出和反馈建议入口。
-
-备用访问链接支持游客模式、手动填写产品信息、生成进货决策报告、产品库、候选产品 PK、测款复盘和 HTML 报告下载等核心功能。图片识别建议上传截图或压缩后的产品图；如图片识别失败，仍可手动填写信息继续生成报告。
-
----
-
 ## 1. 项目简介
 
-TradePilot AI｜拿货搭子 是一个面向小商品进货、内容电商测款和大学生创业场景的 AI 进货决策智能体。
+TradePilot AI｜拿货搭子 是一个面向小商品进货、内容电商测款和大学生创业场景的 AI 进货选品与爆款测款智能体。
 
-项目帮助用户完成从产品图片识别、进货信息填写、利润测算、风险判断、内容测款建议、市场证据补充、产品库沉淀、候选产品 PK 到测款复盘的完整决策流程，降低新手卖家和小微创业者在选品进货中的盲目性。
+项目围绕“产品信息采集—图片识别—进货决策报告—内容测款建议—供应商沟通—产品库沉淀—候选产品 PK—测款复盘—报告导出”形成完整业务闭环，帮助新手卖家在进货前更清楚地判断一个商品是否值得拿样、测款或补货，降低盲目囤货和压货风险。
 
 项目口号：
 
@@ -37,355 +25,570 @@ TradePilot AI｜拿货搭子 是一个面向小商品进货、内容电商测款
 
 ---
 
-## 2. 体验说明
+## 2. 项目定位
 
-当前线上版本支持游客演示模式，评委无需注册即可直接体验完整流程。产品记录默认可保存在本地浏览器中，方便快速完成产品识别、进货判断、产品库保存、候选产品 PK 和测款复盘。
+TradePilot AI 不是一个泛化 AI 助手，而是一个聚焦“小商品进货决策”的垂直场景工具。
 
-项目同时支持 Supabase 云端同步能力。用户可以在产品库中选择：
+目标用户包括：
 
-1. 自动选择：已登录且云端可用时优先使用 Supabase；否则回退本地模式。
-2. 仅本地保存：数据保存在当前浏览器中，适合游客模式和比赛演示。
-3. 云端同步：用户登录 Supabase 后，可将产品记录同步到云端数据库。
-
-建议优先使用 Vercel 主站体验完整功能；如因网络环境导致 Vercel 无法正常访问，可使用备用访问链接体验核心流程。国内网络环境下 Supabase 可能不稳定，因此项目保留本地模式作为稳定兜底。
-
----
-
-## 3. 目标用户
-
+- 义乌小商品拿货新手
 - 大学生创业者
 - 校园摆摊 / 校园零售经营者
 - 小红书、抖音、视频号内容电商卖家
-- 义乌小商品进货新手
 - 小微电商和社群团购运营者
-- 会展采购和批发市场看货用户
 - 需要快速测款和复盘的初创团队
 
----
+核心解决的问题是：
 
-## 4. 核心功能
-
-### 4.1 产品图片上传与 AI 识别
-
-用户可以上传商品图片，系统辅助识别产品类型、材质、目标人群、内容关键词等信息，并回填到进货信息表单中。
-
-图片识别用于提升录入效率，但不是生成报告的唯一依据。即使图片识别失败，用户也可以继续手动填写商品信息并生成完整进货报告。
-
-### 4.2 图片质量检测与识别降级
-
-为提升图片识别的稳定性，系统新增图片质量预检测机制。上传图片后，系统会在前端进行轻量检测，包括图片格式、文件大小、分辨率、亮度、对比度和模糊程度。
-
-当图片存在模糊、过暗、过亮、分辨率过低、主体不清晰、多个商品同图、商品被遮挡、模型无法稳定判断品类或图片过大导致上传失败等情况时，系统会给出提示。
-
-系统不会因为图片质量问题直接中断流程。用户可以重新上传更清晰的图片，也可以跳过图片识别，直接手动填写商品信息继续生成报告。
-
-### 4.3 进货信息采集
-
-用户可填写商品名称、拿货价、建议售价、MOQ、材质、供应商信息、目标人群、销售渠道、竞品价格区间、物流和供应风险、市场观察备注等字段。
-
-### 4.4 AI 进货决策报告
-
-系统根据产品信息生成结构化进货报告，包含综合评分、AI 建议、预计毛利率、首批压货资金、单件利润、单件综合成本、风险提示和下一步行动建议。
-
-评分结果属于进货前辅助判断，不代表真实销量预测，也不等同于平台真实市场表现。
-
-### 4.5 内容测款建议
-
-系统自动生成适合小红书和抖音的内容测款方案，包括小红书封面文案、标题建议、图文结构、抖音短视频脚本、推荐话题标签、跨平台搜索关键词和供应商沟通清单。
-
-系统强调“先测款，再决定是否补货”，避免直接大量进货造成压货风险。
-
-### 4.6 市场证据补充
-
-由于抖音、淘宝、1688 等平台 API 权限和网络环境存在限制，项目采用“市场证据模式”。
-
-系统不会伪造平台价格、销量、点赞、播放、收藏、评论数据，也不会声称已经自动抓取真实平台数据。
-
-系统支持用户手动填写真实调研信息，例如 1688 批发价参考、淘宝 / 拼多多零售价参考、抖音 / 小红书内容热度观察、同类竞品数量、内容同质化程度和市场调研备注。
-
-系统会基于这些人工市场证据生成证据完整度评分、价格风险判断、内容测款风险和下一步验证建议。
-
-### 4.7 淘宝 / 竞品价格证据分析
-
-系统支持用户填写竞品价格区间，并结合商品拿货价、建议售价进行判断，包括当前售价是否高于竞品区间、拿货价是否明显偏高、是否仍有利润空间，以及是否需要依靠材质、包装、设计或场景卖点支撑溢价。
-
-当前版本保留淘宝搜索参考入口，用于用户人工复核竞品价格。系统不会自动抓取淘宝真实价格数据。
-
-### 4.8 抖音内容测款参考
-
-系统支持基于用户填写的内容热度观察生成短视频测款建议，例如是否有点赞、收藏、询价等互动信号，同类内容是否过多，是否存在内容同质化风险，以及是否适合先拍短视频 / 图文进行轻量测款。
-
-当前版本未调用真实抖音 API，不生成或伪造真实播放、点赞、收藏、评论数据。
-
-### 4.9 我的产品库
-
-用户可将生成的进货判断保存到产品库中，形成长期选品记录。产品库支持保存产品记录、搜索产品、筛选产品、排序产品、查看历史报告、删除记录、进入候选产品 PK 和进行测款复盘。
-
-游客模式下，产品记录保存在本地浏览器。登录 Supabase 后，可选择云端同步。
-
-### 4.10 候选产品 PK
-
-系统会根据产品库中的候选商品进行对比分析，帮助用户判断哪个产品更适合优先拿样、测款或补货。
-
-系统支持多商品综合评分对比、利润空间对比、风险水平对比、内容测款价值对比和进货优先级参考。
-
-本项目已新增候选产品 PK 可视化图表，包括雷达图和柱状对比图。图表仅基于系统已有评分和用户填写信息生成，不改变原有评分逻辑。
-
-### 4.11 测款复盘
-
-用户可输入浏览量、点赞数、收藏数、评论数、询单数、成交数和测款成本，系统自动计算互动率、询单率、转化率和单均测款成本，并给出复盘建议。
-
-本项目已新增测款复盘可视化展示：多条复盘记录展示趋势图，单条复盘记录展示指标条形图，无复盘数据时显示空状态提示。
-
-### 4.12 报告下载与导出
-
-系统支持两种报告导出方式：
-
-- HTML 可视化报告：用户可将完整 AI 进货报告下载为 HTML 可视化报告，方便提交、复盘或团队讨论。
-- PDF 报告导出：系统新增“导出 PDF 报告”按钮，采用浏览器打印方案，生成打印优化版 HTML，用户可在打印窗口中选择“另存为 PDF”。
-
-该方案不新增复杂 PDF 依赖，不使用 jsPDF 或 html2canvas，稳定性更高，也便于评委快速查看。
+- 进货前缺少结构化判断
+- 拿货决策依赖主观感觉
+- 不清楚利润空间和 MOQ 风险
+- 不知道商品适合什么内容测款方式
+- 产品记录分散，难以长期复盘
+- 多个候选产品之间缺少对比依据
+- 测款后缺少数据沉淀和二次决策
 
 ---
 
-## 5. 产品工作流
+## 3. 体验说明
 
-上传产品图 / 手动填写产品信息  
-↓  
-图片质量检测与 AI 辅助识别  
-↓  
-完善进货信息  
-↓  
-补充竞品价格、内容热度等市场证据  
-↓  
-生成 AI 进货决策报告  
-↓  
-保存到我的产品库  
-↓  
-候选产品 PK  
-↓  
-测款数据复盘  
-↓  
-决定是否拿样、补货或放弃  
+当前线上版本为半决赛演示版，重点保证评委和用户可以快速体验完整功能流程。
+
+项目支持游客模式，无需注册即可完成：
+
+- 商品图片上传
+- AI 辅助识别
+- 手动填写商品信息
+- 生成进货决策报告
+- 保存到产品库
+- 候选产品 PK
+- 测款复盘
+- HTML 可视化报告下载
+- 浏览器打印 / 另存为 PDF
+- JSON / CSV 数据导出
+
+游客模式下，产品记录默认保存在本地浏览器中。正式使用场景下，可选择 Supabase 云端同步，实现账号登录、云端产品库保存和跨设备同步。
+
+备用访问链接支持游客模式、手动填写产品信息、生成进货报告、产品库、候选产品 PK、测款复盘、HTML 报告下载和 PDF 导出等核心功能。图片识别和 LLM 推理能力可能受部署环境、后端接口和 API Key 配置影响；即使接口不可用，系统也会保留手动填写、示例数据体验和基础策略建议，不影响主流程演示。
 
 ---
 
-## 6. 项目亮点
+## 4. 核心工作流
 
-1. 聚焦真实细分场景：项目不是泛 AI 工具，而是聚焦“小商品进货决策”这一具体痛点。
-2. 形成完整决策闭环：从识别、测算、判断、内容测款到复盘，覆盖进货前后的关键环节。
-3. 报告结果可解释：每份报告不仅给出结论，还展示利润空间、人群匹配、内容潜力、供应稳定、风险可控和信息完整度等评分依据。
-4. 支持市场证据补充：系统不伪造平台数据，而是支持用户补充真实调研信息，并据此生成辅助判断。
-5. 支持数据可视化：候选产品 PK 和测款复盘新增图表展示，让产品对比和测款反馈更加直观。
-6. 支持 HTML 与 PDF 报告导出：报告可下载为 HTML，也可通过浏览器打印另存为 PDF，便于提交和分享。
-7. 适合比赛演示：当前线上版本支持游客演示模式，评委无需注册即可直接体验完整流程。
-8. 具备商业化延展空间：后续可拓展为面向小微电商、校园创业者、批发市场采购者的 SaaS 工具或选品决策助手。
+```text
+上传产品图 / 手动填写产品信息
+↓
+图片质量检测与 AI 识别
+↓
+商品信息结构化采集
+↓
+利润测算、MOQ 判断与风险评分
+↓
+生成 AI 进货决策报告
+↓
+生成内容测款建议和供应商沟通话术
+↓
+保存到我的产品库
+↓
+候选产品 PK
+↓
+测款数据复盘
+↓
+决定是否拿样、补货、优化内容或放弃
+```
+
+---
+
+## 5. 核心功能
+
+### 5.1 产品图片上传与 AI 识别
+
+用户可以上传商品图片，系统会进行图片格式、大小、分辨率、亮度、对比度和清晰度检测，并调用阿里云百炼 / DashScope 视觉模型辅助识别商品名称、品类、材质、目标人群、销售渠道和内容关键词等信息。
+
+图片识别失败或接口不可用时，系统不会中断流程。用户可以继续手动填写商品信息，也可以使用示例数据体验完整流程。
+
+当前示例入口统一为：
+
+> 使用示例数据体验完整流程
+
+示例数据仅用于演示识别回填和报告生成流程，不代表真实图片识别结果，也不会伪造平台价格、销量、播放量或点赞量。
+
+### 5.2 图片质量提示与手动兜底
+
+项目内置图片质量检测逻辑，支持识别以下情况：
+
+- 图片格式不支持
+- 图片过大或过小
+- 图片分辨率过低
+- 图片过暗或过亮
+- 对比度过低
+- 图片疑似模糊
+- 商品主体不清晰
+- 多商品、遮挡或大图影响识别
+
+图片质量提示已做降噪处理，清晰图片不会轻易触发强警告。识别成功时，轻微质量提醒会弱化展示；只有严重模糊、低置信度、品类 unknown、商品名为空或接口异常等情况，才会提示用户重新上传或手动填写。
+
+### 5.3 进货信息采集
+
+用户可填写或修改以下信息：
+
+- 商品名称
+- 品类
+- 拿货价
+- 建议售价
+- MOQ 最小起订量
+- 材质
+- 供应商信息
+- 目标人群
+- 销售渠道
+- 竞品价格
+- 物流 / 包装风险
+- 内容关键词
+- 市场证据补充
+
+系统会将用户填写信息与 AI 识别结果结合，用于后续利润测算、风险判断和内容测款建议。
+
+### 5.4 AI 进货决策报告
+
+系统根据结构化商品信息生成进货决策报告，包括：
+
+- 综合评分
+- 进货建议
+- 当前状态
+- 预计毛利率
+- 单件利润
+- 单件综合成本
+- 首批压货资金
+- MOQ 风险
+- 价格带判断
+- 渠道适配建议
+- 风险提示
+- 下一步行动建议
+
+报告不是简单给出“买 / 不买”，而是解释商品为什么适合或不适合拿样、当前最大风险是什么、下一步应该验证什么。
+
+### 5.5 LLM 智能推理补充
+
+在保留规则评分稳定性的基础上，项目新增 LLM 智能推理补充模块，用于生成：
+
+- AI 进货决策推理
+- AI 内容测款策略
+- AI 测款复盘总结
+
+LLM 只作为定性分析辅助，不覆盖综合评分、利润率、MOQ、风险等级等规则结果，也不伪造真实平台数据。
+
+当 LLM 接口不可用、超时或未配置 Key 时，系统会自动展示基础策略建议，不影响报告生成、产品库保存、PK、复盘和报告导出。页面不直接展示 `fallback`、`timeout`、`请求超时` 等技术词。
+
+### 5.6 内容测款建议
+
+系统会根据商品品类、目标人群、渠道和内容场景生成内容测款方案，包括：
+
+- 小红书封面文案
+- 小红书标题建议
+- 图文结构
+- 推荐标签
+- 抖音短视频方向
+- 20 秒分镜脚本
+- 封面文案
+- 拍摄注意点
+- 平台搜索关键词
+- 商家发布策略
+
+内容测款建议强调“小范围验证”，用于判断用户是否理解卖点、是否产生收藏、评论、询单和成交，而不是直接预测商品必爆。
+
+### 5.7 供应商沟通 Skill
+
+项目已新增供应商沟通模块，用于根据商品信息、利润空间、MOQ 和风险提示生成可复制的话术。
+
+包括：
+
+- 询价话术
+- 议价话术
+- 打样确认话术
+- 发货与售后确认话术
+- 风险确认清单
+
+该模块不接入 1688 API，也不伪造供应商名称、电话或店铺数据，只作为用户拿样前的沟通辅助工具。HTML / PDF 报告中也会同步展示供应商沟通内容。
+
+### 5.8 我的产品库
+
+用户可以将生成的进货判断保存到产品库中，用于长期复盘和候选产品管理。
+
+产品库支持：
+
+- 保存当前报告
+- 搜索产品
+- 筛选记录
+- 排序查看
+- 查看历史报告
+- 保存测款复盘
+- 本地存储与云端同步状态提示
+- JSON 导出备份
+- JSON 导入恢复
+- CSV 导出分析
+
+游客模式下，记录默认保存在本地浏览器中。清除浏览器缓存或更换设备可能导致数据丢失，因此项目提供 JSON 备份与导入恢复功能。
+
+### 5.9 本地 / 云端存储模式
+
+项目支持三种存储模式：
+
+- 自动选择
+- 仅本地保存
+- 云端同步
+
+本地模式使用：
+
+```text
+localStorage key: tradepilot_local_records
+```
+
+云端同步使用 Supabase，表结构预留为：
+
+```text
+tradepilot_product_records
+```
+
+如果 Supabase 不可用，系统会自动保留本地模式，不影响评测体验和核心流程。
+
+### 5.10 候选产品 PK
+
+系统可以基于产品库中的候选商品进行对比，帮助用户判断哪个产品更适合优先拿样、测款或补货。
+
+候选产品 PK 支持：
+
+- 综合评分对比
+- 利润空间对比
+- MOQ 风险对比
+- 渠道适配对比
+- 内容测款潜力对比
+- 雷达图可视化
+- 柱状图可视化
+
+图表基于已有保存记录字段生成，不修改原有评分算法和产品库数据结构。
+
+### 5.11 测款复盘
+
+用户可输入以下测款数据：
+
+- 浏览量
+- 点赞数
+- 收藏数
+- 评论数
+- 私信 / 询单数
+- 实际成交数
+- 测款成本
+
+系统会自动计算：
+
+- 互动率
+- 询单率
+- 成交转化率
+- 单均测款成本
+
+并给出复盘建议，例如：
+
+- 内容吸引力不足
+- 互动高但成交偏低
+- 询单高但成交低
+- 成交好且成本可控
+- 建议继续测试、优化内容或谨慎补货
+
+测款复盘支持可视化图表：多条记录展示趋势图，单条记录展示指标条形图，无数据时显示空状态提示。
+
+### 5.12 报告下载与导出
+
+项目支持多种报告与数据导出方式：
+
+- HTML 可视化报告下载
+- 浏览器打印 / 另存为 PDF
+- 产品库 JSON 导出
+- 产品库 JSON 导入恢复
+- 产品库 CSV 导出
+
+PDF 采用浏览器打印方案，不引入 jsPDF、html2canvas 或其他复杂依赖，降低部署体积和兼容风险。
+
+报告中的淘宝 / 抖音搜索参考入口已优化为按钮式链接，例如：
+
+```text
+点击打开淘宝搜索参考
+```
+
+不再直接展示超长 URL，避免链接换行、溢出或看起来像断链。链接 href 仍保留真实搜索地址，并使用安全的属性转义方式处理。
+
+### 5.13 移动端适配
+
+项目已补充基础移动端响应式适配，确保在手机端也能完成核心流程。
+
+已适配页面包括：
+
+- 首页
+- 商品填写页
+- 报告页
+- 产品库
+- 候选产品 PK
+- 测款复盘
+- 图表组件
+
+重点场景是批发市场现场使用手机上传图片、快速填写信息并查看进货建议。
+
+### 5.14 ErrorBoundary 防白屏
+
+项目已新增 React ErrorBoundary，在应用顶层捕获运行时异常，例如：
+
+- 图片上传异常
+- 图表渲染异常
+- 历史记录字段缺失
+- 局部组件渲染失败
+
+出现异常时，系统会显示友好的降级 UI，避免整页白屏。
+
+---
+
+## 6. Agent / Skills 架构说明
+
+TradePilot AI 当前不定义为多个完全自主运行的 LLM Agent，而是采用：
+
+```text
+1 个工作流式主 Agent + 多个 Skills 能力模块
+```
+
+主 Agent 负责围绕进货决策任务组织流程，Skills 分别完成具体能力。
+
+### 6.1 工作流式主 Agent
+
+TradePilot 主 Agent 的任务是：
+
+- 判断当前用户处于哪个进货决策阶段
+- 检查商品信息是否完整
+- 提示缺失字段
+- 根据已有 product / result / records / review 状态给出下一步建议
+- 串联图片识别、报告生成、产品库、PK、复盘和导出流程
+
+项目已新增 Agent Orchestrator 和 Agent 状态面板，用于展示当前阶段和下一步任务建议。
+
+### 6.2 Skills 能力模块
+
+当前 Skills 包括：
+
+| Skill | 作用 |
+|---|---|
+| Image Quality Skill | 图片质量检测与识别前预检查 |
+| Image Recognition Skill | 调用视觉模型识别商品信息 |
+| Product Input Skill | 采集进货所需字段 |
+| Purchase Decision Skill | 利润测算、MOQ 判断、风险评分 |
+| Market Evidence Skill | 人工市场证据、搜索参考入口和价格判断 |
+| LLM Insight Skill | 进货推理、内容策略和复盘总结 |
+| Content Testing Skill | 小红书 / 抖音内容测款建议 |
+| Supplier Communication Skill | 供应商沟通话术生成 |
+| Product Library Skill | 产品库保存、搜索、筛选、导出 |
+| Product PK Skill | 候选产品可视化对比 |
+| Review Skill | 测款复盘指标计算 |
+| Report Export Skill | HTML / PDF / JSON / CSV 导出 |
+
+当前项目重点是“工作流式 AI 进货决策智能体”，不是完全自主采购机器人。后续可继续引入 Planning、Tool Calling、Memory 和多步执行循环，增强 Agent 自主性。
 
 ---
 
 ## 7. 技术栈
 
-### 前端
-
 - React
 - Vite
 - Tailwind CSS
 - Recharts
-- Framer Motion
-- Lucide React
-
-### 后端 / 服务
-
+- Supabase
 - Vercel
-- Vercel Serverless Function
-- 腾讯云 CloudBase 备用访问部署
-- Supabase Auth
-- Supabase Database
-- 阿里云百炼视觉模型接口
-
-### 数据与存储
-
+- 腾讯云 CloudBase
+- 阿里云百炼 / DashScope 视觉模型
+- DashScope / 通义千问兼容接口用于 LLM 推理补充
 - localStorage 游客演示数据存储
-- Supabase 可选云端产品库同步
-- Vercel / CloudBase 环境变量管理密钥
+- Vitest 自动化测试
+- TypeScript 类型说明文件
 
-### 工程化
-
-- TypeScript 基础类型文件
-- Vitest 单元测试
-- 组件拆分
-- 工具函数拆分
-- 常量配置拆分
+说明：当前主体代码仍以 JavaScript / JSX 为主，`src/types/` 中提供核心数据模型的 TypeScript 类型说明。TypeScript 目前主要用于类型文档和后续迁移基础，不代表所有 JSX 文件已完全类型约束。
 
 ---
 
-## 8. 技术路线
-
-### 8.1 前端
-
-- 使用 React + Vite 构建单页应用，保证页面加载速度和开发效率。
-- 使用 Tailwind CSS 实现暗色科技风界面、卡片式布局和响应式展示。
-- 通过组件化方式组织游客模式、产品信息采集、报告生成、产品库、候选产品 PK、测款复盘等模块。
-- 使用 Recharts 增加候选产品 PK 和测款复盘数据可视化。
-- 使用 localStorage 实现游客演示数据持久化，核心 key 为 `tradepilot_local_records`。
-- 通过存储模式选择器支持本地保存、自动选择和 Supabase 云端同步。
-- 前端集成图片上传预览、压缩和图片质量检测逻辑，降低大图、模糊图、低质量图导致识别失败的风险。
-
-### 8.2 AI 与接口
-
-- 通过 Vercel Serverless Function 调用阿里云百炼视觉模型接口，实现商品图片识别。
-- 通过腾讯云 CloudBase 云函数提供备用图片识别接口，提升不同网络环境下的可访问性。
-- 图片识别结果用于辅助回填产品名称、品类、材质、目标人群、销售渠道和内容关键词等字段。
-- 进货决策报告基于产品结构化信息生成，覆盖利润测算、风险判断、内容潜力、渠道适配和下一步行动建议。
-- API Key 仅保存在服务端环境变量中，不写入前端代码和公开仓库。
-
-### 8.3 数据与业务逻辑
-
-- 系统围绕“产品信息采集—图片识别—利润测算—风险判断—爆款潜力评分—内容测款建议—产品库沉淀—候选产品 PK—测款复盘”构建完整业务闭环。
-- 内置产品身份识别与品类校验逻辑，减少发饰、耳夹、手链、文创挂饰、纸品等小商品之间的内容串模板问题。
-- 根据拿货价、建议售价、MOQ、竞品价格等字段计算单件利润、毛利率和首批压货资金。
-- 根据产品名称、品类、材质、场景、目标人群和渠道，生成小红书 / 抖音内容测款建议。
-- 测款复盘模块根据浏览量、点赞数、收藏数、评论数、询单数、成交数和测款成本，计算互动率、询单率、转化率和单均测款成本。
-- 市场证据模块基于用户填写的批发价、零售价、内容热度观察、竞品数量和同质化程度生成辅助判断，不伪造平台真实数据。
-
-### 8.4 部署
-
-- Vercel 作为主站部署平台，提供完整线上演示入口。
-- 腾讯云 CloudBase 作为备用访问部署方案，提供静态网站托管和云函数能力。
-- 通过环境变量 `VITE_ANALYZE_IMAGE_URL` 支持不同部署环境下切换图片识别接口。
-- 前端构建产物不包含 API Key，服务端密钥通过 Vercel / CloudBase 环境变量管理。
-- 备用访问链接主要用于在 Vercel 因网络环境无法正常打开时体验核心功能。
-
----
-
-## 9. 项目结构
+## 8. 项目结构
 
 ```text
-tradepilot-ai-site
+tradepilot-ai-site/
 ├── api/
 │   ├── analyze-image.js
-│   └── alibaba-price-search.js
-│
+│   └── generate-ai-insight.js
 ├── docs/
-│   └── Deployment-Entry.md
-│
+│   ├── Agent-Data-Model.md
+│   └── Technical-Architecture.md
 ├── src/
 │   ├── components/
-│   │   ├── CoverCard.jsx
-│   │   ├── OperateView.jsx
-│   │   ├── ResultView.jsx
+│   │   ├── AgentStatusPanel.jsx
+│   │   ├── AiInsightPanel.jsx
+│   │   ├── ErrorBoundary.jsx
 │   │   ├── HistoryView.jsx
+│   │   ├── OperateView.jsx
 │   │   ├── PKView.jsx
+│   │   ├── ProductBackupActions.jsx
+│   │   ├── ResultView.jsx
 │   │   ├── ReviewView.jsx
-│   │   ├── DemoView.jsx
 │   │   ├── StorageModeSelector.jsx
 │   │   ├── StorageStatusBadge.jsx
-│   │   ├── SupabaseLoginPanel.jsx
+│   │   ├── SupplierCommunicationPanel.jsx
 │   │   └── charts/
-│   │       ├── ProductPKRadarChart.jsx
 │   │       ├── ProductPKBarChart.jsx
+│   │       ├── ProductPKRadarChart.jsx
 │   │       └── ReviewMetricChart.jsx
-│   │
 │   ├── constants/
-│   │   ├── demoData.js
-│   │   ├── uiContent.js
-│   │   ├── productConfig.js
-│   │   ├── contentTemplates.js
-│   │   ├── alibabaPriceConfig.js
-│   │   ├── douyinFallbackConfig.js
-│   │   ├── manualMarketEvidenceConfig.js
-│   │   └── imageQualityConfig.js
-│   │
+│   │   ├── imageQualityConfig.js
+│   │   └── productConfig.js
 │   ├── services/
 │   │   └── productStorage.js
-│   │
 │   ├── types/
 │   │   ├── product.ts
-│   │   ├── review.ts
-│   │   └── report.ts
-│   │
+│   │   ├── report.ts
+│   │   └── review.ts
 │   └── utils/
-│       ├── reportUtils.js
-│       ├── priceEvidenceUtils.js
-│       ├── douyinFallbackUtils.js
-│       ├── manualMarketEvidenceUtils.js
-│       ├── alibabaPriceClient.js
-│       ├── imageQualityUtils.js
-│       ├── priceEvidenceUtils.test.js
+│       ├── agentOrchestrator.js
+│       ├── aiInsightClient.js
+│       ├── aiInsightUtils.js
 │       ├── douyinFallbackUtils.test.js
-│       └── manualMarketEvidenceUtils.test.js
-│
+│       ├── imageQualityUtils.js
+│       ├── manualMarketEvidenceUtils.test.js
+│       ├── priceEvidenceUtils.test.js
+│       ├── productBackupUtils.js
+│       ├── reportUtils.js
+│       └── supplierCommunicationUtils.js
 ├── App.jsx
 ├── main.jsx
-├── index.html
-├── index.css
-├── supabaseClient.js
+├── README.md
+├── Demo-Guide.md
 ├── package.json
 ├── vite.config.js
-├── tailwind.config.js
-├── tsconfig.json
-└── README.md
+└── tailwind.config.js
 ```
 
 ---
 
-## 10. 工程化优化
+## 9. 技术路线
 
-项目原始版本中，较多逻辑集中在 `App.jsx` 中。后续已进行多轮低风险拆分。
+### 9.1 前端
 
-### 10.1 静态配置拆分
+- 使用 React + Vite 构建单页应用；
+- 使用 Tailwind CSS 实现暗色科技风界面、卡片式布局和响应式适配；
+- 使用 Recharts 实现候选产品 PK 和测款复盘可视化；
+- 通过组件化方式组织游客模式、图片上传、报告生成、产品库、PK、复盘等模块；
+- 使用 ErrorBoundary 防止局部运行时错误导致整页白屏；
+- 使用 localStorage 实现游客演示数据持久化。
 
-已拆分到 `src/constants/`，包括商品品类配置、商品身份识别词库、内容模板、抖音 fallback 配置、价格证据配置、人工市场证据配置和图片质量检测配置。
+### 9.2 AI 与接口
 
-### 10.2 组件拆分
+- `api/analyze-image.js` 调用阿里云百炼 / DashScope 视觉模型进行商品图片识别；
+- `api/generate-ai-insight.js` 调用 LLM 接口生成智能推理补充；
+- 图片识别结果用于辅助回填产品名称、品类、材质、目标人群、渠道和内容关键词；
+- LLM 推理仅提供定性解释、策略建议和复盘总结，不直接修改评分；
+- API Key 仅保存在服务端环境变量中，不写入前端代码和公开仓库。
 
-已拆分到 `src/components/`，包括操作页、结果页、产品库、候选产品 PK、测款复盘、演示页、存储模式选择、Supabase 登录面板和图表组件。
+### 9.3 数据与业务逻辑
 
-### 10.3 工具函数拆分
+系统围绕以下对象组织数据流：
 
-已拆分到 `src/utils/`，包括报告生成、价格证据分析、抖音 fallback、人工市场证据分析、图片质量检测和 Supabase 价格客户端。
+- ProductInput
+- ImageAnalysisResult
+- MarketEvidence
+- PurchaseDecisionResult
+- SupplierCommunicationPack
+- ReviewData
+- ProductRecord
+- AiInsightResult
+- AgentStageState
 
----
-
-## 11. TypeScript 基础接入
-
-项目当前主体仍为 React JSX，以保证演示功能稳定。
-
-同时项目已新增 TypeScript 基础配置：
+更详细的数据模型说明见：
 
 ```text
-tsconfig.json
-src/types/product.ts
-src/types/review.ts
-src/types/report.ts
+docs/Agent-Data-Model.md
 ```
 
-并新增：
+### 9.4 存储
 
-```bash
-npm run typecheck
-```
+- 本地游客模式使用 localStorage；
+- 云端同步使用 Supabase；
+- 支持自动选择 / 仅本地保存 / 云端同步；
+- 支持 JSON / CSV 导出；
+- 支持 JSON 导入恢复；
+- localStorage key 保持为 `tradepilot_local_records`。
 
-当前 TypeScript 用于定义核心数据结构，为后续逐步迁移分析函数、评分函数和报告生成函数做准备。
+### 9.5 部署
+
+- Vercel 作为主站部署平台；
+- 腾讯云 CloudBase 作为国内备用访问方案；
+- Vercel 部署源码；
+- CloudBase 静态网站托管上传 `dist` 构建产物；
+- 服务端 API Key 通过 Vercel / CloudBase 环境变量管理。
 
 ---
 
-## 12. 自动化测试
+## 10. 环境变量
 
-项目已新增 Vitest 单元测试，用于降低后续重构和功能扩展带来的回归风险。
+本项目可能使用以下环境变量：
 
-当前测试覆盖：
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
 
-- 价格区间解析；
-- 价格证据空 API 兜底；
-- 竞品价格高风险判断；
-- 抖音内容热度 fallback；
-- 未调用真实抖音 API 的兜底说明；
-- 人工市场证据完整度判断；
-- 竞品数量风险；
-- 内容同质化风险；
-- evidence 合并时不破坏原字段；
-- scoreAdjustment 范围限制。
+DASHSCOPE_API_KEY=
+DASHSCOPE_TEXT_MODEL=
+DASHSCOPE_TEXT_ENDPOINT=
+
+VITE_AI_INSIGHT_URL=
+VITE_ANALYZE_IMAGE_URL=
+```
+
+说明：
+
+- `DASHSCOPE_API_KEY` 用于服务端图片识别和 LLM 推理；
+- 不建议使用 `VITE_` 前缀存储任何密钥；
+- `VITE_` 变量会暴露到前端；
+- 本地测试可使用 `.env.local`；
+- `.env.local` 不应上传 GitHub。
+
+---
+
+## 11. 本地运行
+
+安装依赖：
+
+```bash
+npm install
+```
+
+如果 PowerShell 拦截，可以使用：
+
+```bash
+npm.cmd install
+```
+
+启动开发环境：
+
+```bash
+npm run dev
+```
+
+或：
+
+```bash
+npm.cmd run dev
+```
+
+构建生产版本：
+
+```bash
+npm run build
+```
+
+或：
+
+```bash
+npm.cmd run build
+```
 
 运行测试：
 
@@ -393,324 +596,257 @@ npm run typecheck
 npm run test
 ```
 
-监听模式：
+或：
 
 ```bash
-npm run test:watch
+npm.cmd run test
 ```
 
----
-
-## 13. Supabase 配置
-
-项目支持 Supabase 可选云端同步。
-
-需要在 Vercel 环境变量中配置：
-
-```text
-VITE_SUPABASE_URL
-VITE_SUPABASE_ANON_KEY
-```
-
-注意：
-
-- 必须使用 `VITE_` 前缀；
-- `VITE_SUPABASE_ANON_KEY` 应使用 Supabase 的 anon public key / publishable key；
-- 不要使用 service_role key；
-- 配置后需要重新部署 Vercel。
-
-### 13.1 Supabase 表结构
-
-云端产品库使用表：
-
-```text
-public.tradepilot_product_records
-```
-
-建议 SQL：
-
-```sql
-create table if not exists public.tradepilot_product_records (
-  id text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  product jsonb,
-  result jsonb,
-  review jsonb,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
-alter table public.tradepilot_product_records enable row level security;
-
-drop policy if exists "Users can view own product records" on public.tradepilot_product_records;
-drop policy if exists "Users can insert own product records" on public.tradepilot_product_records;
-drop policy if exists "Users can update own product records" on public.tradepilot_product_records;
-drop policy if exists "Users can delete own product records" on public.tradepilot_product_records;
-
-create policy "Users can view own product records"
-on public.tradepilot_product_records
-for select
-to authenticated
-using (auth.uid() = user_id);
-
-create policy "Users can insert own product records"
-on public.tradepilot_product_records
-for insert
-to authenticated
-with check (auth.uid() = user_id);
-
-create policy "Users can update own product records"
-on public.tradepilot_product_records
-for update
-to authenticated
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-create policy "Users can delete own product records"
-on public.tradepilot_product_records
-for delete
-to authenticated
-using (auth.uid() = user_id);
-
-create index if not exists tradepilot_product_records_user_id_idx
-on public.tradepilot_product_records(user_id);
-
-create index if not exists tradepilot_product_records_updated_at_idx
-on public.tradepilot_product_records(updated_at desc);
-```
-
----
-
-## 14. 环境变量
-
-### 14.1 Supabase
-
-```text
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-```
-
-### 14.2 阿里云百炼视觉模型
-
-```text
-DASHSCOPE_API_KEY=
-```
-
-具体变量名称需与当前 `api/analyze-image.js` 中读取方式保持一致。
-
-### 14.3 备用图片识别接口
-
-```text
-VITE_ANALYZE_IMAGE_URL=
-```
-
-该变量可用于在不同部署环境下切换图片识别接口，例如 Vercel Serverless Function 或 CloudBase 云函数。
-
----
-
-## 15. 本地运行
-
-### 15.1 安装依赖
-
-```bash
-npm install
-```
-
-### 15.2 启动开发环境
-
-```bash
-npm run dev
-```
-
-### 15.3 构建项目
-
-```bash
-npm run build
-```
-
-### 15.4 预览构建结果
-
-```bash
-npm run preview
-```
-
-### 15.5 运行测试
-
-```bash
-npm run test
-```
-
-### 15.6 类型检查
+运行类型检查：
 
 ```bash
 npm run typecheck
 ```
 
----
+或：
 
-## 16. 部署说明
-
-当前项目入口为：
-
-```text
-index.html → main.jsx → App.jsx
-```
-
-项目不在入口层启用强制 AuthGate / LoginGate。
-
-原因：
-
-- 保证评委和游客可以快速进入系统；
-- 保留游客模式；
-- 避免登录门槛影响演示；
-- Supabase 登录仅作为产品库云端同步能力，由用户主动选择启用。
-
-Vercel 部署时，Production 分支为：
-
-```text
-main
+```bash
+npm.cmd run typecheck
 ```
 
 ---
 
-## 17. 当前版本说明
+## 12. 测试说明
 
-当前版本为复赛演示版，重点保证评委可以快速体验完整功能流程。
+项目已配置 Vitest，并补充了 3 个测试文件，共 21 个测试用例。
 
-为了降低体验门槛，线上版本默认开放游客模式。游客模式下无需注册登录，产品库数据暂存在本地浏览器中。
+当前测试文件包括：
 
-正式使用场景下，可以启用 Supabase Auth，实现用户注册登录、云端产品库保存和跨设备同步。国内网络环境下如 Supabase 访问不稳定，用户可以切换为“仅本地保存”模式继续体验。
+```text
+src/utils/priceEvidenceUtils.test.js
+src/utils/manualMarketEvidenceUtils.test.js
+src/utils/douyinFallbackUtils.test.js
+```
 
----
+测试覆盖内容包括：
 
-## 18. 评分规则与可靠性说明
+- 价格证据解析
+- 人工市场证据完整度
+- 内容热度 fallback
+- 风险判断
+- scoreAdjustment 范围限制
+- 空输入兜底
+- 字段合并不破坏原数据
+- 不输出 fake 平台数据
 
-TradePilot AI 的评分结果属于进货前辅助判断，不是对销量的绝对预测。
-
-系统会综合考虑：
-
-- 利润空间；
-- MOQ 风险；
-- 渠道适配；
-- 内容测款潜力；
-- 供应商与物流风险；
-- 市场证据完整度；
-- 用户填写的人工调研信息。
-
-### 18.1 风险等级说明
-
-低风险通常表示：
-
-- 利润空间较清晰；
-- MOQ 可控；
-- 价格证据较完整；
-- 内容测款路径明确。
-
-中风险通常表示：
-
-- 部分证据缺失；
-- 竞品价格不足；
-- 内容热度不明确；
-- 供应商信息有限。
-
-高风险通常表示：
-
-- MOQ 偏高；
-- 利润空间不足；
-- 竞品价格明显压制；
-- 内容同质化严重；
-- 供应商或物流风险较高。
-
-### 18.2 “适合测款”的含义
-
-“适合测款”不代表建议直接大量进货。
-
-它通常表示：
-
-- 可以先小批量拿样；
-- 通过短视频、图文、社群等方式测试点击、收藏、询价和成交反馈；
-- 根据测款复盘结果再决定是否补货。
+测试不依赖真实外部 API，不需要联网，不调用真实 DashScope、淘宝、1688、抖音或小红书接口。
 
 ---
 
-## 19. 图片识别失败与降级机制
+## 13. 开发者技术文档
 
-图片识别可能受到以下因素影响：
+本项目已补充面向开发者的技术文档：
 
-- 图片模糊；
-- 商品被遮挡；
-- 图片中出现多个商品；
-- 背景复杂；
-- 图片过大；
-- 网络异常；
-- 模型返回异常；
-- 商品过于小众。
+- `docs/Technical-Architecture.md`：说明项目整体架构、Agent / Skills 协作流程、数据流、API 接口、存储方式、fallback 机制和部署结构。
+- `docs/Agent-Data-Model.md`：说明 ProductInput、PurchaseDecisionResult、MarketEvidence、ProductRecord、ReviewData、AiInsightResult 等核心数据模型。
 
-当图片识别失败时，系统不会中断流程。
-
-用户仍然可以手动填写：
-
-- 商品名称；
-- 商品品类；
-- 成本；
-- 售价；
-- MOQ；
-- 材质；
-- 渠道；
-- 目标人群；
-- 市场证据。
-
-系统会基于用户填写的信息继续生成进货报告。
+这些文档用于帮助评审和开发者理解 TradePilot AI 的技术实现，而 README 主要面向项目介绍、部署和体验说明。
 
 ---
 
-## 20. 当前限制
+## 14. 合规与数据边界
 
-当前版本仍属于比赛原型，存在以下限制：
+项目明确遵守以下原则：
 
-1. 抖音、淘宝、1688 等平台暂未真正接入完整开放 API；
-2. 市场证据主要来自用户填写和搜索入口辅助；
-3. 评分为启发式辅助判断，不代表真实销量预测；
-4. 图片识别受图片质量和模型能力影响；
-5. 国内网络环境下 Supabase 可能不稳定，因此默认保留本地模式；
-6. PDF 报告采用浏览器打印方案，不直接生成后端 PDF 文件；
-7. 云端同步需要正确配置 Supabase 环境变量和数据表结构。
-
----
-
-## 21. 后续优化方向
-
-后续可以继续优化：
-
-- 接入正式授权的电商平台价格 API；
-- 接入真实内容平台热度数据；
-- 增强图片识别准确率，覆盖更多小商品品类；
-- 将核心评分函数逐步迁移到 TypeScript；
-- 增加更多评分规则单元测试；
-- 增加更完整的 ErrorBoundary；
-- 增加报告模板选择；
-- 优化移动端体验；
-- 增加多用户团队协作空间；
-- 增加智能问答式“拿货搭子”助手；
-- 增加供应商沟通模板和询价话术生成。
+1. 不伪造真实平台数据；
+2. 不伪造淘宝、1688、抖音、小红书真实价格、销量、播放量、点赞量或成交数据；
+3. 市场证据主要来自用户填写和搜索参考入口；
+4. 搜索参考链接仅用于人工复核；
+5. 当前版本不会自动打开或解析外部平台页面；
+6. LLM 推理仅作为辅助建议，不替代真实经营判断；
+7. 报告不构成绝对经营承诺；
+8. 示例数据仅用于演示流程，不代表真实识别结果。
 
 ---
 
-## 22. 项目亮点总结
+## 15. API fallback 与演示模式
 
-- 面向真实进货决策痛点；
-- 覆盖“看货—判断—测款—复盘”完整流程；
-- 支持图片识别与手动填写双路径；
-- 支持图片质量检测与识别失败降级；
-- 支持市场证据补充，不伪造平台数据；
-- 支持产品库、候选产品 PK 和测款复盘；
-- 支持 HTML 与 PDF 报告导出；
-- 支持候选产品 PK 和测款复盘数据可视化；
-- 支持本地存储与 Supabase 云端同步；
-- 已补充 TypeScript 基础、Vitest 测试和工程化拆分。
+考虑到比赛评测环境中可能出现 API Key 未配置、额度不足、接口超时、国内备用站无法访问后端接口等情况，项目设计了多层 fallback 机制。
+
+### 15.1 图片识别 fallback
+
+当图片识别接口不可用时：
+
+- 页面提示识别接口暂不可用；
+- 用户可以继续手动填写商品信息；
+- 用户可以使用示例数据体验完整流程；
+- 示例数据仅用于演示，不代表真实图片识别结果；
+- 后续报告仍基于用户确认后的表单信息生成。
+
+### 15.2 LLM 推理 fallback
+
+当 LLM 推理不可用时：
+
+- 页面展示基础策略建议；
+- 不暴露 `fallback`、`timeout`、`请求超时` 等技术词；
+- 不影响报告生成；
+- 不影响产品库保存；
+- 不影响 HTML / PDF 导出；
+- 不影响候选产品 PK 和测款复盘。
+
+### 15.3 Supabase fallback
+
+当 Supabase 不可用时：
+
+- 系统保留本地保存模式；
+- 用户仍可保存产品记录；
+- 页面提示当前数据存储状态；
+- 用户可通过 JSON / CSV 导出备份数据。
 
 ---
 
-## 23. 一句话介绍
+## 16. 技术护城河与差异化
 
-TradePilot AI｜拿货搭子，是一个帮助新手卖家在进货前完成商品识别、利润测算、风险判断、内容测款和复盘沉淀的 AI 进货决策智能体。
+TradePilot AI 当前不以自研大模型作为底层技术壁垒，而是通过垂直场景工作流、结构化数据、品类规则库和测款复盘闭环形成差异化。
+
+短期差异化来自：
+
+- 小商品进货决策的垂直工作流；
+- 品类识别规则库；
+- 利润、MOQ、风险和内容测款的组合判断；
+- 产品库、候选 PK 和测款复盘闭环；
+- 低门槛在线 Demo 和游客模式；
+- 本地 / 云端双存储与导出能力。
+
+中期壁垒来自：
+
+- 用户进货记录沉淀；
+- 测款复盘数据积累；
+- 不同品类、价格带、渠道和内容策略之间的经验映射；
+- 供应商沟通记录和风险确认清单；
+- 小商品品类规则和关键词库持续扩展。
+
+长期壁垒来自：
+
+- 正式授权的电商平台数据接入；
+- 批发价、零售价、内容热度和成交反馈的结构化数据资产；
+- 面向小商品选品场景的专有评分和复盘模型；
+- 供应商资源与真实交易数据沉淀。
+
+因此，TradePilot AI 的壁垒不是“调用某个大模型”，而是围绕小商品进货场景持续积累的数据、流程、规则和用户决策经验。
+
+---
+
+## 17. 数据采集与 RPA 路线说明
+
+当前版本不直接接入 Puppeteer / Playwright 抓取淘宝、1688、抖音或小红书页面。
+
+原因包括：
+
+- 平台授权限制；
+- 登录和验证码限制；
+- 反爬策略；
+- 部署稳定性；
+- 合规风险；
+- 页面结构变化导致采集不稳定。
+
+当前版本采用更稳妥的方案：
+
+- 人工市场证据填写；
+- 搜索参考入口；
+- API Adapter 预留；
+- 用户人工核验；
+- 不伪造真实平台数据。
+
+后续可在合规授权前提下探索：
+
+- Chrome 浏览器插件；
+- 用户授权下的本地页面信息辅助采集；
+- 用户粘贴商品链接后辅助提取标题、价格区间、MOQ 和供应商基础字段；
+- 用户二次确认后写入市场证据；
+- 正式平台 API 授权接入。
+
+项目不会绕过登录、验证码、反爬机制，也不会将自动抓取受限平台数据作为当前已实现能力。
+
+---
+
+## 18. 当前版本说明
+
+当前版本为半决赛演示版，重点保证评委可以快速体验完整功能流程。
+
+当前已完成：
+
+- 游客模式
+- 图片上传与质量检测
+- 图片识别接口调用
+- 手动填写兜底
+- 示例数据体验入口
+- AI 进货报告
+- LLM 智能推理补充
+- 内容测款建议
+- 供应商沟通 Skill
+- 产品库保存
+- Supabase 可选云同步
+- JSON / CSV 导出
+- JSON 导入恢复
+- 候选产品 PK 可视化
+- 测款复盘可视化
+- HTML 报告下载
+- PDF 打印导出
+- 移动端基础适配
+- ErrorBoundary 防白屏
+- 技术架构文档
+- Agent 数据模型文档
+- Vitest 测试用例
+
+---
+
+## 19. 当前限制
+
+当前版本仍存在以下限制：
+
+1. 图片识别效果受图片质量和模型能力影响；
+2. LLM 推理依赖服务端 API Key 和接口稳定性；
+3. 淘宝、1688、抖音、小红书等平台暂未接入完整开放 API；
+4. 市场证据主要来自用户填写和搜索参考入口；
+5. 评分为启发式辅助判断，不代表真实销量预测；
+6. 本地模式下数据依赖浏览器 localStorage；
+7. PDF 报告采用浏览器打印方案，不直接生成后端 PDF 文件；
+8. TypeScript 目前主要用于数据模型说明，核心 JSX 代码尚未完全迁移；
+9. App.jsx 仍包含较多核心业务逻辑，后续可继续拆分；
+10. 核心评分函数测试覆盖仍可进一步增强。
+
+---
+
+## 20. 后续优化方向
+
+后续可继续优化：
+
+- 将 `analyzeProduct`、`getScoringItems`、`inferProductIdentity` 等核心函数拆分到独立 `src/logic/` 或 `src/utils/` 模块；
+- 补充核心评分函数单元测试；
+- 继续压缩 App.jsx 体积；
+- 深化 TypeScript 迁移；
+- 规范 utils 目录结构；
+- 增强真实平台数据接入能力；
+- 探索合规 Chrome Extension 数据采集；
+- 增强 LLM Agent 的 Planning、Tool Calling 和 Memory 能力；
+- 增加更多小商品品类规则库；
+- 优化 PDF 报告样式与分页控制；
+- 增加团队协作与多账号产品库；
+- 增加供应商评分与历史交易复盘；
+- 增加真实测款数据趋势分析。
+
+---
+
+## 21. 验证情况
+
+最近版本验证结果：
+
+```text
+npm.cmd run build：通过
+npm.cmd run test：通过，3 个测试文件，21 个测试用例
+npm.cmd run typecheck：通过
+```
+
+构建时可能出现 Vite chunk size warning，但不影响当前构建结果和线上运行。
+v
