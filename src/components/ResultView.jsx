@@ -1,5 +1,7 @@
 import { Card, formatEffectivePrice, getScoringItems, MaterialChecklistCard, money, SamplingStrategyCard, Score, StructuredReport } from "../../App.jsx";
 import AgentStatusPanel from "./AgentStatusPanel";
+import AiInsightPanel from "./AiInsightPanel";
+import { hasReviewInsightData } from "../utils/aiInsightUtils";
 
 const douyinHeatLevelText = {
   high: "高",
@@ -76,6 +78,9 @@ export default function ResultView({
   saveCurrentReport,
   saveMessage,
   aiInsight,
+  aiReasoningInsights,
+  aiReasoningLoading,
+  reviewData,
   downloadReport,
   onExportPdfReport,
 }) {
@@ -106,6 +111,8 @@ export default function ResultView({
   const marketEvidenceNotice = "当前为市场证据模式：未调用外部平台 API，不生成或伪造平台真实价格、销量、点赞、播放数据；系统基于用户填写信息和搜索入口进行辅助判断。";
   const hasMarketEvidence = Boolean(priceEvidence || douyinEvidence || manualMarketEvidence);
   const agentResult = analyzed ? result : null;
+  const reasoningInsights = aiReasoningInsights && typeof aiReasoningInsights === "object" ? aiReasoningInsights : {};
+  const showReviewInsight = hasReviewInsightData(reviewData);
 
   return (
     <div className="space-y-6">
@@ -184,6 +191,44 @@ export default function ResultView({
         </section>
       )}
 
+      <section className="rounded-[2rem] border border-cyan-300/20 bg-white/[0.05] p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm font-bold text-cyan-200">LLM Reasoning Layer</p>
+            <h2 className="mt-2 text-2xl font-black text-white">AI 智能推理补充</h2>
+            <p className="mt-2 text-sm leading-7 text-slate-300">
+              规则评分继续负责稳定数值计算；LLM 只补充解释、策略建议和复盘洞察，不覆盖综合评分、利润率、MOQ 或风险等级。
+            </p>
+          </div>
+          <span className="w-fit rounded-full border border-emerald-200/25 bg-emerald-300/10 px-4 py-2 text-xs font-black text-emerald-100">
+            辅助建议
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-4">
+          <AiInsightPanel
+            title="AI 进货决策推理"
+            scenario="purchase_decision"
+            insight={reasoningInsights.purchase_decision}
+            loading={aiReasoningLoading && !reasoningInsights.purchase_decision}
+          />
+          <AiInsightPanel
+            title="AI 内容测款策略"
+            scenario="content_testing"
+            insight={reasoningInsights.content_testing}
+            loading={aiReasoningLoading && !reasoningInsights.content_testing}
+          />
+          {showReviewInsight && (
+            <AiInsightPanel
+              title="AI 测款复盘总结"
+              scenario="review_summary"
+              insight={reasoningInsights.review_summary}
+              loading={aiReasoningLoading && !reasoningInsights.review_summary}
+            />
+          )}
+        </div>
+      </section>
+
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
           <h2 className="text-2xl font-black">小红书内容包</h2>
@@ -244,9 +289,9 @@ export default function ResultView({
             <button onClick={() => setMode("operate")} className="rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-bold text-white">返回修改</button>
             <button onClick={saveCurrentReport} className="rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">保存到我的产品库</button>
             <button onClick={copyReport} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">{copied ? "已复制" : "复制给团队"}</button>
-            <button onClick={() => downloadReport?.(product, result)} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-200">下载可视化报告</button>
+            <button onClick={() => downloadReport?.(product, result, reasoningInsights)} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-200">下载可视化报告</button>
             <button
-              onClick={() => onExportPdfReport?.(product, result)}
+              onClick={() => onExportPdfReport?.(product, result, reasoningInsights)}
               title="将打开浏览器打印窗口，可选择另存为 PDF。"
               className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 font-black text-cyan-200"
             >
