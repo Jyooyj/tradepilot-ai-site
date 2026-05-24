@@ -64,6 +64,20 @@ function formatPriceRange(range) {
   return `¥${range.min} - ¥${range.max}`;
 }
 
+function getInsightPanelTitle(insight, scenario) {
+  const isLlm = insight?.source === "llm";
+
+  if (scenario === "content_testing") {
+    return isLlm ? "AI 内容测款策略" : "基础内容测款建议";
+  }
+
+  if (scenario === "review_summary") {
+    return isLlm ? "AI 测款复盘总结" : "基础测款复盘建议";
+  }
+
+  return isLlm ? "AI 进货决策推理" : "基础进货策略建议";
+}
+
 export default function ResultView({
   product,
   image,
@@ -200,43 +214,43 @@ export default function ResultView({
         </section>
       )}
 
-      <section className="min-w-0 rounded-[2rem] border border-cyan-300/20 bg-white/[0.05] p-4 sm:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-cyan-200">LLM Reasoning Layer</p>
-            <h2 className="mt-2 text-2xl font-black text-white">AI 智能推理补充</h2>
-            <p className="mt-2 text-sm leading-7 text-slate-300">
-              规则评分继续负责稳定数值计算；LLM 只补充解释、策略建议和复盘洞察，不覆盖综合评分、利润率、MOQ 或风险等级。
-            </p>
-          </div>
-          <span className="w-fit rounded-full border border-emerald-200/25 bg-emerald-300/10 px-4 py-2 text-xs font-black text-emerald-100">
-            辅助建议
-          </span>
-        </div>
+<section className="min-w-0 rounded-[2rem] border border-cyan-300/20 bg-white/[0.05] p-4 sm:p-6">
+  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <div className="min-w-0">
+      <p className="text-sm font-bold text-cyan-200">Strategy Support Layer</p>
+      <h2 className="mt-2 break-words text-2xl font-black text-white">智能策略补充</h2>
+      <p className="mt-2 break-words text-sm leading-7 text-slate-300">
+        规则评分继续负责稳定数值计算；智能策略层用于补充解释、测款建议和复盘思路，不覆盖综合评分、利润率、MOQ 或风险等级。
+      </p>
+    </div>
+    <span className="w-fit rounded-full border border-emerald-200/25 bg-emerald-300/10 px-4 py-2 text-xs font-black text-emerald-100">
+      辅助建议
+    </span>
+  </div>
 
-        <div className="mt-5 grid gap-4">
-          <AiInsightPanel
-            title="AI 进货决策推理"
-            scenario="purchase_decision"
-            insight={reasoningInsights.purchase_decision}
-            loading={aiReasoningLoading && !reasoningInsights.purchase_decision}
-          />
-          <AiInsightPanel
-            title="AI 内容测款策略"
-            scenario="content_testing"
-            insight={reasoningInsights.content_testing}
-            loading={aiReasoningLoading && !reasoningInsights.content_testing}
-          />
-          {showReviewInsight && (
-            <AiInsightPanel
-              title="AI 测款复盘总结"
-              scenario="review_summary"
-              insight={reasoningInsights.review_summary}
-              loading={aiReasoningLoading && !reasoningInsights.review_summary}
-            />
-          )}
-        </div>
-      </section>
+  <div className="mt-5 grid gap-4">
+    <AiInsightPanel
+      title={getInsightPanelTitle(reasoningInsights.purchase_decision, "purchase_decision")}
+      scenario="purchase_decision"
+      insight={reasoningInsights.purchase_decision}
+      loading={aiReasoningLoading && !reasoningInsights.purchase_decision}
+    />
+    <AiInsightPanel
+      title={getInsightPanelTitle(reasoningInsights.content_testing, "content_testing")}
+      scenario="content_testing"
+      insight={reasoningInsights.content_testing}
+      loading={aiReasoningLoading && !reasoningInsights.content_testing}
+    />
+    {showReviewInsight && (
+      <AiInsightPanel
+        title={getInsightPanelTitle(reasoningInsights.review_summary, "review_summary")}
+        scenario="review_summary"
+        insight={reasoningInsights.review_summary}
+        loading={aiReasoningLoading && !reasoningInsights.review_summary}
+      />
+    )}
+  </div>
+</section>
 
       <section className="grid min-w-0 gap-6 lg:grid-cols-2">
         <div className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
