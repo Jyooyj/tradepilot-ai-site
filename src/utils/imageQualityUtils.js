@@ -1,4 +1,5 @@
 import {
+  IMAGE_RECOGNITION_API_FALLBACK_COPY,
   IMAGE_QUALITY_COPY,
   IMAGE_QUALITY_LIMITS,
   SUPPORTED_IMAGE_TYPES,
@@ -359,19 +360,30 @@ export function buildImageRecognitionMessage(data = {}, aiProduct = {}) {
 }
 
 export function buildImageRecognitionErrorMessage(errorType = "unknown", detail = "") {
+  const isPayloadIssue = errorType === "payload";
   const networkIssue = errorType === "network" || /fetch|network|abort|timeout|接口|请求/i.test(String(detail));
+  const apiUnavailable = errorType === "api_unavailable" || (!isPayloadIssue && networkIssue);
+
   return {
-    level: "error",
-    title: "图片识别未能稳定判断商品",
-    summary: networkIssue
-      ? "图片识别接口暂时不可用，可能是网络波动、接口超时或请求体过大。"
-      : "图片识别没有返回可用商品信息。",
-    issues: networkIssue
-      ? ["网络或接口异常。"]
-      : ["模型返回内容为空，未能提取商品名称或品类。"],
+    level: apiUnavailable ? "warning" : "error",
+    title: apiUnavailable ? "视觉识别接口暂不可用" : "图片识别未能稳定判断商品",
+    summary: apiUnavailable
+      ? IMAGE_RECOGNITION_API_FALLBACK_COPY.summary
+      : isPayloadIssue
+        ? "当前图片请求体过大，可能导致视觉识别接口无法处理。"
+        : "图片识别没有返回可用商品信息。",
+    issues: apiUnavailable
+      ? ["视觉识别接口未返回可用结果。"]
+      : isPayloadIssue
+        ? ["图片请求体过大。"]
+        : ["模型返回内容为空，未能提取商品名称或品类。"],
     suggestions: [
-      "重新上传主体更清晰的单品图后再试。",
-      "继续手动填写商品信息生成报告，产品库、候选产品 PK 和测款复盘仍可正常使用。",
+      apiUnavailable
+        ? IMAGE_RECOGNITION_API_FALLBACK_COPY.manualSuggestion
+        : "重新上传主体更清晰的单品图后再试。",
+      "如需快速演示，可点击“使用示例识别结果（演示 fallback）”。",
+      IMAGE_RECOGNITION_API_FALLBACK_COPY.marketEvidenceSuggestion,
+      "产品库、候选产品 PK、测款复盘和报告导出仍可正常使用。",
     ],
   };
 }
