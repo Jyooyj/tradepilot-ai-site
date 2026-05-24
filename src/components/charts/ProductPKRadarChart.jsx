@@ -48,7 +48,7 @@ export default function ProductPKRadarChart({ candidates }) {
 
   if (!visibleCandidates.length || !hasChartData) {
     return (
-      <div className="rounded-3xl border border-dashed border-white/15 bg-black/25 p-5 text-sm leading-7 text-slate-400">
+      <div className="break-words rounded-3xl border border-dashed border-white/15 bg-black/25 p-5 text-sm leading-7 text-slate-400">
         暂无足够评分数据，保存带有完整评分的候选产品后将生成雷达图。
       </div>
     );
@@ -63,7 +63,7 @@ export default function ProductPKRadarChart({ candidates }) {
   });
 
   return (
-    <div className="h-80 w-full">
+    <div className="h-72 min-w-[520px] sm:h-80 sm:min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={chartData} outerRadius="72%">
           <PolarGrid stroke="rgba(255,255,255,0.16)" />
