@@ -18,6 +18,11 @@ import {
   safeArray,
   validateGeneratedContent,
 } from "../../App.jsx";
+import {
+  AI_INSIGHT_SCENARIOS,
+  buildAiInsightFallback,
+  normalizeAiInsight,
+} from "./aiInsightUtils";
 
 export function formatRecordDate(value) {
   if (!value) return "未填写";
@@ -429,6 +434,66 @@ export function htmlPills(items) {
   return `<div class="pills">${safeItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("") || "<span>暂无</span>"}</div>`;
 }
 
+function getAiReasoningInsights(result = {}) {
+  const insights = asObject(result.aiReasoningInsights || result.aiInsights);
+
+  return Object.keys(AI_INSIGHT_SCENARIOS).reduce((normalizedInsights, scenario) => {
+    if (insights[scenario]) {
+      normalizedInsights[scenario] = normalizeAiInsight(insights[scenario], scenario);
+    }
+    return normalizedInsights;
+  }, {});
+}
+
+function renderAiInsightCard(title, insight) {
+  const normalizedInsight = normalizeAiInsight(insight, insight?.scenario);
+
+  return `
+    <div class="card">
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(normalizedInsight.summary)}</p>
+      <h3>推理要点</h3>
+      ${htmlList(normalizedInsight.reasoningPoints, false)}
+      <h3>下一步建议</h3>
+      ${htmlList(normalizedInsight.nextActions, false)}
+      <h3>风险提醒</h3>
+      ${htmlList(normalizedInsight.riskWarnings, false)}
+      <p class="footer">${escapeHtml(normalizedInsight.confidenceNote)}</p>
+    </div>
+  `;
+}
+
+function renderAiInsightReportSection(result = {}) {
+  const insights = getAiReasoningInsights(result);
+  const scenarios = Object.keys(AI_INSIGHT_SCENARIOS);
+  const hasInsight = scenarios.some((scenario) => Boolean(insights[scenario]));
+
+  if (!hasInsight) {
+    return `
+      <section>
+        <h2>AI 智能推理补充</h2>
+        <p class="footer">暂无 AI 推理补充；规则评分、利润测算、MOQ 判断和原报告内容不受影响。</p>
+      </section>
+    `;
+  }
+
+  return `
+    <section>
+      <h2>AI 智能推理补充</h2>
+      <p class="footer">规则评分继续负责稳定数值计算；LLM 只补充解释、策略建议和复盘洞察，不覆盖综合评分、利润率、MOQ 或风险等级，也不伪造真实平台数据。</p>
+      <div class="grid">
+        ${scenarios
+          .filter((scenario) => Boolean(insights[scenario]))
+          .map((scenario) => renderAiInsightCard(
+            AI_INSIGHT_SCENARIOS[scenario]?.title || "AI 推理补充",
+            insights[scenario] || buildAiInsightFallback(scenario)
+          ))
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderDouyinEvidenceSection(douyinEvidence) {
   if (!douyinEvidence) return "";
 
@@ -825,6 +890,8 @@ export function generateHtmlReport(product, result) {
       ${htmlTable(["维度", "分数", "说明"], scoreRows)}
     </section>
 
+    ${renderAiInsightReportSection(result)}
+
     ${renderPriceEvidenceSection(priceEvidence)}
 
     ${renderDouyinEvidenceSection(douyinEvidence)}
@@ -943,6 +1010,8 @@ function generatePrintableFallbackReport(product, result) {
     table { width: 100%; border-collapse: collapse; }
     th, td { border: 1px solid #d1d5db; padding: 9px 10px; text-align: left; vertical-align: top; }
     th { background: #ecfdf5; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .card { border: 1px solid #d1d5db; border-radius: 12px; padding: 12px; margin-top: 10px; }
     .footer { color: #4b5563; font-size: 12px; }
     @page { size: A4; margin: 14mm; }
   </style>
@@ -968,6 +1037,7 @@ function generatePrintableFallbackReport(product, result) {
       <h2>AI 评分依据</h2>
       ${scoreRows.length ? htmlTable(["维度", "分数", "说明"], scoreRows) : '<p class="footer">暂无评分明细。</p>'}
     </section>
+    ${renderAiInsightReportSection(safeResult)}
     ${renderPriceEvidenceSection(priceEvidence)}
     ${renderDouyinEvidenceSection(douyinEvidence)}
     ${renderManualMarketEvidenceSection(manualMarketEvidence)}
