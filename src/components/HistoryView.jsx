@@ -1,9 +1,12 @@
 import { statusOptions } from "../constants/uiContent";
 import { getRecordStatus, HistoryCard } from "../../App.jsx";
 
-export default function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, onExportBackup, onExportDocument, onImportBackup, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
-  const normalizedSearch = search.trim().toLowerCase();
-  const filteredRecords = records
+export default function HistoryView({ records, storageStatus, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, onExportBackup, onExportDocument, onImportBackup, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
+  const safeRecords = Array.isArray(records) ? records : [];
+  const normalizedSearch = String(search || "").trim().toLowerCase();
+  const effectiveMode = storageStatus?.effectiveMode || storageStatus?.mode || "local";
+  const showLocalStorageRisk = effectiveMode !== "cloud";
+  const filteredRecords = safeRecords
     .filter((record) => {
       const status = getRecordStatus(record);
       const name = `${record.product_name || ""} ${record.product?.name || ""}`.toLowerCase();
@@ -38,9 +41,11 @@ export default function HistoryView({ records, loading, message, onDelete, onRes
         </div>
       </div>
 
-      <div className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
-        游客模式下，产品库保存在当前浏览器中。建议定期导出备份；更换浏览器、设备或清理缓存后，可通过导入备份恢复记录。
-      </div>
+      {showLocalStorageRisk && (
+        <div className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
+          备份提示：可用“导出产品库备份”保存 JSON 文件；更换浏览器、设备或清理缓存后，可通过“导入产品库备份”恢复记录。
+        </div>
+      )}
 
       <div className="mb-5 grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
         <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
@@ -67,7 +72,7 @@ export default function HistoryView({ records, loading, message, onDelete, onRes
       {loading && <div className="rounded-3xl bg-black/25 p-6 text-slate-300">正在读取产品库...</div>}
       {message && <div className="mb-4 rounded-3xl bg-amber-300/10 p-5 text-amber-100">{message}</div>}
 
-      {!loading && records.length === 0 && (
+      {!loading && safeRecords.length === 0 && (
         <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center">
           <h3 className="text-2xl font-black text-white">产品库还是空的</h3>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-400">
@@ -80,7 +85,7 @@ export default function HistoryView({ records, loading, message, onDelete, onRes
         </div>
       )}
 
-      {!loading && records.length > 0 && filteredRecords.length === 0 && (
+      {!loading && safeRecords.length > 0 && filteredRecords.length === 0 && (
         <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center text-slate-400">
           没有匹配的产品记录。可以调整搜索词或状态筛选。
         </div>

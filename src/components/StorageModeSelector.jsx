@@ -2,17 +2,17 @@ const storageOptions = [
   {
     value: "auto",
     label: "自动选择",
-    description: "已登录时优先云端同步，云端不可用时回退本地。",
+    description: "云端可用时优先云端，否则回退本地。",
   },
   {
     value: "local",
     label: "仅本地保存",
-    description: "数据保存在当前浏览器，适合游客演示；更换设备或清理浏览器后可能丢失。",
+    description: "适合游客体验和国内网络不稳定场景，但需要定期导出备份。",
   },
   {
     value: "cloud",
     label: "云端同步",
-    description: "登录后将产品库同步到 Supabase 云端，适合长期保存和跨设备使用。",
+    description: "登录 Supabase 后可跨设备保存产品库。",
   },
 ];
 
