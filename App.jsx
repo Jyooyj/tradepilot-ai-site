@@ -19,6 +19,7 @@ import {
   painPoints,
   statusOptions,
 } from "./src/constants/uiContent";
+import { IMAGE_RECOGNITION_API_FALLBACK_COPY } from "./src/constants/imageQualityConfig";
 import CoverCard from "./src/components/CoverCard";
 import FloatingFeedback from "./src/components/FloatingFeedback";
 import OperateView from "./src/components/OperateView";
@@ -127,6 +128,29 @@ export const blankProduct = {
   competitorDensity: "未观察",
   contentHomogeneity: "未观察",
   manualMarketNote: "",
+};
+
+const demoRecognitionFallbackProduct = {
+  name: "蝴蝶结珍珠耳夹",
+  category: "饰品 / 耳饰",
+  cost: "3.8",
+  price: "19.9",
+  moq: "100",
+  material: "合金 + 仿珍珠",
+  audience: "18-25岁女生、学生党、通勤人群",
+  channel: "小红书 / 抖音 / 校园私域",
+  supplier: "待人工补充供应商信息",
+  keywords: "温柔风、法式、不打耳洞、春夏氛围感",
+  competitorPrice: "",
+  logistics: "小件轻货，包装成本低",
+  note: "演示 fallback 示例识别结果，请按实际商品手动核对；不代表真实图片识别或平台数据。",
+  wholesalePriceReference: "",
+  retailPriceReference: "",
+  contentHeatReference: "",
+  marketReferenceLinks: "",
+  competitorDensity: "未观察",
+  contentHomogeneity: "未观察",
+  manualMarketNote: "演示 fallback：未调用真实视觉识别，不包含真实平台价格、销量、播放量或点赞量。",
 };
 
 
@@ -2530,6 +2554,37 @@ function App() {
     applyStorageResult(storageResult, "已删除产品记录。");
   }
 
+  function showImageRecognitionFallbackNotice(detail = "") {
+    const notice = buildImageRecognitionErrorMessage("api_unavailable", detail);
+    setImageRecognitionNotice(notice);
+    alert(IMAGE_RECOGNITION_API_FALLBACK_COPY.summary);
+  }
+
+  function applyDemoRecognitionFallback() {
+    setProduct({ ...blankProduct, ...demoRecognitionFallbackProduct });
+    setAiInsight({
+      ok: true,
+      fallback: true,
+      fallbackMode: "demo",
+      fallbackMessage: IMAGE_RECOGNITION_API_FALLBACK_COPY.summary,
+      sourceNotice: IMAGE_RECOGNITION_API_FALLBACK_COPY.demoDisclaimer,
+      product: demoRecognitionFallbackProduct,
+      confidence: "demo_fallback",
+    });
+    setImageRecognitionNotice({
+      level: "warning",
+      title: IMAGE_RECOGNITION_API_FALLBACK_COPY.demoTitle,
+      summary: IMAGE_RECOGNITION_API_FALLBACK_COPY.summary,
+      issues: [IMAGE_RECOGNITION_API_FALLBACK_COPY.demoDisclaimer],
+      suggestions: [
+        IMAGE_RECOGNITION_API_FALLBACK_COPY.manualSuggestion,
+        IMAGE_RECOGNITION_API_FALLBACK_COPY.marketEvidenceSuggestion,
+      ],
+    });
+    setAnalyzed(false);
+    alert(IMAGE_RECOGNITION_API_FALLBACK_COPY.summary);
+  }
+
   async function analyzeImageWithAI() {
     if (!image) {
       alert("请先上传产品图片；如果暂时没有图片，也可以直接手动填写产品信息并生成进货报告。");
@@ -2599,8 +2654,7 @@ function App() {
         data = JSON.parse(text);
       } catch (error) {
         console.error("接口返回不是 JSON：", text);
-        setImageRecognitionNotice(buildImageRecognitionErrorMessage("network", "接口返回不是 JSON"));
-        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
+        showImageRecognitionFallbackNotice("接口返回不是 JSON");
         return;
       }
 
@@ -2612,8 +2666,13 @@ function App() {
           alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
           return;
         }
-        setImageRecognitionNotice(buildImageRecognitionErrorMessage("network", apiMessage));
-        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
+        showImageRecognitionFallbackNotice(apiMessage);
+        return;
+      }
+
+      if (data?.fallback) {
+        setAiInsight(data);
+        showImageRecognitionFallbackNotice(data.fallbackMessage || data.detail || data.reason);
         return;
       }
 
@@ -2666,12 +2725,10 @@ function App() {
       clearTimeout(timer);
 
       if (error.name === "AbortError") {
-        setImageRecognitionNotice(buildImageRecognitionErrorMessage("network", "请求超时或被中断"));
-        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
+        showImageRecognitionFallbackNotice("请求超时或被中断");
       } else {
         console.error(error);
-        setImageRecognitionNotice(buildImageRecognitionErrorMessage("network", error.message));
-        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
+        showImageRecognitionFallbackNotice(error.message);
       }
     } finally {
       clearTimeout(timer);
@@ -2848,6 +2905,7 @@ function App() {
             setAnalyzed={setAnalyzed}
             setMode={setMode}
             analyzeImageWithAI={analyzeImageWithAI}
+            applyDemoRecognitionFallback={applyDemoRecognitionFallback}
             aiLoading={aiLoading}
             imageQualityNotice={imageQualityNotice}
             setImageQualityNotice={setImageQualityNotice}

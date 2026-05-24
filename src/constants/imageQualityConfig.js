@@ -44,3 +44,11 @@ export const IMAGE_QUALITY_COPY = {
   minorWarning: "图片存在轻微质量提醒，但当前仍可用于识别。",
   manualFallback: "也可以直接手动填写商品信息，系统仍会生成完整进货报告。",
 };
+
+export const IMAGE_RECOGNITION_API_FALLBACK_COPY = {
+  summary: "当前视觉识别接口暂不可用，已切换为手动填写 / 演示兜底模式，仍可继续生成进货报告。",
+  demoTitle: "演示 fallback 已启用",
+  demoDisclaimer: "演示 fallback 不代表真实识别结果，请按实物人工核对并修改字段。",
+  manualSuggestion: "继续手动填写或修改商品名称、成本、售价、MOQ、材质、目标人群和销售渠道。",
+  marketEvidenceSuggestion: "价格分析仍使用人工市场证据填写和搜索参考入口，不会伪造平台价格、销量、播放量或点赞量。",
+};
