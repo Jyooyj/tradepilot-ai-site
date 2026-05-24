@@ -32,8 +32,10 @@ import SupabaseLoginPanel from "./src/components/SupabaseLoginPanel";
 import DemoView from "./src/components/DemoView";
 import {
   deleteProductRecord,
+  exportLocalRecordsBackup,
   getStorageMode,
   getStorageStatus,
+  importLocalRecordsBackup,
   loadProductRecords,
   migrateLocalRecordsToCloud,
   saveStorageMode,
@@ -66,6 +68,11 @@ import {
   applyManualMarketEvidenceToResult,
   evaluateManualMarketEvidence,
 } from "./src/utils/manualMarketEvidenceUtils";
+import { generateAiInsight } from "./src/utils/aiInsightClient";
+import {
+  buildAiInsightMarketEvidence,
+  hasReviewInsightData,
+} from "./src/utils/aiInsightUtils";
 
 
 const ANALYZE_IMAGE_ENDPOINT =
@@ -2078,6 +2085,8 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState(null);
+  const [aiReasoningInsights, setAiReasoningInsights] = useState({});
+  const [aiReasoningLoading, setAiReasoningLoading] = useState(false);
   const [imageQualityNotice, setImageQualityNotice] = useState(null);
   const [imageRecognitionNotice, setImageRecognitionNotice] = useState(null);
   const [historyRecords, setHistoryRecords] = useState([]);
@@ -2146,6 +2155,8 @@ function App() {
     const manualEvidence = evaluateManualMarketEvidence(product, resultWithPriceEvidence);
     return applyManualMarketEvidenceToResult(resultWithPriceEvidence, manualEvidence);
   }, [baseResult, product, priceEvidence, fallbackPriceEvidence]);
+  const aiMarketEvidence = useMemo(() => buildAiInsightMarketEvidence(result), [result]);
+  const hasCurrentReviewInsightData = useMemo(() => hasReviewInsightData(review), [review]);
   const agentReviewRecords = useMemo(() => {
     const savedReviewRecords = (Array.isArray(historyRecords) ? historyRecords : [])
       .map((record) => record?.review)
@@ -2153,6 +2164,46 @@ function App() {
 
     return hasAgentReviewData(review) ? [review, ...savedReviewRecords] : savedReviewRecords;
   }, [historyRecords, review]);
+
+  useEffect(() => {
+    if (!analyzed) {
+      setAiReasoningInsights({});
+      setAiReasoningLoading(false);
+      return undefined;
+    }
+
+    let isActive = true;
+    const scenarios = ["purchase_decision", "content_testing"];
+    if (hasCurrentReviewInsightData) scenarios.push("review_summary");
+
+    setAiReasoningLoading(true);
+
+    Promise.all(
+      scenarios.map((scenario) => generateAiInsight({
+        product,
+        result,
+        marketEvidence: aiMarketEvidence,
+        reviewData: scenario === "review_summary" ? review : null,
+        scenario,
+      }))
+    )
+      .then((insights) => {
+        if (!isActive) return;
+        setAiReasoningInsights(
+          insights.reduce((nextInsights, insight) => {
+            nextInsights[insight.scenario] = insight;
+            return nextInsights;
+          }, {})
+        );
+      })
+      .finally(() => {
+        if (isActive) setAiReasoningLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [analyzed, product, result, aiMarketEvidence, review, hasCurrentReviewInsightData]);
 
   function update(key, value) {
     setProduct((old) => ({ ...old, [key]: value }));
@@ -2209,7 +2260,7 @@ function App() {
     setTimeout(() => setCopied(false), 1200);
   }
 
-  function downloadReport(currentProduct = product, currentResult = result) {
+  function downloadReport(currentProduct = product, currentResult = result, currentAiReasoningInsights = aiReasoningInsights) {
     const safeProduct = currentProduct && typeof currentProduct === "object" ? currentProduct : product;
     const safeResult = currentResult && typeof currentResult === "object" ? currentResult : result;
 
@@ -2221,7 +2272,10 @@ function App() {
     let url = "";
 
     try {
-      const html = generateHtmlReport(safeProduct || {}, safeResult);
+      const html = generateHtmlReport(safeProduct || {}, {
+        ...safeResult,
+        aiReasoningInsights: currentAiReasoningInsights || {},
+      });
       if (!html || typeof html !== "string") {
         throw new Error("empty_report_html");
       }
@@ -2245,7 +2299,7 @@ function App() {
     }
   }
 
-  function handleExportPdfReport(currentProduct = product, currentResult = result) {
+  function handleExportPdfReport(currentProduct = product, currentResult = result, currentAiReasoningInsights = aiReasoningInsights) {
     const safeProduct = currentProduct && typeof currentProduct === "object" ? currentProduct : product;
     const safeResult = currentResult && typeof currentResult === "object" ? currentResult : result;
 
@@ -2255,7 +2309,10 @@ function App() {
     }
 
     try {
-      const html = generatePrintablePdfReport(safeProduct, safeResult);
+      const html = generatePrintablePdfReport(safeProduct, {
+        ...safeResult,
+        aiReasoningInsights: currentAiReasoningInsights || {},
+      });
       const printWindow = window.open("", "_blank");
 
       if (!printWindow) {
@@ -2288,14 +2345,15 @@ function App() {
         return;
       }
 
-      const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json;charset=utf-8" });
+      const backup = exportLocalRecordsBackup(records);
+      const blob = new Blob([backup.json], { type: "application/json;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = "tradepilot_records_backup.json";
+      anchor.download = backup.fileName;
       anchor.click();
       URL.revokeObjectURL(url);
-      setHistoryMessage(storageResult.mode === "cloud" ? "云端产品库备份已导出。" : "本地产品库备份已导出。");
+      setHistoryMessage(storageResult.mode === "cloud" ? "产品库 JSON 备份已导出，文件仅保存在本机。" : "本地产品库 JSON 备份已导出。");
     } catch (error) {
       alert("产品库备份导出失败：" + error.message);
     }
@@ -2325,49 +2383,36 @@ function App() {
     if (!file) return;
 
     try {
-      const text = await file.text();
-      const importedRecords = JSON.parse(text);
-
-      if (!Array.isArray(importedRecords)) {
-        throw new Error("invalid_backup_format");
-      }
-
       const oldStorageResult = await loadProductRecords(storageMode);
-      const oldRecords = oldStorageResult.records || [];
+      const storageResult = await importLocalRecordsBackup(file, {
+        selectedMode: storageMode,
+        existingRecords: oldStorageResult.records || [],
+      });
+      const records = storageResult.records || [];
+      const cloudSyncTip = storageMode === STORAGE_MODES.CLOUD || storageMode === STORAGE_MODES.AUTO
+        ? " 当前备份已先合并到本地产品库；如需上传到云端，请手动点击“同步本地记录到云端”。"
+        : "";
+      const skippedTip = storageResult.skippedCount
+        ? ` 已跳过 ${storageResult.skippedCount} 条格式不完整的记录。`
+        : "";
+      const successMessage = `产品库备份导入成功，已合并 ${storageResult.importedCount || 0} 条记录。${skippedTip}${cloudSyncTip}`;
 
-      const existingIds = new Set(
-        oldRecords
-          .map((record) => record?.id)
-          .filter((id) => id !== undefined && id !== null)
-          .map(String)
+      setHistoryRecords(records);
+      applyStorageResult(
+        {
+          ...storageResult,
+          warning: "",
+          status: {
+            ...storageResult.status,
+            warning: "",
+          },
+        },
+        successMessage
       );
-      const importedIds = new Set();
-      const uniqueImportedRecords = importedRecords.reduce((records, record, index) => {
-        if (!record || typeof record !== "object" || Array.isArray(record)) return records;
-
-        const id = record.id !== undefined && record.id !== null && String(record.id).trim()
-          ? String(record.id)
-          : `imported-${Date.now()}-${index}`;
-
-        if (existingIds.has(id) || importedIds.has(id)) return records;
-
-        importedIds.add(id);
-        records.push({ ...record, id });
-        return records;
-      }, []);
-
-      const nextRecords = [...uniqueImportedRecords, ...oldRecords];
-      const localSaveResult = saveLocalRecords(nextRecords, { selectedMode: storageMode });
-      const storageResult = storageMode === STORAGE_MODES.LOCAL
-        ? localSaveResult
-        : await migrateLocalRecordsToCloud(storageMode);
-
-      setHistoryRecords(storageResult.records || nextRecords);
-      applyStorageResult(storageResult, "产品库备份导入成功");
-      alert("产品库备份导入成功");
+      alert(successMessage);
     } catch (error) {
-      setHistoryMessage("备份文件格式不正确，请选择 TradePilot 导出的 JSON 文件");
-      alert("备份文件格式不正确，请选择 TradePilot 导出的 JSON 文件");
+      setHistoryMessage("备份文件格式不正确");
+      alert("备份文件格式不正确");
     } finally {
       event.target.value = "";
     }
@@ -2803,6 +2848,9 @@ function App() {
             saveCurrentReport={saveCurrentReport}
             saveMessage={saveMessage}
             aiInsight={aiInsight}
+            aiReasoningInsights={aiReasoningInsights}
+            aiReasoningLoading={aiReasoningLoading}
+            reviewData={review}
             downloadReport={downloadReport}
             onExportPdfReport={handleExportPdfReport}
           />
@@ -2824,6 +2872,7 @@ function App() {
             )}
             <HistoryView
               records={historyRecords}
+              storageStatus={storageStatus}
               loading={historyLoading}
               message={historyMessage}
               onDelete={deleteHistoryRecord}
@@ -2864,6 +2913,8 @@ function App() {
             saveCurrentReport={saveCurrentReport}
             saveMessage={saveMessage}
             records={historyRecords}
+            aiReviewInsight={aiReasoningInsights.review_summary}
+            aiReasoningLoading={aiReasoningLoading}
           />
         )}
         {mode === "demo" && <DemoView applyDemo={applyDemo} />}
