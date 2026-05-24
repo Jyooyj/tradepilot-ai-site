@@ -101,14 +101,14 @@ export default function OperateView({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
-        <h2 className="text-2xl font-black">第一步：上传产品图片</h2>
-        <p className="mt-2 text-sm leading-7 text-slate-400">建议上传进货样品图、供应商图或产品细节图。图片会参与信息完整度和内容潜力判断。</p>
+    <div className="grid min-w-0 gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+      <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
+        <h2 className="break-words text-xl font-black sm:text-2xl">第一步：上传产品图片</h2>
+        <p className="mt-2 break-words text-sm leading-7 text-slate-400">建议上传进货样品图、供应商图或产品细节图。图片会参与信息完整度和内容潜力判断。</p>
 
-        <div className="mt-5 grid min-h-80 place-items-center rounded-3xl border border-dashed border-white/20 bg-black/25 p-4">
+        <div className="mt-5 grid min-h-64 place-items-center rounded-3xl border border-dashed border-white/20 bg-black/25 p-4 sm:min-h-80">
           {image ? (
-            <img src={image} alt="产品图" className="max-h-80 rounded-3xl object-contain" />
+            <img src={image} alt="产品图" className="max-h-72 max-w-full rounded-3xl object-contain sm:max-h-80" />
           ) : (
             <div className="text-center text-slate-400">
               <p className="text-5xl">📷</p>
@@ -117,26 +117,26 @@ export default function OperateView({
           )}
         </div>
 
-        <label className="mt-4 block cursor-pointer rounded-2xl bg-emerald-300 px-5 py-3 text-center font-black text-black">
+        <label className="mt-4 block min-h-11 cursor-pointer rounded-2xl bg-emerald-300 px-5 py-3 text-center font-black text-black">
           上传图片
           <input type="file" accept={SUPPORTED_IMAGE_TYPES.join(",")} className="hidden" onChange={handleImage} />
         </label>
         <p className="mt-2 text-xs leading-6 text-slate-400">图片已自动压缩后用于识别，不影响报告生成。</p>
         <ImageDiagnosticPanel qualityNotice={imageQualityNotice} recognitionNotice={imageRecognitionNotice} />
 
-        <button onClick={analyzeImageWithAI} disabled={aiLoading} className="mt-3 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black disabled:opacity-60">
+        <button onClick={analyzeImageWithAI} disabled={aiLoading} className="mt-3 min-h-11 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black disabled:opacity-60">
           {aiLoading ? "AI正在识别图片..." : "AI识别图片并自动填写"}
         </button>
 
-        <button onClick={() => { setProduct(initialProduct); setAnalyzed(false); }} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white">套用示例产品</button>
-        <button onClick={clearAll} className="mt-3 w-full rounded-2xl border border-white/10 bg-transparent px-5 py-3 font-bold text-slate-300">清空重填</button>
+        <button onClick={() => { setProduct(initialProduct); setAnalyzed(false); }} className="mt-3 min-h-11 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white">套用示例产品</button>
+        <button onClick={clearAll} className="mt-3 min-h-11 w-full rounded-2xl border border-white/10 bg-transparent px-5 py-3 font-bold text-slate-300">清空重填</button>
       </section>
 
-      <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+      <section className="min-w-0 rounded-[2rem] border border-white/10 bg-black/35 p-4 sm:p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-2xl font-black">第二步：填写进货信息</h2>
-            <p className="mt-2 text-sm text-slate-400">字段越完整，AI判断越可靠。带价格和MOQ才能测算利润与压货风险。</p>
+          <div className="min-w-0">
+            <h2 className="break-words text-xl font-black sm:text-2xl">第二步：填写进货信息</h2>
+            <p className="mt-2 break-words text-sm leading-7 text-slate-400">字段越完整，AI判断越可靠。带价格和MOQ才能测算利润与压货风险。</p>
           </div>
           <div className="rounded-2xl bg-white/[0.06] px-4 py-3 text-sm font-bold text-slate-300">
             当前评分：{result.totalScore}/100
@@ -159,7 +159,7 @@ export default function OperateView({
           <Input label="补充备注" value={product.note} onChange={(value) => update("note", value)} placeholder="如：适合礼物场景" wide />
         </div>
 
-        <section className="mt-5 rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-5">
+        <section className="mt-5 min-w-0 rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-4 sm:p-5">
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
             <div>
               <h3 className="text-xl font-black text-cyan-100">市场证据补充（可选）</h3>
@@ -203,7 +203,7 @@ export default function OperateView({
           </div>
         </section>
 
-        <button onClick={analyze} className="mt-5 w-full rounded-2xl bg-emerald-300 px-5 py-4 text-lg font-black text-black">
+        <button onClick={analyze} className="mt-5 min-h-12 w-full rounded-2xl bg-emerald-300 px-5 py-4 text-base font-black text-black sm:text-lg">
           生成进货决策报告
         </button>
       </section>
@@ -230,7 +230,7 @@ function ImageDiagnosticPanel({ qualityNotice, recognitionNotice }) {
       {strongNotices.map((notice) => (
         <DiagnosticNotice key={notice.title + notice.summary} notice={notice} />
       ))}
-      <p className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-xs leading-6 text-cyan-100">
+      <p className="break-words rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-xs leading-6 text-cyan-100">
         手动填写兜底：即使图片模糊、商品遮挡、多个商品同时出现或大图上传失败，也可以继续填写产品名称、拿货价、建议售价、MOQ、材质、目标人群和销售渠道，系统仍会生成完整进货决策报告。
       </p>
     </div>
@@ -244,7 +244,7 @@ function CompactDiagnosticNotice({ notice }) {
   const issues = Array.isArray(notice.issues) ? notice.issues : [];
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 text-xs leading-6 ${toneClass}`}>
+    <div className={`break-words rounded-2xl border px-4 py-3 text-xs leading-6 ${toneClass}`}>
       <p className="font-black">{notice.title}</p>
       <p className="mt-1">{notice.summary}</p>
       {notice.level === "minor_warning" && issues.length > 0 && (
@@ -268,7 +268,7 @@ function DiagnosticNotice({ notice }) {
   const hasMetrics = metrics.width || metrics.height || metrics.brightness || metrics.contrast || metrics.blurScore;
 
   return (
-    <div className={`rounded-2xl border p-4 text-xs leading-6 ${colorClass}`}>
+    <div className={`break-words rounded-2xl border p-4 text-xs leading-6 ${colorClass}`}>
       <p className="font-black">{notice.title}</p>
       <p className="mt-1">{notice.summary}</p>
       {hasMetrics && (

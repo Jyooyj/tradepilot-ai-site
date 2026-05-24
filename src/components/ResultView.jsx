@@ -85,6 +85,14 @@ export default function ResultView({
   downloadReport,
   onExportPdfReport,
 }) {
+  if (!result || typeof result !== "object") {
+    return (
+      <div className="rounded-[2rem] border border-dashed border-white/20 bg-white/[0.06] p-5 text-sm leading-7 text-slate-300 sm:p-6">
+        暂无可展示的报告结果。请返回开始判断页，补充商品信息后重新生成报告。
+      </div>
+    );
+  }
+
   const douyinEvidence = getDouyinEvidence(result);
   const priceEvidence = getPriceEvidence(result);
   const manualMarketEvidence = getManualMarketEvidence(result);
@@ -116,7 +124,7 @@ export default function ResultView({
   const showReviewInsight = hasReviewInsightData(reviewData);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 break-words">
       {!analyzed && (
         <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">
           当前展示的是实时预览结果，建议返回开始判断页面生成正式报告。
@@ -132,17 +140,17 @@ export default function ResultView({
         recognitionStatus={recognitionStatus}
       />
 
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+      <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-emerald-300">Key Conclusion</p>
-            <h2 className="text-3xl font-black text-white">进货关键结论</h2>
-            <p className="mt-2 text-slate-400">先确认状态和关键指标，再展开查看评分依据与完整报告。</p>
+            <h2 className="text-2xl font-black text-white sm:text-3xl">进货关键结论</h2>
+            <p className="mt-2 text-sm leading-7 text-slate-400 sm:text-base">先确认状态和关键指标，再展开查看评分依据与完整报告。</p>
           </div>
-          <span className="text-sm font-bold text-cyan-200">状态：{result.status}</span>
+          <span className="w-fit text-sm font-bold text-cyan-200">状态：{result.status}</span>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Card label="综合评分" value={`${result.totalScore}/100`} />
           <Card label="AI建议" value={result.level} />
           <Card label="预计毛利率" value={`${Math.round(result.margin * 100)}%`} />
@@ -150,11 +158,11 @@ export default function ResultView({
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+      <section className="grid min-w-0 gap-6 lg:grid-cols-[0.8fr_1.2fr]">
         <div className="space-y-4">
-          <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+          <div className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
             <p className="text-sm text-slate-400">当前产品</p>
-            <h2 className="mt-2 text-3xl font-black text-emerald-300">{result.productIdentity?.displayName || product.name || "未命名产品"}</h2>
+            <h2 className="mt-2 break-words text-2xl font-black text-emerald-300 sm:text-3xl">{result.productIdentity?.displayName || product.name || "未命名产品"}</h2>
             <p className="mt-2 text-sm font-bold text-emerald-100">{result.productIdentity?.productTypeLabel || product.category || "未分类"}</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Card label="单件利润" value={`¥${money(result.profit)}`} />
@@ -168,7 +176,7 @@ export default function ResultView({
           <MaterialChecklistCard result={result} />
         </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+        <div className="min-w-0 rounded-[2rem] border border-white/10 bg-black/35 p-4 sm:p-6">
           <h2 className="text-2xl font-black">AI评分依据</h2>
           <div className="mt-5 space-y-4">
             {getScoringItems(result).map((item) => (
@@ -182,9 +190,9 @@ export default function ResultView({
       </section>
 
       {aiInsight && (
-        <section className="rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
+        <section className="min-w-0 rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-4 sm:p-6">
           <h2 className="text-2xl font-black text-cyan-200">AI图片识别结果</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Card label="识别产品" value={aiInsight.product?.name || "未识别"} />
             <Card label="推断品类" value={aiInsight.product?.category || "未识别"} />
             <Card label="置信度" value={aiInsight.confidence || "中等"} />
@@ -192,9 +200,9 @@ export default function ResultView({
         </section>
       )}
 
-      <section className="rounded-[2rem] border border-cyan-300/20 bg-white/[0.05] p-6">
+      <section className="min-w-0 rounded-[2rem] border border-cyan-300/20 bg-white/[0.05] p-4 sm:p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-bold text-cyan-200">LLM Reasoning Layer</p>
             <h2 className="mt-2 text-2xl font-black text-white">AI 智能推理补充</h2>
             <p className="mt-2 text-sm leading-7 text-slate-300">
@@ -230,8 +238,8 @@ export default function ResultView({
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+      <section className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <div className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
           <h2 className="text-2xl font-black">小红书内容包</h2>
           <p className="mt-2 text-sm leading-7 text-slate-400">消费者视角的种草素材，商家策略单独放在最后，避免把经营分析写进对外文案。</p>
           <div className="mt-4 grid gap-2">
@@ -254,7 +262,7 @@ export default function ResultView({
           </p>
         </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+        <div className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
           <h2 className="text-2xl font-black">抖音视频脚本</h2>
           <p className="mt-2 text-sm leading-7 text-slate-400">{result.douyinPackage.direction}</p>
           <div className="mt-4 space-y-3 text-sm leading-7 text-slate-300">
@@ -281,22 +289,22 @@ export default function ResultView({
 
       <SupplierCommunicationPanel product={product} result={result} />
 
-      <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+      <section className="min-w-0 rounded-[2rem] border border-white/10 bg-black/35 p-4 sm:p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-2xl font-black">完整AI进货报告</h2>
             <p className="mt-2 text-sm text-slate-400">报告可复制给团队、保存到产品库，也可以下载为可视化HTML留档。</p>
             {saveMessage && <p className="mt-3 rounded-2xl bg-emerald-300/10 p-3 text-sm text-emerald-100">{saveMessage}</p>}
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={() => setMode("operate")} className="rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-bold text-white">返回修改</button>
-            <button onClick={saveCurrentReport} className="rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">保存到我的产品库</button>
-            <button onClick={copyReport} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">{copied ? "已复制" : "复制给团队"}</button>
-            <button onClick={() => downloadReport?.(product, result, reasoningInsights)} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-200">下载可视化报告</button>
+            <button onClick={() => setMode("operate")} className="min-h-11 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-bold text-white sm:w-auto">返回修改</button>
+            <button onClick={saveCurrentReport} className="min-h-11 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black sm:w-auto">保存到我的产品库</button>
+            <button onClick={copyReport} className="min-h-11 w-full rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black sm:w-auto">{copied ? "已复制" : "复制给团队"}</button>
+            <button onClick={() => downloadReport?.(product, result, reasoningInsights)} className="min-h-11 w-full rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-200 sm:w-auto">下载可视化报告</button>
             <button
               onClick={() => onExportPdfReport?.(product, result, reasoningInsights)}
               title="将打开浏览器打印窗口，可选择另存为 PDF。"
-              className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 font-black text-cyan-200"
+              className="min-h-11 w-full rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 font-black text-cyan-200 sm:w-auto"
             >
               导出 PDF 报告
             </button>
@@ -306,7 +314,7 @@ export default function ResultView({
       </section>
 
       {priceEvidence && (
-        <section className="rounded-[2rem] border border-amber-300/20 bg-amber-300/10 p-6">
+        <section className="min-w-0 rounded-[2rem] border border-amber-300/20 bg-amber-300/10 p-4 sm:p-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <p className="text-sm font-bold text-amber-200">Price Evidence Analysis</p>
@@ -320,7 +328,7 @@ export default function ResultView({
             </span>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-4">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Card label="价格证据完整度评分" value={`${priceEvidence.evidenceScore ?? priceEvidence.confidenceScore ?? 0}/100`} />
             <Card label="批发价参考" value={formatPriceRange(priceEvidence.wholesalePriceRange)} />
             <Card label="零售价/竞品价参考" value={formatPriceRange(priceEvidence.competitorPriceRange)} />
@@ -377,7 +385,7 @@ export default function ResultView({
       )}
 
       {douyinEvidence && (
-        <section className="rounded-[2rem] border border-violet-300/20 bg-violet-300/10 p-6">
+        <section className="min-w-0 rounded-[2rem] border border-violet-300/20 bg-violet-300/10 p-4 sm:p-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <p className="text-sm font-bold text-violet-200">Short Video Evidence</p>
@@ -391,7 +399,7 @@ export default function ResultView({
             </span>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Card label="搜索关键词" value={douyinEvidence.query || "待补充"} />
             <Card label="内容热度判断" value={douyinEvidence.heatLevelLabel || douyinHeatLevelText[douyinEvidence.heatLevel] || "未知"} />
             <Card label="证据完整度评分" value={`${douyinEvidence.evidenceScore ?? douyinEvidence.confidenceScore ?? 0}/100`} />
@@ -447,7 +455,7 @@ export default function ResultView({
       )}
 
       {manualMarketEvidence && (
-        <section className="rounded-[2rem] border border-teal-300/20 bg-teal-300/10 p-6">
+        <section className="min-w-0 rounded-[2rem] border border-teal-300/20 bg-teal-300/10 p-4 sm:p-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <p className="text-sm font-bold text-teal-200">Manual Market Evidence</p>
