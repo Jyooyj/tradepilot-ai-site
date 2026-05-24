@@ -1,7 +1,19 @@
 import { Card, Input, MetricBar, n } from "../../App.jsx";
+import AiInsightPanel from "./AiInsightPanel";
 import ReviewMetricChart from "./charts/ReviewMetricChart";
+import { hasReviewInsightData } from "../utils/aiInsightUtils";
 
-export default function ReviewView({ product, result, review, setReview, saveCurrentReport, saveMessage, records }) {
+export default function ReviewView({
+  product,
+  result,
+  review,
+  setReview,
+  saveCurrentReport,
+  saveMessage,
+  records,
+  aiReviewInsight,
+  aiReasoningLoading,
+}) {
   const views = n(review.views);
   const likes = n(review.likes);
   const saves = n(review.saves);
@@ -9,6 +21,7 @@ export default function ReviewView({ product, result, review, setReview, saveCur
   const inquiries = n(review.inquiries);
   const orders = n(review.orders);
   const cost = n(review.cost);
+  const hasReviewData = hasReviewInsightData(review);
 
   const engagementRate = views ? ((likes + saves + comments) / views) * 100 : 0;
   const inquiryRate = views ? (inquiries / views) * 100 : 0;
@@ -105,6 +118,18 @@ export default function ReviewView({ product, result, review, setReview, saveCur
             {suggestionDetail}
           </p>
         </div>
+
+        {hasReviewData && (
+          <div className="mt-5">
+            <AiInsightPanel
+              title="AI 测款复盘总结"
+              scenario="review_summary"
+              insight={aiReviewInsight}
+              loading={aiReasoningLoading && !aiReviewInsight}
+              compact
+            />
+          </div>
+        )}
 
         <button onClick={saveCurrentReport} className="mt-5 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">
           保存本次复盘到我的产品库
