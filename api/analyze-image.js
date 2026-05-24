@@ -1,3 +1,27 @@
+const VISION_API_FALLBACK_MESSAGE =
+  "当前视觉识别接口暂不可用，已切换为手动填写 / 演示兜底模式，仍可继续生成进货报告。";
+
+function buildVisionFallbackPayload(reason = "api_unavailable", detail = "") {
+  return {
+    ok: true,
+    fallback: true,
+    fallbackMode: "manual_or_demo",
+    fallbackMessage: VISION_API_FALLBACK_MESSAGE,
+    sourceNotice: "演示 fallback 不代表真实识别结果；请继续手动填写或点击前端演示 fallback，并按实物人工核对字段。",
+    reason,
+    detail,
+    product: {},
+    content: {
+      xhsCover: "",
+      xhsTitles: [],
+      xhsStructure: [],
+      douyinScript: [],
+    },
+    risks: ["视觉识别接口暂不可用，当前未生成真实图片识别结果。"],
+    confidence: "fallback",
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Only POST is allowed" });
@@ -11,9 +35,12 @@ export default async function handler(req, res) {
     }
 
     if (!process.env.DASHSCOPE_API_KEY) {
-      return res.status(500).json({
-        error: "服务器未配置 DASHSCOPE_API_KEY，请在 Vercel 环境变量中添加阿里云百炼 API Key。",
-      });
+      return res.status(200).json(
+        buildVisionFallbackPayload(
+          "missing_api_key",
+          "服务器未配置 DASHSCOPE_API_KEY。"
+        )
+      );
     }
 
     const prompt = `
@@ -99,10 +126,12 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json({
-        error: data?.error?.message || "阿里云百炼视觉模型调用失败",
-        detail: data,
-      });
+      return res.status(200).json(
+        buildVisionFallbackPayload(
+          "dashscope_request_failed",
+          data?.error?.message || `阿里云百炼视觉模型调用失败：${response.status}`
+        )
+      );
     }
 
     const rawText = data.choices?.[0]?.message?.content || "";
@@ -116,17 +145,21 @@ export default async function handler(req, res) {
     try {
       parsed = JSON.parse(cleaned);
     } catch (err) {
-      return res.status(500).json({
-        error: "模型返回内容不是合法 JSON",
-        raw: rawText,
-      });
+      return res.status(200).json(
+        buildVisionFallbackPayload(
+          "invalid_model_json",
+          "模型返回内容不是合法 JSON。"
+        )
+      );
     }
 
     return res.status(200).json(parsed);
   } catch (error) {
-    return res.status(500).json({
-      error: "服务器处理失败",
-      message: error.message,
-    });
+    return res.status(200).json(
+      buildVisionFallbackPayload(
+        "server_error",
+        error.message || "服务器处理失败。"
+      )
+    );
   }
 }
