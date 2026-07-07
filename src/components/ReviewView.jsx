@@ -1,7 +1,18 @@
-import { Card, Input, MetricBar, n } from "../../App.jsx";
-import AiInsightPanel from "./AiInsightPanel";
-import ReviewMetricChart from "./charts/ReviewMetricChart";
+import { useEffect, useState } from "react";
+import { Card, Input } from "../../App.jsx";
+import ReviewFunnelChart from "./charts/ReviewFunnelChart";
+import ReviewInsightPanel from "./ReviewInsightPanel";
+import InternalTestDataBoard from "./InternalTestDataBoard";
 import { hasReviewInsightData } from "../utils/aiInsightUtils";
+import { buildReviewMetrics, buildReviewMetricCards } from "../utils/reviewMetrics";
+import { generateReviewInsight } from "../utils/reviewInsightClient";
+
+const DECISION_TONE = {
+  小批量补货: "bg-emerald-300 text-black",
+  继续测: "bg-cyan-300/20 text-cyan-100",
+  改内容再测: "bg-amber-300/20 text-amber-100",
+  暂停: "bg-rose-300/20 text-rose-100",
+};
 
 export default function ReviewView({
   product,
@@ -11,45 +22,61 @@ export default function ReviewView({
   saveCurrentReport,
   saveMessage,
   records,
-  aiReviewInsight,
-  aiReasoningLoading,
 }) {
   const safeReview = review && typeof review === "object" ? review : {};
   const safeProduct = product && typeof product === "object" ? product : {};
   const safeResult = result && typeof result === "object" ? result : {};
-  const safeRecords = Array.isArray(records) ? records : [];
-  const views = n(safeReview.views);
-  const likes = n(safeReview.likes);
-  const saves = n(safeReview.saves);
-  const comments = n(safeReview.comments);
-  const inquiries = n(safeReview.inquiries);
-  const orders = n(safeReview.orders);
-  const cost = n(safeReview.cost);
   const hasReviewData = hasReviewInsightData(safeReview);
 
-  const engagementRate = views ? ((likes + saves + comments) / views) * 100 : 0;
-  const inquiryRate = views ? (inquiries / views) * 100 : 0;
-  const conversionRate = inquiries ? (orders / inquiries) * 100 : 0;
-  const costPerOrder = orders ? cost / orders : 0;
+  const productContext = {
+    productName: safeResult.productExpression?.displayName || safeProduct.name || "未命名产品",
+    category: safeResult.productIdentity?.productTypeLabel || safeProduct.category || "",
+    targetAudience: safeProduct.audience || "",
+    sellingChannels: safeProduct.channel || "",
+    price: safeProduct.price || "",
+    suggestedPrice: safeProduct.price || "",
+    grossProfit: safeResult.profit,
+    grossMargin: safeResult.margin,
+  };
 
-  let suggestion = "继续观察";
-  let suggestionDetail = "先积累足够浏览和询单数据，再判断是否改内容、改价格或补货。";
-  if (engagementRate >= 8 && conversionRate < 20 && inquiries > 0) {
-    suggestion = "互动高但成交偏低";
-    suggestionDetail = "说明内容能吸引用户，但成交信任还没有建立。建议优化售价、详情页、包装展示、材质说明、评价证明和售后承诺。";
-  }
-  if (views > 0 && engagementRate < 3) {
-    suggestion = "内容吸引力不足";
-    suggestionDetail = "建议重做封面、标题和前3秒内容，把使用前后对比、佩戴/使用场景和价格利益点提前展示。";
-  }
-  if (inquiryRate >= 1 && conversionRate < 20 && inquiries >= 5) {
-    suggestion = "询单高但成交低";
-    suggestionDetail = "用户有购买兴趣，但下单链路可能卡住了。建议检查售价、运费、付款路径、库存说明和客服回复速度。";
-  }
-  if (orders >= 5 && conversionRate >= 25 && costPerOrder > 0 && costPerOrder <= Math.max(safeResult.profit, 1) * 0.6) {
-    suggestion = "成交好且成本可控";
-    suggestionDetail = "可以进入小批量补货观察，但仍建议控制首单量，继续跟踪退换货、复购和真实利润。";
-  }
+  const metrics = buildReviewMetrics(safeReview, productContext);
+  const metricCards = buildReviewMetricCards(metrics);
+
+  const [reviewInsight, setReviewInsight] = useState(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+
+  // 测款数据变化时调用 LLM 生成复盘总结；失败安全降级为规则版。
+  const signature = JSON.stringify({
+    v: safeReview.views,
+    l: safeReview.likes,
+    s: safeReview.saves,
+    c: safeReview.comments,
+    i: safeReview.inquiries,
+    o: safeReview.orders,
+    cost: safeReview.cost,
+    name: productContext.productName,
+  });
+
+  useEffect(() => {
+    if (!hasReviewData) {
+      setReviewInsight(null);
+      setInsightLoading(false);
+      return undefined;
+    }
+    let active = true;
+    setInsightLoading(true);
+    generateReviewInsight({ reviewData: safeReview, productContext, metrics })
+      .then((res) => {
+        if (active) setReviewInsight(res);
+      })
+      .finally(() => {
+        if (active) setInsightLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature, hasReviewData]);
 
   function updateReview(key, value) {
     setReview((old) => ({ ...old, [key]: value }));
@@ -67,18 +94,21 @@ export default function ReviewView({
     });
   }
 
+  const decisionTone = DECISION_TONE[metrics.decision] || "bg-white/10 text-slate-100";
+
   return (
-    <div className="grid min-w-0 gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-      <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
-        <p className="text-sm text-emerald-300">Test Review</p>
-        <h2 className="break-words text-2xl font-black sm:text-3xl">测款数据复盘</h2>
-        <p className="mt-2 break-words text-sm leading-7 text-slate-400">把小红书、抖音或私域的真实反馈填进来，用测款数据辅助下一步补货判断。</p>
+    <div className="space-y-6">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+        <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
+          <p className="text-sm text-emerald-300">Test Review</p>
+          <h2 className="break-words text-2xl font-black sm:text-3xl">测款数据复盘</h2>
+          <p className="mt-2 break-words text-sm leading-7 text-slate-400">把小红书、抖音或私域的真实反馈填进来，用测款数据辅助下一步补货判断。</p>
         <button onClick={applyReviewDemo} className="mt-5 min-h-11 w-full rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black shadow-lg shadow-emerald-300/10 sm:w-auto">
           填入示例数据
         </button>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2">
-          <Input label="浏览量" value={safeReview.views || ""} onChange={(value) => updateReview("views", value)} placeholder="如：3000" />
+          <Input label="浏览量 / 曝光量" value={safeReview.views || ""} onChange={(value) => updateReview("views", value)} placeholder="如：3000" />
           <Input label="点赞数" value={safeReview.likes || ""} onChange={(value) => updateReview("likes", value)} placeholder="如：120" />
           <Input label="收藏数" value={safeReview.saves || ""} onChange={(value) => updateReview("saves", value)} placeholder="如：80" />
           <Input label="评论数" value={safeReview.comments || ""} onChange={(value) => updateReview("comments", value)} placeholder="如：20" />
@@ -86,62 +116,69 @@ export default function ReviewView({
           <Input label="实际成交数" value={safeReview.orders || ""} onChange={(value) => updateReview("orders", value)} placeholder="如：5" />
           <Input label="测款成本 / 元" value={safeReview.cost || ""} onChange={(value) => updateReview("cost", value)} placeholder="如：50" wide />
         </div>
+        {metrics.missingFields.length > 0 && (
+          <p className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs leading-6 text-amber-100">
+            待补充：{metrics.missingFields.join("、")}。补全后漏斗与复盘建议会更准确。
+          </p>
+        )}
       </section>
 
       <section className="min-w-0 rounded-[2rem] border border-white/10 bg-black/35 p-4 sm:p-6">
         <h2 className="text-2xl font-black">测款复盘结论</h2>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <Card label="当前产品" value={safeProduct.name || "未命名产品"} />
+          <Card label="当前产品" value={productContext.productName} />
           <Card label="进货评分" value={`${safeResult.totalScore || 0}/100`} />
         </div>
 
-        <div className="mt-5 space-y-4">
-          <MetricBar label="互动率" value={engagementRate} max={12} suffix="%" desc="判断内容吸引力，收藏、点赞和评论越集中，说明封面与卖点越能抓住用户。" />
-          <MetricBar label="询单率" value={inquiryRate} max={3} suffix="%" desc="判断购买兴趣，用户愿意私信或评论问价，说明产品已经进入购买考虑。" />
-          <MetricBar label="成交转化率" value={conversionRate} max={35} suffix="%" desc="判断价格、信任和付款路径是否成立，高询单低成交时优先排查成交阻力。" />
-          <MetricBar label="单均测款成本" value={costPerOrder} max={Math.max((safeResult.profit || 0) * 1.2, 20)} prefix="¥" desc="判断获客成本是否可接受，单均成本应低于可承受利润空间。" />
-        </div>
-
-        <div className="mt-6 min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-sm font-bold text-cyan-300">Review Chart</p>
-              <h3 className="text-2xl font-black text-white">测款复盘可视化</h3>
+        {/* 关键指标卡 */}
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {metricCards.map((card) => (
+            <div key={card.key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+              <p className="text-[11px] font-bold text-slate-400">{card.label}</p>
+              <p className={`mt-1 text-xl font-black ${card.value === "待补充" ? "text-slate-500" : "text-emerald-300"}`}>{card.value}</p>
+              <p className="mt-1 text-[10px] leading-4 text-slate-500">{card.hint}</p>
             </div>
-            <p className="max-w-xl text-xs leading-6 text-slate-400">
-              图表仅展示已填写或已保存的复盘数据，不改变复盘结论和保存字段。
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <ReviewMetricChart review={safeReview} records={safeRecords} />
-          </div>
+          ))}
         </div>
 
-        <div className="mt-6 rounded-3xl bg-emerald-300 p-5 text-black">
-          <p className="text-sm font-bold opacity-70">复盘建议</p>
-          <h3 className="mt-2 text-2xl font-black">{suggestion}</h3>
-          <p className="mt-3 text-sm leading-7 opacity-80">
-            {suggestionDetail}
-          </p>
+        {/* 转化漏斗 */}
+        <div className="mt-6 min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+          <div className="mb-4">
+            <p className="text-sm font-bold text-cyan-300">测款转化漏斗</p>
+            <p className="mt-1 text-xs leading-6 text-slate-400">从曝光到成交，判断用户在哪一步流失（数量同一量纲，比例单独标注）。</p>
+          </div>
+          <ReviewFunnelChart metrics={metrics} />
         </div>
 
-       {hasReviewData && (
-  <div className="mt-5">
-    <AiInsightPanel
-      title={aiReviewInsight?.source === "llm" ? "AI 测款复盘总结" : "基础测款复盘建议"}
-      scenario="review_summary"
-      insight={aiReviewInsight}
-      loading={aiReasoningLoading && !aiReviewInsight}
-      compact
-    />
-  </div>
-)}
+        {/* 决策象限 / 判断结果 */}
+        <div className="mt-6 rounded-3xl border border-emerald-300/20 bg-emerald-300/[0.06] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-bold text-emerald-300">规则判断结果</p>
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-3 py-1 text-xs font-black ${decisionTone}`}>决策：{metrics.decision}</span>
+              <span className="text-xs text-slate-300">置信度：<span className="font-black text-emerald-300">{metrics.confidenceLevel}</span></span>
+            </div>
+          </div>
+          <p className="mt-3 break-words text-sm leading-7 text-emerald-50">{metrics.judgment}</p>
+          {metrics.decisionReason && (
+            <p className="mt-2 break-words text-xs leading-6 text-slate-300">数据解读：{metrics.decisionReason}</p>
+          )}
+        </div>
+
+        {/* AI 复盘总结 */}
+        {hasReviewData && (
+          <div className="mt-5">
+            <ReviewInsightPanel insight={reviewInsight} loading={insightLoading && !reviewInsight} />
+          </div>
+        )}
 
         <button onClick={saveCurrentReport} className="mt-5 min-h-11 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">
           保存本次复盘到我的产品库
         </button>
         {saveMessage && <p className="mt-3 rounded-2xl bg-white/[0.06] p-3 text-sm text-emerald-100">{saveMessage}</p>}
       </section>
+      </div>
+      <InternalTestDataBoard records={records} />
     </div>
   );
 }

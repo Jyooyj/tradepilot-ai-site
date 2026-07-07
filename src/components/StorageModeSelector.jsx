@@ -2,17 +2,17 @@ const storageOptions = [
   {
     value: "auto",
     label: "自动选择",
-    description: "云端可用时优先云端，否则回退本地。",
+    description: "优先使用云端同步；如果云端暂不可用，系统会自动回退到本地保存，保证演示和使用流程不中断。",
   },
   {
     value: "local",
     label: "仅本地保存",
-    description: "适合游客体验和国内网络不稳定场景，但需要定期导出备份。",
+    description: "数据仅保存在当前浏览器，适合快速体验和离线演示；清除缓存、换设备或使用无痕模式可能导致记录丢失，建议定期导出备份。",
   },
   {
     value: "cloud",
     label: "云端同步",
-    description: "登录 Supabase 后可跨设备保存产品库。",
+    description: "使用 Supabase 保存产品库记录，系统会自动创建匿名云端会话；适合演示云端备份能力，正式账号登录后可扩展为稳定跨设备同步。",
   },
 ];
 
@@ -21,7 +21,7 @@ export default function StorageModeSelector({ mode = "auto", onChange, disabled 
     <section className="mb-4 min-w-0 rounded-3xl border border-white/10 bg-white/[0.06] p-4">
       <div className="mb-3 flex flex-col gap-1">
         <p className="text-sm font-black text-emerald-200">存储方式</p>
-        <p className="break-words text-xs leading-6 text-slate-400">选择产品库记录的保存位置。游客模式仍可完整体验，云端同步需要 Supabase 配置和账号登录。</p>
+        <p className="break-words text-xs leading-6 text-slate-400">选择产品库记录的保存方式。当前支持本地保存与 Supabase 云端同步；云端模式会自动创建匿名云端会话，无需注册即可保存记录。</p>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">

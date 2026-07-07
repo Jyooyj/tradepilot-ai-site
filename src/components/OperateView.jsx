@@ -164,7 +164,7 @@ export default function OperateView({
             <div>
               <h3 className="text-xl font-black text-cyan-100">市场证据补充（可选）</h3>
               <p className="mt-2 text-sm leading-7 text-cyan-100/80">
-                如果暂未接入平台 API，可以将你在 1688、淘宝、抖音、小红书等平台看到的价格、热度、链接和竞品情况填入，系统会将这些信息作为市场证据辅助判断。
+                你可以将自己在 1688、淘宝、抖音、小红书等平台观察到的价格、热度、链接和竞品情况填入，系统会将这些信息作为市场证据辅助判断。
               </p>
             </div>
           </div>

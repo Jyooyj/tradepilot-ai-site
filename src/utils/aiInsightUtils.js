@@ -1,94 +1,67 @@
 export const AI_INSIGHT_SCENARIOS = {
   purchase_decision: {
     title: "AI 进货决策推理",
-    fallbackTitle: "基础进货策略建议",
-    fallbackSummary: "当前已基于商品信息、规则评分、利润测算和风险判断生成基础进货建议，可先用于小批量拿样决策。",
+    fallbackSummary: "AI 推理补充暂不可用，已保留规则报告。请继续以综合评分、利润率、MOQ、风险提示和市场证据为主，先小批量拿样验证。",
     reasoningPoints: [
-      "规则评分和利润测算已经覆盖拿货价、建议售价、MOQ、毛利率和首批压货资金。",
-      "当前建议更适合用于判断是否小批量拿样，而不是直接决定大量补货。",
-      "如果市场证据不足，应先补充竞品价格、内容热度和供应商条件，再决定是否扩大进货。",
+      "规则评分和利润测算仍然有效，AI 补充层不会覆盖原有数值结论。",
+      "当前只能基于已填写信息和已有系统结果判断，不能代表真实平台销量或热度。",
+      "证据不足时应先补充竞品价格、内容热度和供应商条件，再决定是否扩大进货。",
     ],
     nextActions: [
-      "先核对拿货价、建议售价、MOQ、运费和包装成本是否准确。",
-      "补充 1-2 个竞品价格或同类内容案例作为参考。",
-      "优先小批量拿样，并通过内容测款验证收藏、询单和成交反馈。",
+      "先拿样或小批量试单，验证材质、包装、到货稳定性和真实利润。",
+      "复核同类零售价、批发价、MOQ、运费和售后成本。",
+      "优先验证用户是否愿意咨询、收藏或下单，而不是直接大量进货。",
     ],
     riskWarnings: [
-      "不要把综合评分理解为真实销量预测。",
-      "市场证据不足时，不建议直接大量进货。",
-      "供应商价格、包装费、运费和售后规则需要在拿样前再次确认。",
+      "不要把 AI 建议当作销量预测。",
+      "市场证据不足时不建议扩大备货。",
     ],
-    confidenceNote: "当前展示为基础策略建议，已保留进货判断、利润测算和风险提示，不影响报告使用。",
+    confidenceNote: "fallback：未取得可用 LLM 推理结果，可信度以规则报告和人工复核为准。",
   },
   content_testing: {
     title: "AI 内容测款策略",
-    fallbackTitle: "基础内容测款建议",
-    fallbackSummary: "当前已基于商品信息、目标人群、销售渠道和规则报告生成基础内容测款建议，可用于首轮小范围测试。",
+    fallbackSummary: "AI 内容测款策略暂不可用，已保留原内容包和规则报告。建议先围绕目标人群、使用场景、价格利益点和真实细节做小范围内容测试。",
     reasoningPoints: [
-      "原小红书内容包和抖音脚本仍可作为首轮测款参考。",
-      "内容测试应验证用户是否理解卖点，而不是直接判断商品必爆。",
-      "如果缺少市场证据，应把测试目标设为探索反馈，而不是放大投放。",
+      "原小红书内容包和抖音脚本仍可使用，AI 补充层只提供定性策略。",
+      "内容测试应验证卖点是否被理解，而不是直接判断商品必爆。",
+      "如缺少市场证据，应明确把测试目标设为探索，而不是放大投放。",
     ],
     nextActions: [
-      "首轮准备 2-3 个封面或开头角度，对比点击、收藏、评论和询单。",
+      "首轮准备 2-3 个封面/开头角度，对比点击、收藏、评论和询单。",
       "小红书重点表达使用场景、风格搭配和价格理由。",
-      "抖音前 3 秒优先展示痛点、对比或上身 / 使用效果。",
+      "抖音前 3 秒优先展示痛点、对比或上身/使用效果。",
     ],
     riskWarnings: [
-      "避免照搬同类爆款话术导致内容同质化。",
+      "避免照搬同类爆款话术导致同质化。",
       "不要编造播放量、点赞量或真实成交数据。",
-      "首轮测款样本较小时，不建议直接据此大量补货。",
     ],
-    confidenceNote: "当前展示为基础策略建议，已保留内容测款方向和风险提示，不影响报告使用。",
+    confidenceNote: "fallback：未取得可用 LLM 策略，建议用小批量内容数据复核。",
   },
   review_summary: {
     title: "AI 测款复盘总结",
-    fallbackTitle: "基础测款复盘建议",
-    fallbackSummary: "当前已基于用户填写的测款数据和规则指标生成基础复盘建议，可用于判断是否继续测试、调整内容或谨慎补货。",
+    fallbackSummary: "AI 测款复盘总结暂不可用，已保留规则复盘结论。请优先查看互动率、询单率、成交转化率和单均测款成本。",
     reasoningPoints: [
-      "复盘应同时观察曝光、互动、询单和成交，不只看单一指标。",
-      "如果互动高但成交低，可能需要检查价格、信任感或购买路径。",
-      "如果曝光低但点击反馈不错，可以优先优化封面、标题和发布时间。",
+      "复盘规则结论仍然有效，AI 只辅助解释问题可能出在哪里。",
+      "当前复盘只能基于用户填写的测款数据，不能推断平台真实流量质量。",
+      "数据量较小时，应把结论视为下一轮测试假设。",
     ],
     nextActions: [
-      "对比互动率、询单率和成交率，判断问题更可能出在内容、价格还是商品本身。",
-      "保留表现较好的内容角度，再做一轮小范围测试。",
-      "补货前再次确认供应商价格、库存和发货周期。",
+      "互动低时先改封面、标题和前 3 秒内容。",
+      "询单高但成交低时复核价格、信任背书、运费和客服回复。",
+      "成交稳定且成本可控时再考虑小批量补货。",
     ],
     riskWarnings: [
-      "单次测款数据不足时，不建议直接大量补货。",
-      "测款成本过高时，需要降低内容制作或投放成本。",
-      "成交少不一定代表商品无效，也可能是内容表达或价格设置问题。",
+      "样本量不足时不要直接扩大进货。",
+      "不要把单次测试结果当作长期需求预测。",
     ],
-    confidenceNote: "当前展示为基础策略建议，已保留测款复盘判断和下一步动作，不影响报告使用。",
+    confidenceNote: "fallback：未取得可用 LLM 复盘，可信度以已填测款数据和规则指标为准。",
   },
 };
 
-export const AI_INSIGHT_UNAVAILABLE_MESSAGE =
-  "当前展示为基础策略建议，系统已基于规则报告和用户填写信息生成可执行建议。";
+export const AI_INSIGHT_UNAVAILABLE_MESSAGE = "AI 推理补充暂不可用，已保留规则报告。";
 
-const TECHNICAL_TEXT_PATTERNS = [
-  /fallback/gi,
-  /timeout/gi,
-  /请求超时/g,
-  /接口异常/g,
-  /AI\s*推理补充暂不可用/g,
-  /AI\s*内容测款策略暂不可用/g,
-  /AI\s*测款复盘总结暂不可用/g,
-  /未取得可用\s*LLM/g,
-  /已保留原内容包和规则报告/g,
-  /已保留规则报告/g,
-  /已保留规则复盘结论/g,
-];
-
-export function getAiInsightTitle(scenario, source = "llm") {
-  const config = AI_INSIGHT_SCENARIOS[scenario] || AI_INSIGHT_SCENARIOS.purchase_decision;
-
-  if (source === "fallback") {
-    return config.fallbackTitle || "基础策略建议";
-  }
-
-  return config.title || "AI 智能推理";
+export function getAiInsightTitle(scenario) {
+  return AI_INSIGHT_SCENARIOS[scenario]?.title || "AI 智能推理补充";
 }
 
 function asObject(value) {
@@ -100,17 +73,6 @@ function asText(value, fallback = "") {
   return text || fallback;
 }
 
-function containsTechnicalText(value) {
-  const text = String(value ?? "");
-  return TECHNICAL_TEXT_PATTERNS.some((pattern) => pattern.test(text));
-}
-
-function sanitizeUserFacingText(value, fallback = "") {
-  const text = asText(value, fallback);
-  if (!text) return fallback;
-  return containsTechnicalText(text) ? fallback : text;
-}
-
 function asTextArray(value, fallback = []) {
   const source = Array.isArray(value) ? value : [];
   const items = source
@@ -120,52 +82,50 @@ function asTextArray(value, fallback = []) {
       return String(item).trim();
     })
     .filter(Boolean)
-    .filter((item) => !containsTechnicalText(item))
     .slice(0, 5);
 
   return items.length ? items : fallback;
 }
 
+function sanitizeAiInsightVisibleText(value) {
+  return String(value ?? "")
+    .replace(/fallback[:：]?/gi, "基础建议：")
+    .replace(/timeout/gi, "当前建议")
+    .replace(/接口异常|内部错误|server_error|api error|function calling|tool_calls?/gi, "服务暂不可用")
+    .trim();
+}
+
 export function buildAiInsightFallback(scenario = "purchase_decision", reason = "") {
   const config = AI_INSIGHT_SCENARIOS[scenario] || AI_INSIGHT_SCENARIOS.purchase_decision;
-
-  if (reason && typeof console !== "undefined") {
-    console.warn("[TradePilot AI] AI insight fallback:", reason);
-  }
+  const confidenceNote = reason ? `${config.confidenceNote} ${reason}` : config.confidenceNote;
 
   return {
     ok: true,
     source: "fallback",
     scenario,
-    summary: config.fallbackSummary,
-    reasoningPoints: config.reasoningPoints,
-    nextActions: config.nextActions,
-    riskWarnings: config.riskWarnings,
-    confidenceNote: config.confidenceNote,
-    internalReason: reason || "",
+    summary: sanitizeAiInsightVisibleText(config.fallbackSummary),
+    reasoningPoints: config.reasoningPoints.map(sanitizeAiInsightVisibleText),
+    nextActions: config.nextActions.map(sanitizeAiInsightVisibleText),
+    riskWarnings: config.riskWarnings.map(sanitizeAiInsightVisibleText),
+    confidenceNote: sanitizeAiInsightVisibleText(confidenceNote),
   };
 }
 
 export function normalizeAiInsight(value, scenario = "purchase_decision") {
   const source = asObject(value);
+  const fallback = buildAiInsightFallback(scenario);
   const normalizedScenario = AI_INSIGHT_SCENARIOS[source.scenario] ? source.scenario : scenario;
-  const fallback = buildAiInsightFallback(normalizedScenario);
   const normalizedSource = source.source === "llm" ? "llm" : "fallback";
-
-  if (source.errorMessage && typeof console !== "undefined") {
-    console.warn("[TradePilot AI] AI insight error:", source.errorMessage);
-  }
 
   return {
     ok: source.ok !== false,
     source: normalizedSource,
     scenario: normalizedScenario,
-    summary: sanitizeUserFacingText(source.summary, fallback.summary),
-    reasoningPoints: asTextArray(source.reasoningPoints, fallback.reasoningPoints),
-    nextActions: asTextArray(source.nextActions, fallback.nextActions),
-    riskWarnings: asTextArray(source.riskWarnings, fallback.riskWarnings),
-    confidenceNote: sanitizeUserFacingText(source.confidenceNote, fallback.confidenceNote),
-    internalReason: source.internalReason || source.errorMessage || "",
+    summary: sanitizeAiInsightVisibleText(asText(source.summary, fallback.summary)),
+    reasoningPoints: asTextArray(source.reasoningPoints, fallback.reasoningPoints).map(sanitizeAiInsightVisibleText),
+    nextActions: asTextArray(source.nextActions, fallback.nextActions).map(sanitizeAiInsightVisibleText),
+    riskWarnings: asTextArray(source.riskWarnings, fallback.riskWarnings).map(sanitizeAiInsightVisibleText),
+    confidenceNote: sanitizeAiInsightVisibleText(asText(source.confidenceNote, fallback.confidenceNote)),
   };
 }
 

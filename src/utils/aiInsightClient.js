@@ -3,19 +3,7 @@ import { buildAiInsightFallback, normalizeAiInsight } from "./aiInsightUtils";
 const AI_INSIGHT_ENDPOINT =
   import.meta.env.VITE_AI_INSIGHT_URL || "/api/generate-ai-insight";
 
-const AI_INSIGHT_TIMEOUT_MS = 30000;
-
-function getInternalErrorReason(error, responseStatus) {
-  if (error?.name === "AbortError") {
-    return "ai_insight_timeout";
-  }
-
-  if (responseStatus) {
-    return `ai_insight_http_${responseStatus}`;
-  }
-
-  return "ai_insight_request_failed";
-}
+const AI_INSIGHT_TIMEOUT_MS = 18000;
 
 export async function generateAiInsight({
   product,
@@ -23,11 +11,10 @@ export async function generateAiInsight({
   marketEvidence,
   reviewData,
   scenario,
+  constraints,
 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_INSIGHT_TIMEOUT_MS);
-
-  let responseStatus = null;
 
   try {
     const response = await fetch(AI_INSIGHT_ENDPOINT, {
@@ -42,25 +29,22 @@ export async function generateAiInsight({
         marketEvidence: marketEvidence || {},
         reviewData: reviewData || null,
         scenario,
+        // 当前商品 Prompt 强约束（后端可消费；前端亦做二次内容拦截兜底）。
+        constraints: constraints || "",
       }),
     });
 
-    responseStatus = response.status;
-
     if (!response.ok) {
-      throw new Error(`ai_insight_http_${response.status}`);
+      throw new Error(`ai_insight_${response.status}`);
     }
 
     const data = await response.json();
     return normalizeAiInsight(data, scenario);
   } catch (error) {
-    const internalReason = getInternalErrorReason(error, responseStatus);
-
-    if (typeof console !== "undefined") {
-      console.warn("[TradePilot AI] AI insight fallback:", internalReason);
-    }
-
-    return buildAiInsightFallback(scenario, internalReason);
+    const reason = error?.name === "AbortError"
+      ? "请求超时。"
+      : "接口调用失败。";
+    return buildAiInsightFallback(scenario, reason);
   } finally {
     clearTimeout(timer);
   }

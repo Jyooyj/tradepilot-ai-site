@@ -11,6 +11,13 @@ export const STORAGE_MODES = {
   CLOUD: "cloud",
 };
 
+// 没有云端会话时的友好提示（替代英文 "Auth session missing!"）。
+export const NO_CLOUD_SESSION_MESSAGE =
+  "当前没有云端会话。可点击同步按钮自动创建匿名云端会话，或继续使用本地模式。";
+// 匿名登录失败时的提示。
+export const ANONYMOUS_SIGN_IN_FAILED_MESSAGE =
+  "匿名云端会话创建失败。请确认 Supabase 后台已开启 Anonymous Sign-ins，或继续使用本地模式。";
+
 const selectedModeLabels = {
   auto: "自动选择",
   local: "仅本地保存",
@@ -374,24 +381,75 @@ function removeRecord(records, recordId) {
   return normalizeRecords(records).filter((record) => record.id !== String(recordId));
 }
 
-async function getCloudUser() {
+// 确保存在可用的 Supabase 会话：
+// 1. 先 getSession()，已有会话直接返回；
+// 2. 没有会话则 signInAnonymously() 创建匿名会话；
+// 3. 匿名登录成功返回 session/user，失败返回中文错误提示。
+// 该函数不会抛错，调用方失败时可继续走本地模式。
+export async function ensureSupabaseSession() {
+  if (!hasSupabaseConfig || !supabase) {
+    return { session: null, user: null, warning: "当前未配置 Supabase，无法启用云端同步。" };
+  }
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session?.user) {
+      return { session: sessionData.session, user: sessionData.session.user, warning: "" };
+    }
+
+    if (typeof supabase.auth.signInAnonymously !== "function") {
+      return { session: null, user: null, warning: ANONYMOUS_SIGN_IN_FAILED_MESSAGE };
+    }
+
+    const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
+    if (anonError || !anonData?.user) {
+      return {
+        session: anonData?.session || null,
+        user: anonData?.user || null,
+        warning: ANONYMOUS_SIGN_IN_FAILED_MESSAGE,
+        error: normalizeError(anonError),
+      };
+    }
+    return { session: anonData.session || null, user: anonData.user, warning: "" };
+  } catch (error) {
+    return {
+      session: null,
+      user: null,
+      warning: ANONYMOUS_SIGN_IN_FAILED_MESSAGE,
+      error: normalizeError(error),
+    };
+  }
+}
+
+async function getCloudUser(options = {}) {
+  const { allowAnonymous = false } = options;
   if (!hasSupabaseConfig || !supabase) {
     return { user: null, warning: "当前未配置 Supabase，无法启用云端同步。" };
   }
 
+  // 允许匿名兜底：没有会话时自动创建匿名云端会话（用于“同步 / 保存”等写操作）。
+  if (allowAnonymous) {
+    const ensured = await ensureSupabaseSession();
+    if (!ensured.user) {
+      return { user: null, warning: ensured.warning || NO_CLOUD_SESSION_MESSAGE, error: ensured.error || "" };
+    }
+    return { user: ensured.user, warning: "" };
+  }
+
   try {
-    const { data, error } = await supabase.auth.getUser();
+    // 用 getSession() 而非 getUser()，没有会话时不会抛 "Auth session missing!"。
+    const { data, error } = await supabase.auth.getSession();
     if (error) {
       const errorText = normalizeError(error);
-      return { user: null, warning: errorText || "Supabase 登录状态不可用，请重新登录后启用云端同步。", error: errorText };
+      return { user: null, warning: errorText || NO_CLOUD_SESSION_MESSAGE, error: errorText };
     }
-    if (!data?.user) {
-      return { user: null, warning: "请登录后启用云端同步。" };
+    if (!data?.session?.user) {
+      return { user: null, warning: NO_CLOUD_SESSION_MESSAGE };
     }
-    return { user: data.user, warning: "" };
+    return { user: data.session.user, warning: "" };
   } catch (error) {
     const errorText = normalizeError(error);
-    return { user: null, warning: errorText || "Supabase 登录状态检查失败，请稍后重试。", error: errorText };
+    return { user: null, warning: errorText || NO_CLOUD_SESSION_MESSAGE, error: errorText };
   }
 }
 
@@ -579,7 +637,8 @@ export async function saveProductRecord(record, mode) {
     return localSave;
   }
 
-  const cloud = await getCloudUser();
+  // 保存到云端：写入前确保会话（必要时自动匿名登录），并绑定 user_id。
+  const cloud = await getCloudUser({ allowAnonymous: true });
   if (!cloud.user) {
     if (selectedMode === STORAGE_MODES.CLOUD) {
       return cloudUnavailableResult(localSave.records, selectedMode, {
@@ -709,7 +768,8 @@ export async function migrateLocalRecordsToCloud(mode) {
     });
   }
 
-  const cloud = await getCloudUser();
+  // 点击“同步本地记录到云端”：先确保会话（必要时自动匿名登录）。
+  const cloud = await getCloudUser({ allowAnonymous: true });
   if (!cloud.user) {
     if (selectedMode === STORAGE_MODES.CLOUD) {
       return cloudUnavailableResult(local.records, selectedMode, {
@@ -719,7 +779,7 @@ export async function migrateLocalRecordsToCloud(mode) {
     }
 
     return localResult(local.records, selectedMode, {
-      warning: "当前未登录，自动选择仍使用本地模式；本地记录未同步到云端。",
+      warning: `${cloud.warning} 本地记录未同步到云端，仍可继续使用本地模式。`,
       error: cloud.error || local.error || "",
     });
   }

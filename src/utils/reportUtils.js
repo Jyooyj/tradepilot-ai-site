@@ -239,6 +239,36 @@ export function escapeHtml(value) {
     .trim() || "未填写";
 }
 
+export function escapeHtmlAttribute(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+export function getSafeExternalUrl(value) {
+  const text = String(value || "").trim();
+  if (!/^https?:\/\//i.test(text)) return "";
+
+  try {
+    const url = new URL(text);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function buildTaobaoSearchUrl(query) {
+  const keyword = String(query || "").trim();
+  if (!keyword) return "";
+
+  const url = new URL("https://s.taobao.com/search");
+  url.searchParams.set("q", keyword);
+  return url.toString();
+}
+
 function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -400,13 +430,42 @@ function visiblePriceSearchLinks(links) {
   return asArray(links).filter((link) => link?.platform !== "1688" && !String(link?.label || "").includes("1688"));
 }
 
+function isTaobaoSearchLink(link = {}) {
+  return /taobao|淘宝|s\.taobao\.com/i.test(`${link.platform || ""} ${link.label || ""} ${link.url || ""}`);
+}
+
+function getSearchParamFromUrl(value, key) {
+  const safeUrl = getSafeExternalUrl(value);
+  if (!safeUrl) return "";
+
+  try {
+    return new URL(safeUrl).searchParams.get(key) || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function normalizePriceSearchLink(link = {}, query = "") {
+  if (!isTaobaoSearchLink(link)) return link;
+
+  const keyword = query || getSearchParamFromUrl(link.url, "q");
+  const taobaoUrl = buildTaobaoSearchUrl(keyword);
+
+  return {
+    ...link,
+    label: link.label || "淘宝搜索参考",
+    url: taobaoUrl || link.url,
+  };
+}
+
 function getVisiblePriceSearchLinks(priceEvidence) {
-  const links = visiblePriceSearchLinks(priceEvidence?.searchLinks);
+  const links = visiblePriceSearchLinks(priceEvidence?.searchLinks)
+    .map((link) => normalizePriceSearchLink(link, priceEvidence?.query));
   if (links.length || !priceEvidence?.query) return links;
 
   return [{
     label: "淘宝搜索参考",
-    url: `https://s.taobao.com/search?q=${encodeURIComponent(priceEvidence.query)}`,
+    url: buildTaobaoSearchUrl(priceEvidence.query),
     purpose: "人工查看零售价、竞品标题、主图和价格带。",
   }];
 }
@@ -461,7 +520,7 @@ function renderSupplierCommunicationReportSection(product, result) {
   return `
     <section>
       <h2>八、供应商沟通 Skill</h2>
-      <p class="footer">该模块基于当前商品信息、利润空间、MOQ 和风险提示生成话术；未接入真实供应商 API，也不会自动联系供应商。</p>
+      <p class="footer">该模块基于当前商品信息、利润空间、MOQ 和风险提示生成供应商沟通话术；用户可复制后自行确认价格、起订量、发货周期和售后规则。</p>
       <h3>沟通重点摘要</h3>
       <p class="card">${escapeHtml(safePack.summary || "暂无供应商沟通建议")}</p>
       <div class="grid">
@@ -478,79 +537,6 @@ function renderSupplierCommunicationReportSection(product, result) {
   `;
 }
 
-const REPORT_TECHNICAL_TEXT_PATTERNS = [
-  /fallback/gi,
-  /timeout/gi,
-  /请求超时/g,
-  /接口异常/g,
-  /AI\s*推理补充暂不可用/g,
-  /AI\s*内容测款策略暂不可用/g,
-  /AI\s*测款复盘总结暂不可用/g,
-  /未取得可用\s*LLM/g,
-  /已保留原内容包和规则报告/g,
-  /已保留规则报告/g,
-  /已保留规则复盘结论/g,
-];
-
-function hasTechnicalReportText(value) {
-  const text = String(value ?? "");
-  return REPORT_TECHNICAL_TEXT_PATTERNS.some((pattern) => pattern.test(text));
-}
-
-function safeReportText(value, fallback = "暂无") {
-  const text = String(value ?? "").trim();
-  if (!text || hasTechnicalReportText(text)) return fallback;
-  return text;
-}
-
-function safeReportList(items, fallback = ["暂无"]) {
-  const safeItems = asArray(items)
-    .map((item) => String(item ?? "").trim())
-    .filter(Boolean)
-    .filter((item) => !hasTechnicalReportText(item))
-    .slice(0, 5);
-
-  return safeItems.length ? safeItems : fallback;
-}
-
-function getReportInsightFallbackTitle(scenario) {
-  if (scenario === "content_testing") return "基础内容测款建议";
-  if (scenario === "review_summary") return "基础测款复盘建议";
-  return "基础进货策略建议";
-}
-
-function getReportInsightTitle(scenario, insight) {
-  const isLlm = insight?.source === "llm";
-  if (isLlm) {
-    return AI_INSIGHT_SCENARIOS[scenario]?.title || "AI 智能推理";
-  }
-  return AI_INSIGHT_SCENARIOS[scenario]?.fallbackTitle || getReportInsightFallbackTitle(scenario);
-}
-
-function getReportInsightFallbackSummary(scenario) {
-  if (scenario === "content_testing") {
-    return "当前已基于商品信息、目标人群、销售渠道和规则报告生成基础内容测款建议，可用于首轮小范围测试。";
-  }
-
-  if (scenario === "review_summary") {
-    return "当前已基于用户填写的测款数据和规则指标生成基础复盘建议，可用于判断是否继续测试、调整内容或谨慎补货。";
-  }
-
-  return "当前已基于商品信息、规则评分、利润测算和风险判断生成基础进货建议，可先用于小批量拿样决策。";
-}
-
-function getReportInsightFallbackNote(scenario) {
-  if (scenario === "content_testing") {
-    return "当前展示为基础策略建议，已保留内容测款方向和风险提示，不影响报告使用。";
-  }
-
-  if (scenario === "review_summary") {
-    return "当前展示为基础策略建议，已保留测款复盘判断和下一步动作，不影响报告使用。";
-  }
-
-  return "当前展示为基础策略建议，已保留进货判断、利润测算和风险提示，不影响报告使用。";
-}
-
 function getAiReasoningInsights(result = {}) {
   const insights = asObject(result.aiReasoningInsights || result.aiInsights);
 
@@ -562,42 +548,20 @@ function getAiReasoningInsights(result = {}) {
   }, {});
 }
 
-function renderAiInsightCard(scenario, insight) {
-  const fallback = buildAiInsightFallback(scenario);
-  const normalizedInsight = normalizeAiInsight(insight || fallback, scenario);
-  const title = getReportInsightTitle(scenario, normalizedInsight);
-  const summary = safeReportText(
-    normalizedInsight.summary,
-    getReportInsightFallbackSummary(scenario)
-  );
-  const reasoningPoints = safeReportList(
-    normalizedInsight.reasoningPoints,
-    fallback.reasoningPoints
-  );
-  const nextActions = safeReportList(
-    normalizedInsight.nextActions,
-    fallback.nextActions
-  );
-  const riskWarnings = safeReportList(
-    normalizedInsight.riskWarnings,
-    fallback.riskWarnings
-  );
-  const confidenceNote = safeReportText(
-    normalizedInsight.confidenceNote,
-    getReportInsightFallbackNote(scenario)
-  );
+function renderAiInsightCard(title, insight) {
+  const normalizedInsight = normalizeAiInsight(insight, insight?.scenario);
 
   return `
     <div class="card">
       <h3>${escapeHtml(title)}</h3>
-      <p>${escapeHtml(summary)}</p>
+      <p>${escapeHtml(normalizedInsight.summary)}</p>
       <h3>推理要点</h3>
-      ${htmlList(reasoningPoints, false)}
+      ${htmlList(normalizedInsight.reasoningPoints, false)}
       <h3>下一步建议</h3>
-      ${htmlList(nextActions, false)}
+      ${htmlList(normalizedInsight.nextActions, false)}
       <h3>风险提醒</h3>
-      ${htmlList(riskWarnings, false)}
-      <p class="footer">${escapeHtml(confidenceNote)}</p>
+      ${htmlList(normalizedInsight.riskWarnings, false)}
+      <p class="footer">${escapeHtml(normalizedInsight.confidenceNote)}</p>
     </div>
   `;
 }
@@ -610,25 +574,52 @@ function renderAiInsightReportSection(result = {}) {
   if (!hasInsight) {
     return `
       <section>
-        <h2>智能策略补充</h2>
-        <p class="footer">当前为基础策略建议，系统已基于规则报告和用户填写信息生成可执行建议。规则评分、利润测算、MOQ 判断和原报告内容不受影响。</p>
+        <h2>AI 智能推理补充</h2>
+        <p class="footer">暂无 AI 推理补充；规则评分、利润测算、MOQ 判断和原报告内容不受影响。</p>
       </section>
     `;
   }
 
   return `
     <section>
-      <h2>智能策略补充</h2>
-      <p class="footer">规则评分继续负责稳定数值计算；智能策略层用于补充解释、内容测款建议和复盘思路，不覆盖综合评分、利润率、MOQ 或风险等级，也不伪造真实平台数据。</p>
+      <h2>AI 智能推理补充</h2>
+      <p class="footer">规则评分继续负责稳定数值计算；LLM 只补充解释、策略建议和复盘洞察，不覆盖综合评分、利润率、MOQ 或风险等级，也不伪造真实平台数据。</p>
       <div class="grid">
         ${scenarios
           .filter((scenario) => Boolean(insights[scenario]))
-          .map((scenario) => renderAiInsightCard(scenario, insights[scenario]))
+          .map((scenario) => renderAiInsightCard(
+            AI_INSIGHT_SCENARIOS[scenario]?.title || "AI 推理补充",
+            insights[scenario] || buildAiInsightFallback(scenario)
+          ))
           .join("")}
       </div>
     </section>
   `;
 }
+
+function getExternalLinkText(link = {}, fallbackLabel = "搜索参考") {
+  const rawLabel = String(link?.label || fallbackLabel || "搜索参考").trim();
+  const label = rawLabel.replace(/入口$/, "").trim() || fallbackLabel;
+  return `点击打开${label}`;
+}
+
+function renderExternalLinkCard(link = {}, fallbackLabel = "搜索参考") {
+  const safeUrl = getSafeExternalUrl(link.url);
+  const linkText = getExternalLinkText(link, fallbackLabel);
+
+  return `
+    <div class="card">
+      <h3>${escapeHtml(link.label || fallbackLabel)}</h3>
+      <p>${escapeHtml(link.purpose || "用于人工复核市场参考信息。")}</p>
+      ${
+        safeUrl
+          ? `<p><a class="external-link" href="${escapeHtmlAttribute(safeUrl)}" target="_blank" rel="noreferrer">${escapeHtml(linkText)}</a></p>`
+          : '<p class="footer">链接格式不可用，仅支持 http:// 或 https:// 外部链接。</p>'
+      }
+    </div>
+  `;
+}
+
 function renderDouyinEvidenceSection(douyinEvidence) {
   if (!douyinEvidence) return "";
 
@@ -643,13 +634,7 @@ function renderDouyinEvidenceSection(douyinEvidence) {
   const riskWarnings = asArray(douyinEvidence.riskWarnings).length ? asArray(douyinEvidence.riskWarnings) : [defaultMarketRiskWarning];
   const nextActions = asArray(douyinEvidence.nextActions).length ? asArray(douyinEvidence.nextActions) : ["先做小样内容测试，再根据互动和询价反馈决定是否进货。"];
   const linkCards = searchLinks.length
-    ? searchLinks.map((link) => `
-        <div class="card">
-          <h3>${escapeHtml(link.label)}</h3>
-          <p>${escapeHtml(link.purpose)}</p>
-          <p><a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer">${escapeHtml(link.url)}</a></p>
-        </div>
-      `).join("")
+    ? searchLinks.map((link) => renderExternalLinkCard(link, "抖音内容测款参考")).join("")
     : '<div class="card"><p>暂无搜索入口。</p></div>';
 
   return `
@@ -703,13 +688,7 @@ function renderPriceEvidenceSection(priceEvidence) {
   const analysisConclusions = asArray(safePriceEvidence.analysisConclusions);
   const nextActions = asArray(safePriceEvidence.nextActions).length ? asArray(safePriceEvidence.nextActions) : ["继续核验同款价格、规格、起订量和运费，确认当前价格判断可复盘。"];
   const linkCards = searchLinks.length
-    ? searchLinks.map((link) => `
-        <div class="card">
-          <h3>${escapeHtml(link.label)}</h3>
-          <p>${escapeHtml(link.purpose)}</p>
-          <p><a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer">${escapeHtml(link.url)}</a></p>
-        </div>
-      `).join("")
+    ? searchLinks.map((link) => renderExternalLinkCard(link, "淘宝搜索参考")).join("")
     : '<div class="card"><p>暂无搜索入口。</p></div>';
 
   return `
@@ -868,6 +847,8 @@ export function generateHtmlReport(product, result) {
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .card { border: 1px solid rgba(255,255,255,.08); border-radius: 18px; background: rgba(0,0,0,.2); padding: 16px; }
     .card strong { color: var(--accent-2); }
+    .external-link { display: inline-block; max-width: 100%; border: 1px solid var(--line); border-radius: 999px; background: rgba(125,245,172,.14); color: var(--accent-2); padding: 8px 12px; font-size: 14px; font-weight: 800; text-decoration: none; overflow-wrap: anywhere; }
+    .external-link:hover { background: rgba(125,245,172,.22); }
     .summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .summary p { margin: 0; border-radius: 16px; background: rgba(0,0,0,.22); padding: 14px; }
     .checklist { list-style: none; margin-left: 0; }
@@ -1102,6 +1083,17 @@ function injectPrintablePdfStyles(html) {
         color: #065f46 !important;
         text-decoration: none;
       }
+      .external-link {
+        display: inline-block !important;
+        max-width: 100% !important;
+        border: 1px solid #a7f3d0 !important;
+        border-radius: 999px !important;
+        background: #ecfdf5 !important;
+        color: #065f46 !important;
+        padding: 6px 10px !important;
+        font-weight: 700 !important;
+        overflow-wrap: normal !important;
+      }
       button,
       .no-print {
         display: none !important;
@@ -1144,6 +1136,7 @@ function generatePrintableFallbackReport(product, result) {
     th { background: #ecfdf5; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .card { border: 1px solid #d1d5db; border-radius: 12px; padding: 12px; margin-top: 10px; }
+    .external-link { display: inline-block; max-width: 100%; border: 1px solid #a7f3d0; border-radius: 999px; background: #ecfdf5; color: #065f46; padding: 6px 10px; font-weight: 700; text-decoration: none; overflow-wrap: normal; }
     .footer { color: #4b5563; font-size: 12px; }
     @page { size: A4; margin: 14mm; }
   </style>

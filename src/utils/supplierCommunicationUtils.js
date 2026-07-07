@@ -1,4 +1,4 @@
-import { supplierQuestionTemplates } from "../constants/contentTemplates";
+import { supplierQuestionTemplates } from "../constants/contentTemplates.js";
 
 const BASE_RISK_CHECK_QUESTIONS = [
   "这个价格是否含包装？",

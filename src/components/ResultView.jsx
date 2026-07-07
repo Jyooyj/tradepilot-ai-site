@@ -1,8 +1,14 @@
 import { Card, formatEffectivePrice, getScoringItems, MaterialChecklistCard, money, SamplingStrategyCard, Score, StructuredReport } from "../../App.jsx";
+import AgentDecisionPanel from "./AgentDecisionPanel";
 import AgentStatusPanel from "./AgentStatusPanel";
 import AiInsightPanel from "./AiInsightPanel";
 import SupplierCommunicationPanel from "./SupplierCommunicationPanel";
+import PolicyRiskPanel from "./PolicyRiskPanel";
+import MarketDataLayerPanel from "./MarketDataLayerPanel";
+import GlobalFitScorePanel from "./GlobalFitScorePanel";
+import GlobalContentPlanPanel from "./GlobalContentPlanPanel";
 import { hasReviewInsightData } from "../utils/aiInsightUtils";
+import { analyzeDouyinPackageRisk, analyzeResultPolicyRisk, analyzeXhsPackageRisk } from "../utils/policyRiskEngine";
 
 const douyinHeatLevelText = {
   high: "高",
@@ -64,18 +70,10 @@ function formatPriceRange(range) {
   return `¥${range.min} - ¥${range.max}`;
 }
 
-function getInsightPanelTitle(insight, scenario) {
-  const isLlm = insight?.source === "llm";
-
-  if (scenario === "content_testing") {
-    return isLlm ? "AI 内容测款策略" : "基础内容测款建议";
-  }
-
-  if (scenario === "review_summary") {
-    return isLlm ? "AI 测款复盘总结" : "基础测款复盘建议";
-  }
-
-  return isLlm ? "AI 进货决策推理" : "基础进货策略建议";
+function formatRecognitionConfidence(value) {
+  const text = String(value || "").trim();
+  if (!text || /fallback|timeout|server_error|api error/i.test(text)) return "待人工复核";
+  return text;
 }
 
 export default function ResultView({
@@ -95,6 +93,8 @@ export default function ResultView({
   aiInsight,
   aiReasoningInsights,
   aiReasoningLoading,
+  currentProductContext,
+  aiInsightStale,
   reviewData,
   downloadReport,
   onExportPdfReport,
@@ -137,6 +137,17 @@ export default function ResultView({
   const reasoningInsights = aiReasoningInsights && typeof aiReasoningInsights === "object" ? aiReasoningInsights : {};
   const showReviewInsight = hasReviewInsightData(reviewData);
 
+  // 政策与内容合规风险自检（离线规则匹配，仅做发布前风险提示）。
+  const policyContext = {
+    productName: product?.name || result?.productIdentity?.displayName || "",
+    category: product?.category || result?.categoryName || "",
+    targetAudience: product?.audience || "",
+    channel: product?.channel || "",
+  };
+  const overallPolicyRisk = analyzeResultPolicyRisk(result, product);
+  const xhsPolicyRisk = analyzeXhsPackageRisk(result.xhsPackage, result.xhsStructure, { ...policyContext, channel: "小红书" });
+  const douyinPolicyRisk = analyzeDouyinPackageRisk(result.douyinPackage, { ...policyContext, channel: "抖音" });
+
   return (
     <div className="min-w-0 space-y-6 break-words">
       {!analyzed && (
@@ -145,6 +156,30 @@ export default function ResultView({
         </div>
       )}
 
+      <div className="rounded-3xl border border-sky-300/20 bg-sky-300/10 p-4 text-sm leading-6 text-sky-100">
+        <p>本报告所有模块均基于当前上传图片与当前填写信息生成，不会套用历史商品、示例数据或内容结构库样本。</p>
+        {currentProductContext && !currentProductContext.infoSufficient && (
+          <p className="mt-2 text-amber-100">
+            当前商品信息不足，以下部分为通用结构建议，请补充商品名称、材质、使用场景和目标人群后重新生成，系统不会编造具体材质 / 款式 / 场景。
+          </p>
+        )}
+        {aiInsightStale && (
+          <p className="mt-2 text-rose-100">
+            当前商品已变化，AI 推理模块需要重新生成；在重新生成完成前不展示旧商品的推理内容。
+          </p>
+        )}
+        {Array.isArray(result.productExpression?.uncertaintyNotes) && result.productExpression.uncertaintyNotes.length > 0 && (
+          <div className="mt-2 text-slate-300">
+            <p className="font-semibold text-slate-200">识别备注 / 待确认信息（仅供参考，不写入正式文案）：</p>
+            <ul className="mt-1 list-disc pl-5">
+              {result.productExpression.uncertaintyNotes.map((note, index) => (
+                <li key={index}>{note}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
       <AgentStatusPanel
         product={product}
         result={agentResult}
@@ -152,6 +187,17 @@ export default function ResultView({
         reviewRecords={reviewRecords}
         imageQuality={imageQuality}
         recognitionStatus={recognitionStatus}
+      />
+
+      <AgentDecisionPanel
+        product={product}
+        result={agentResult}
+        marketEvidence={{ priceEvidence, douyinEvidence, manualMarketEvidence }}
+        records={records}
+        reviewRecords={reviewRecords}
+        reviewData={reviewData}
+        analyzed={analyzed}
+        onConfirmCandidateSave={saveCurrentReport}
       />
 
       <section className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
@@ -176,7 +222,7 @@ export default function ResultView({
         <div className="space-y-4">
           <div className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
             <p className="text-sm text-slate-400">当前产品</p>
-            <h2 className="mt-2 break-words text-2xl font-black text-emerald-300 sm:text-3xl">{result.productIdentity?.displayName || product.name || "未命名产品"}</h2>
+            <h2 className="mt-2 break-words text-2xl font-black text-emerald-300 sm:text-3xl">{result.productExpression?.displayName || result.productIdentity?.displayName || product.name || "未命名产品"}</h2>
             <p className="mt-2 text-sm font-bold text-emerald-100">{result.productIdentity?.productTypeLabel || product.category || "未分类"}</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Card label="单件利润" value={`¥${money(result.profit)}`} />
@@ -203,54 +249,76 @@ export default function ResultView({
         </div>
       </section>
 
+      <GlobalFitScorePanel product={product} result={result} />
+
+      <GlobalContentPlanPanel product={product} result={result} defaultOpen />
+
       {aiInsight && (
         <section className="min-w-0 rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-4 sm:p-6">
           <h2 className="text-2xl font-black text-cyan-200">AI图片识别结果</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Card label="识别产品" value={aiInsight.product?.name || "未识别"} />
             <Card label="推断品类" value={aiInsight.product?.category || "未识别"} />
-            <Card label="置信度" value={aiInsight.confidence || "中等"} />
+            <Card label="置信度" value={formatRecognitionConfidence(aiInsight.confidence || "中等")} />
           </div>
         </section>
       )}
 
-<section className="min-w-0 rounded-[2rem] border border-cyan-300/20 bg-white/[0.05] p-4 sm:p-6">
-  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-    <div className="min-w-0">
-      <p className="text-sm font-bold text-cyan-200">Strategy Support Layer</p>
-      <h2 className="mt-2 break-words text-2xl font-black text-white">智能策略补充</h2>
-      <p className="mt-2 break-words text-sm leading-7 text-slate-300">
-        规则评分继续负责稳定数值计算；智能策略层用于补充解释、测款建议和复盘思路，不覆盖综合评分、利润率、MOQ 或风险等级。
-      </p>
-    </div>
-    <span className="w-fit rounded-full border border-emerald-200/25 bg-emerald-300/10 px-4 py-2 text-xs font-black text-emerald-100">
-      辅助建议
-    </span>
-  </div>
+      <section className="min-w-0 rounded-[2rem] border border-cyan-300/20 bg-white/[0.05] p-4 sm:p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-cyan-200">LLM Reasoning Layer</p>
+            <h2 className="mt-2 text-2xl font-black text-white">AI 智能推理补充</h2>
+            <p className="mt-2 text-sm leading-7 text-slate-300">
+              规则评分继续负责稳定数值计算；LLM 只补充解释、策略建议和复盘洞察，不覆盖综合评分、利润率、MOQ 或风险等级。
+            </p>
+          </div>
+          <span className="w-fit rounded-full border border-emerald-200/25 bg-emerald-300/10 px-4 py-2 text-xs font-black text-emerald-100">
+            辅助建议
+          </span>
+        </div>
 
-  <div className="mt-5 grid gap-4">
-    <AiInsightPanel
-      title={getInsightPanelTitle(reasoningInsights.purchase_decision, "purchase_decision")}
-      scenario="purchase_decision"
-      insight={reasoningInsights.purchase_decision}
-      loading={aiReasoningLoading && !reasoningInsights.purchase_decision}
-    />
-    <AiInsightPanel
-      title={getInsightPanelTitle(reasoningInsights.content_testing, "content_testing")}
-      scenario="content_testing"
-      insight={reasoningInsights.content_testing}
-      loading={aiReasoningLoading && !reasoningInsights.content_testing}
-    />
-    {showReviewInsight && (
-      <AiInsightPanel
-        title={getInsightPanelTitle(reasoningInsights.review_summary, "review_summary")}
-        scenario="review_summary"
-        insight={reasoningInsights.review_summary}
-        loading={aiReasoningLoading && !reasoningInsights.review_summary}
+        <div className="mt-5 grid gap-4">
+          <AiInsightPanel
+            title="AI 进货决策推理"
+            scenario="purchase_decision"
+            insight={reasoningInsights.purchase_decision}
+            loading={aiReasoningLoading && !reasoningInsights.purchase_decision}
+          />
+          <AiInsightPanel
+            title="AI 内容测款策略"
+            scenario="content_testing"
+            insight={reasoningInsights.content_testing}
+            loading={aiReasoningLoading && !reasoningInsights.content_testing}
+          />
+          {showReviewInsight && (
+            <AiInsightPanel
+              title="AI 测款复盘总结"
+              scenario="review_summary"
+              insight={reasoningInsights.review_summary}
+              loading={aiReasoningLoading && !reasoningInsights.review_summary}
+            />
+          )}
+        </div>
+      </section>
+
+      <section className="min-w-0">
+        <PolicyRiskPanel
+          report={overallPolicyRisk}
+          title="内容合规风险概览"
+          subtitle="基于内置政策风险规则库，对标题、正文、脚本、标签和商品卖点进行合规自检，提示可能涉及虚假宣传、绝对化用语、功效夸大、品牌侵权和平台敏感表达的内容。发布前请结合最新平台规则人工复核。"
+          defaultOpen={overallPolicyRisk.overallRiskLevel !== "low"}
+          showRegistry
+        />
+      </section>
+
+      <MarketDataLayerPanel
+        result={result}
+        product={product}
+        records={records}
+        onGoReview={() => setMode?.("review")}
+        onGoLibrary={() => setMode?.("history")}
       />
-    )}
-  </div>
-</section>
 
       <section className="grid min-w-0 gap-6 lg:grid-cols-2">
         <div className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
@@ -274,6 +342,9 @@ export default function ResultView({
           <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm leading-7 text-emerald-50">
             商家发布策略：{result.xhsPackage.merchantStrategy}
           </p>
+          <div className="mt-4">
+            <PolicyRiskPanel report={xhsPolicyRisk} title="小红书内容政策风险提示" />
+          </div>
         </div>
 
         <div className="min-w-0 rounded-[2rem] border border-white/10 bg-white/[0.06] p-4 sm:p-6">
@@ -298,6 +369,9 @@ export default function ResultView({
           <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-50">
             商家测试目标：{result.douyinPackage.merchantGoal}
           </p>
+          <div className="mt-4">
+            <PolicyRiskPanel report={douyinPolicyRisk} title="抖音脚本政策风险提示" />
+          </div>
         </div>
       </section>
 

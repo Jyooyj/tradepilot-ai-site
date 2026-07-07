@@ -91,7 +91,7 @@ export default function SupplierCommunicationPanel({ product, result }) {
           <p className="text-sm font-bold text-emerald-200">Supplier Communication Skill</p>
           <h2 className="mt-2 text-2xl font-black text-white">供应商沟通助手</h2>
           <p className="mt-2 text-sm leading-7 text-slate-300">
-            基于当前商品信息、利润空间、MOQ 和风险提示生成可复制话术，不接入真实供应商 API，也不会自动发送消息。
+            基于当前商品信息、利润空间、MOQ 和风险提示生成可复制话术，用户可复制后自行与供应商确认价格、起订量、发货周期和售后规则。
           </p>
         </div>
         {copyNotice && (

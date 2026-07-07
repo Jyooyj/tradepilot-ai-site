@@ -4,11 +4,28 @@ const statusTone = {
   cloud_unavailable: "bg-amber-300/15 text-amber-100",
 };
 
+// 实际状态标签（展示用，不改变任何存储逻辑）。
+const EFFECTIVE_LABELS = {
+  cloud: "云端同步已启用",
+  cloud_unavailable: "云端暂不可用",
+  local: "本地模式",
+};
+
+// 状态区底部说明（展示用，按实际状态给出准确、适合演示的文案）。
+const EFFECTIVE_DESCRIPTIONS = {
+  cloud:
+    "云端同步已启用：当前产品库记录会优先保存到 Supabase。匿名云端会话适合演示和备份；如需长期跨设备使用，后续可升级为正式账号登录。",
+  cloud_unavailable:
+    "云端暂不可用，已自动切换为本地保存，不影响产品库和复盘流程。",
+  local:
+    "当前为本地保存：数据保存在本浏览器，适合快速体验和离线演示，建议定期导出备份。",
+};
+
 export default function StorageStatusBadge({ status, onMigrate, onSignOut, onUseLocal }) {
   const selectedLabel = status?.selectedModeLabel || "自动选择";
   const effectiveMode = status?.effectiveMode || status?.mode || "local";
-  const effectiveLabel = status?.effectiveModeLabel || (effectiveMode === "cloud" ? "云端同步" : "本地模式");
-  const description = status?.description || "正在检测产品库存储状态。";
+  const effectiveLabel = EFFECTIVE_LABELS[effectiveMode] || EFFECTIVE_LABELS.local;
+  const description = EFFECTIVE_DESCRIPTIONS[effectiveMode] || EFFECTIVE_DESCRIPTIONS.local;
   const warning = status?.warning || "";
   const localCount = Number(status?.localCount || 0);
   const localRecordLimit = Number(status?.localRecordLimit || 100);
@@ -30,7 +47,7 @@ export default function StorageStatusBadge({ status, onMigrate, onSignOut, onUse
           <p className="mt-1 break-words font-black text-cyan-50">{effectiveLabel}</p>
         </div>
         <div className={`w-fit rounded-full px-3 py-1 text-xs font-black ${statusTone[effectiveMode] || statusTone.local}`}>
-          {effectiveMode === "cloud" ? "Cloud Ready" : effectiveMode === "cloud_unavailable" ? "Cloud Unavailable" : "Local Active"}
+          {effectiveMode === "cloud" ? "云端已就绪" : effectiveMode === "cloud_unavailable" ? "云端暂不可用" : "本地已启用"}
         </div>
       </div>
 
@@ -75,7 +92,7 @@ export default function StorageStatusBadge({ status, onMigrate, onSignOut, onUse
           onClick={onMigrate}
           className="mt-3 rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-4 py-2 text-xs font-black text-emerald-100"
         >
-          同步本地记录到云端
+          同步本地记录到云端（免注册，自动创建匿名会话）
         </button>
       )}
     </section>
