@@ -1,165 +1,230 @@
-const VISION_API_FALLBACK_MESSAGE =
-  "当前视觉识别接口暂不可用，已切换为手动填写 / 演示兜底模式，仍可继续生成进货报告。";
+// 视觉识别接口：真正调用阿里云百炼 / DashScope Qwen-VL 视觉模型。
+// 复用已有环境变量，不新增 Key 名，不读取 / 不打印 / 不返回任何 Key。
+//
+// 配置优先级（只判断是否存在，不泄露值）：
+//   - DASHSCOPE_API_KEY                  必填，缺失则返回 vision_config_missing
+//   - DASHSCOPE_VISION_MODEL / QWEN_VL_MODEL   视觉模型名（默认 qwen-vl-plus）
+//   - DASHSCOPE_VISION_ENDPOINT          视觉接口地址（默认百炼 compatible-mode）
 
-function buildVisionFallbackPayload(reason = "api_unavailable", detail = "") {
+const DEFAULT_VISION_MODEL = "qwen-vl-plus";
+const DEFAULT_VISION_ENDPOINT =
+  "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+
+function asText(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => asText(item)).filter(Boolean);
+  }
+  const text = asText(value);
+  return text ? [text] : [];
+}
+
+function joinText(list) {
+  return asArray(list).join(" / ");
+}
+
+function getVisionConfig() {
+  const apiKey = process.env.DASHSCOPE_API_KEY || "";
+  const model =
+    process.env.DASHSCOPE_VISION_MODEL ||
+    process.env.QWEN_VL_MODEL ||
+    DEFAULT_VISION_MODEL;
+  const endpoint = process.env.DASHSCOPE_VISION_ENDPOINT || DEFAULT_VISION_ENDPOINT;
   return {
-    ok: true,
-    fallback: true,
-    fallbackMode: "manual_or_demo",
-    fallbackMessage: VISION_API_FALLBACK_MESSAGE,
-    sourceNotice: "演示 fallback 不代表真实识别结果；请继续手动填写或点击前端演示 fallback，并按实物人工核对字段。",
-    reason,
-    detail,
-    product: {},
-    content: {
-      xhsCover: "",
-      xhsTitles: [],
-      xhsStructure: [],
-      douyinScript: [],
-    },
-    risks: ["视觉识别接口暂不可用，当前未生成真实图片识别结果。"],
-    confidence: "fallback",
+    apiKey,
+    model,
+    endpoint,
+    hasVisionConfig: Boolean(apiKey),
   };
 }
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Only POST is allowed" });
-  }
+const VISION_PROMPT = `
+你是一个面向义乌小商品展、饰品展、文创展的 AI 选品与内容测款视觉识别智能体。
 
-  try {
-    const { image, hint } = req.body || {};
+请只根据用户上传的产品图片和补充线索，识别并推断以下字段：
+1. 产品名称 name
+2. 产品品类 category
+3. 可能材质 material（看不清时写“疑似xx / 需人工确认”，不要编造）
+4. 主要颜色 color
+5. 风格 style
+6. 目标人群 targetAudience
+7. 卖点 sellingPoints（数组）
+8. 风险提示 risks（数组）
+9. 建议销售渠道 suggestedChannels（数组）
+10. 搜索 / 内容关键词 searchKeywords（数组）
+11. 建议售价区间 price（只能给区间推断）
+12. 竞品价格区间 competitorPrice（只能给区间推断）
+13. 补充备注 note
 
-    if (!image) {
-      return res.status(400).json({ error: "缺少图片，请先上传产品图。" });
-    }
+用户补充线索：__HINT__
 
-    if (!process.env.DASHSCOPE_API_KEY) {
-      return res.status(200).json(
-        buildVisionFallbackPayload(
-          "missing_api_key",
-          "服务器未配置 DASHSCOPE_API_KEY。"
-        )
-      );
-    }
-
-    const prompt = `
-你是一个面向义乌小商品展、饰品展、文创展的AI选品与内容测款智能体。
-
-请根据用户上传的产品图片和补充线索，识别并推断：
-1. 产品名称
-2. 产品品类
-3. 可能材质
-4. 适合销售渠道
-5. 建议售价区间
-6. 目标人群
-7. 竞品价格区间
-8. 小红书内容关键词
-9. 小红书图文选题
-10. 抖音短视频脚本
-11. 主要风险
-12. 下一步测款建议
-
-用户补充线索：${hint || "无"}
-
-要求：
-- 不要编造具体平台真实销量。
-- 价格只能给“区间推断”，不能说绝对准确。
+硬性要求：
+- 不要编造确定信息：材质看不清写“疑似 / 需人工确认”。
+- 类别不确定时，把不确定说明写入 warningMessages 数组。
+- 不要伪造任何平台真实销量、点赞、收藏、播放量、成交数据。
+- 价格只能给“区间推断”，不能声称绝对准确。
 - 输出必须是严格 JSON，不要 Markdown，不要解释。
-- JSON 格式必须如下：
+- JSON 结构必须如下：
 
 {
   "product": {
     "name": "",
     "category": "",
     "material": "",
-    "channel": "",
+    "color": "",
+    "style": "",
+    "targetAudience": "",
+    "sellingPoints": [],
+    "risks": [],
+    "suggestedChannels": [],
+    "searchKeywords": [],
     "price": "",
-    "audience": "",
     "competitorPrice": "",
-    "keywords": "",
     "note": ""
   },
-  "content": {
-    "xhsCover": "",
-    "xhsTitles": [],
-    "xhsStructure": [],
-    "douyinScript": []
-  },
-  "risks": [],
-  "confidence": ""
+  "rawVisionSummary": "",
+  "confidence": "",
+  "warningMessages": []
 }
 `;
 
-    const response = await fetch(
-      "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.DASHSCOPE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: process.env.QWEN_VL_MODEL || "qwen3.6-plus",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: image,
-                  },
-                },
-                {
-                  type: "text",
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          temperature: 0.3,
-        }),
-      }
-    );
+function buildVisionProduct(parsed) {
+  const p = (parsed && typeof parsed === "object" && parsed.product) || {};
 
-    const data = await response.json();
+  const targetAudience = asText(p.targetAudience || p.audience);
+  const suggestedChannels = asArray(p.suggestedChannels || p.channel || p.salesChannel);
+  const sellingPoints = asArray(p.sellingPoints || parsed.sellingPoints);
+  const risks = asArray(p.risks || parsed.risks);
+  const searchKeywords = asArray(p.searchKeywords || p.keywords || p.tags);
 
-    if (!response.ok) {
-      return res.status(200).json(
-        buildVisionFallbackPayload(
-          "dashscope_request_failed",
-          data?.error?.message || `阿里云百炼视觉模型调用失败：${response.status}`
-        )
-      );
+  return {
+    // 规范字段
+    name: asText(p.name || p.productName),
+    category: asText(p.category || p.type),
+    material: asText(p.material),
+    color: asText(p.color),
+    style: asText(p.style),
+    targetAudience,
+    sellingPoints,
+    risks,
+    suggestedChannels,
+    searchKeywords,
+    // 兼容字段：供前端旧的回填逻辑直接使用，避免破坏现有产品信息回填
+    audience: targetAudience,
+    channel: joinText(suggestedChannels),
+    keywords: joinText(searchKeywords),
+    price: asText(p.price),
+    competitorPrice: asText(p.competitorPrice || p.competitor_price),
+    note: asText(p.note || p.description),
+  };
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "method_not_allowed", message: "Only POST is allowed" });
+  }
+
+  const { apiKey, model, endpoint, hasVisionConfig } = getVisionConfig();
+
+  try {
+    const { image, hint } = req.body || {};
+
+    if (!image) {
+      return res.status(400).json({
+        ok: false,
+        error: "missing_image",
+        message: "缺少图片，请先上传产品图。",
+        hasVisionConfig,
+      });
     }
 
-    const rawText = data.choices?.[0]?.message?.content || "";
+    // 视觉配置缺失：温和降级，不假装识别成功，也不泄露 Key 名称之外的信息。
+    if (!hasVisionConfig) {
+      return res.status(200).json({
+        ok: false,
+        error: "vision_config_missing",
+        message: "服务端未配置视觉识别模型，已切换为手动填写模式。",
+        hasVisionConfig: false,
+      });
+    }
 
-    const cleaned = rawText
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    const prompt = VISION_PROMPT.replace("__HINT__", asText(hint) || "无");
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "image_url", image_url: { url: image } },
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
+        temperature: 0.3,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return res.status(200).json({
+        ok: false,
+        error: "vision_request_failed",
+        message:
+          asText(data?.error?.message) ||
+          `视觉识别模型调用失败：${response.status}`,
+        hasVisionConfig: true,
+        model,
+      });
+    }
+
+    const rawText = asText(data?.choices?.[0]?.message?.content);
+    const cleaned = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
 
     let parsed;
     try {
       parsed = JSON.parse(cleaned);
     } catch (err) {
-      return res.status(200).json(
-        buildVisionFallbackPayload(
-          "invalid_model_json",
-          "模型返回内容不是合法 JSON。"
-        )
-      );
+      return res.status(200).json({
+        ok: false,
+        error: "vision_parse_failed",
+        message: "视觉模型返回内容不是合法 JSON，已切换为手动填写模式。",
+        hasVisionConfig: true,
+        model,
+      });
     }
 
-    return res.status(200).json(parsed);
+    const product = buildVisionProduct(parsed);
+
+    return res.status(200).json({
+      ok: true,
+      source: "vision_llm",
+      model,
+      hasVisionConfig: true,
+      product,
+      rawVisionSummary:
+        asText(parsed.rawVisionSummary || parsed.summary) || rawText.slice(0, 500),
+      confidence: asText(parsed.confidence) || "中",
+      warningMessages: asArray(parsed.warningMessages || parsed.warnings),
+    });
   } catch (error) {
-    return res.status(200).json(
-      buildVisionFallbackPayload(
-        "server_error",
-        error.message || "服务器处理失败。"
-      )
-    );
+    return res.status(200).json({
+      ok: false,
+      error: "vision_request_failed",
+      message: asText(error?.message) || "服务器处理失败，已切换为手动填写模式。",
+      hasVisionConfig,
+      model,
+    });
   }
 }

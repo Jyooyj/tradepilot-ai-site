@@ -2,68 +2,70 @@ const VALID_SCENARIOS = new Set([
   "purchase_decision",
   "content_testing",
   "review_summary",
+  "review_funnel",
 ]);
 
 const SCENARIO_LABELS = {
   purchase_decision: "AI 进货决策推理",
   content_testing: "AI 内容测款策略",
   review_summary: "AI 测款复盘总结",
+  review_funnel: "AI 测款复盘总结",
 };
 
 const FALLBACKS = {
   purchase_decision: {
-    summary: "当前已基于商品信息、规则评分、利润测算和风险判断生成基础进货建议，可先用于小批量拿样决策。",
+    summary: "AI 推理补充暂不可用，已保留规则报告。请继续以综合评分、利润率、MOQ、风险提示和市场证据为主，先小批量拿样验证。",
     reasoningPoints: [
-      "规则评分和利润测算已经覆盖拿货价、建议售价、MOQ、毛利率和首批压货资金。",
-      "当前建议更适合用于判断是否小批量拿样，而不是直接决定大量补货。",
-      "如果市场证据不足，应先补充竞品价格、内容热度和供应商条件，再决定是否扩大进货。",
+      "规则评分和利润测算仍然有效，LLM 不会覆盖原有数值结论。",
+      "当前只能基于已填写信息和系统结果判断，不能代表真实平台销量或热度。",
+      "证据不足时应先补充竞品价格、内容热度和供应商条件。",
     ],
     nextActions: [
-      "先核对拿货价、建议售价、MOQ、运费和包装成本是否准确。",
-      "补充 1-2 个竞品价格或同类内容案例作为参考。",
-      "优先小批量拿样，并通过内容测款验证收藏、询单和成交反馈。",
+      "先拿样或小批量试单，验证材质、包装、到货稳定性和真实利润。",
+      "复核同类零售价、批发价、MOQ、运费和售后成本。",
+      "优先验证用户是否愿意咨询、收藏或下单。",
     ],
     riskWarnings: [
-      "不要把综合评分理解为真实销量预测。",
-      "市场证据不足时，不建议直接大量进货。",
+      "不要把 AI 建议当作销量预测。",
+      "市场证据不足时不建议扩大备货。",
     ],
-    confidenceNote: "当前展示为基础策略建议，已保留进货判断、利润测算和风险提示，不影响报告使用。",
+    confidenceNote: "fallback：未取得可用 LLM 推理结果，可信度以规则报告和人工复核为准。",
   },
   content_testing: {
-    summary: "当前已基于商品信息、目标人群、销售渠道和规则报告生成基础内容测款建议，可用于首轮小范围测试。",
+    summary: "AI 内容测款策略暂不可用，已保留原内容包和规则报告。建议先围绕目标人群、使用场景、价格利益点和真实细节做小范围内容测试。",
     reasoningPoints: [
-      "原小红书内容包和抖音脚本仍可作为首轮测款参考。",
-      "内容测试应验证用户是否理解卖点，而不是直接判断商品必爆。",
-      "如果缺少市场证据，应把测试目标设为探索反馈，而不是放大投放。",
+      "原小红书内容包和抖音脚本仍可使用，LLM 只提供定性策略。",
+      "内容测试应验证卖点是否被理解，而不是直接判断商品必爆。",
+      "如缺少市场证据，应把首轮测试定位为探索。",
     ],
     nextActions: [
-      "首轮准备 2-3 个封面或开头角度，对比点击、收藏、评论和询单。",
+      "准备 2-3 个封面/开头角度，对比点击、收藏、评论和询单。",
       "小红书重点表达使用场景、风格搭配和价格理由。",
-      "抖音前 3 秒优先展示痛点、对比或上身 / 使用效果。",
+      "抖音前 3 秒优先展示痛点、对比或使用效果。",
     ],
     riskWarnings: [
-      "避免照搬同类爆款话术导致内容同质化。",
+      "避免照搬同类爆款话术导致同质化。",
       "不要编造播放量、点赞量或真实成交数据。",
     ],
-    confidenceNote: "当前展示为基础策略建议，已保留内容测款方向和风险提示，不影响报告使用。",
+    confidenceNote: "fallback：未取得可用 LLM 策略，建议用小批量内容数据复核。",
   },
   review_summary: {
-    summary: "当前已基于用户填写的测款数据和规则指标生成基础复盘建议，可用于判断是否继续测试、调整内容或谨慎补货。",
+    summary: "AI 测款复盘总结暂不可用，已保留规则复盘结论。请优先查看互动率、询单率、成交转化率和单均测款成本。",
     reasoningPoints: [
-      "复盘应同时观察曝光、互动、询单和成交，不只看单一指标。",
-      "如果互动高但成交低，可能需要检查价格、信任感或购买路径。",
-      "如果曝光低但点击反馈不错，可以优先优化封面、标题和发布时间。",
+      "复盘规则结论仍然有效，LLM 只辅助解释问题可能出在哪里。",
+      "当前复盘只能基于用户填写的测款数据，不能推断平台真实流量质量。",
+      "数据量较小时，应把结论视为下一轮测试假设。",
     ],
     nextActions: [
-      "对比互动率、询单率和成交率，判断问题更可能出在内容、价格还是商品本身。",
-      "保留表现较好的内容角度，再做一轮小范围测试。",
-      "补货前再次确认供应商价格、库存和发货周期。",
+      "互动低时先改封面、标题和前 3 秒内容。",
+      "询单高但成交低时复核价格、信任背书、运费和客服回复。",
+      "成交稳定且成本可控时再考虑小批量补货。",
     ],
     riskWarnings: [
-      "单次测款数据不足时，不建议直接大量补货。",
-      "测款成本过高时，需要降低内容制作或投放成本。",
+      "样本量不足时不要直接扩大进货。",
+      "不要把单次测试结果当作长期需求预测。",
     ],
-    confidenceNote: "当前展示为基础策略建议，已保留测款复盘判断和下一步动作，不影响报告使用。",
+    confidenceNote: "fallback：未取得可用 LLM 复盘，可信度以已填测款数据和规则指标为准。",
   },
 };
 
@@ -83,13 +85,9 @@ function sendJson(res, status, payload) {
   res.status(status).json(payload);
 }
 
-function fallbackInsight(scenario, internalReason = "") {
+function fallbackInsight(scenario, reason = "") {
   const safeScenario = VALID_SCENARIOS.has(scenario) ? scenario : "purchase_decision";
   const fallback = FALLBACKS[safeScenario];
-
-  if (internalReason) {
-    console.warn("[TradePilot AI] AI insight fallback:", internalReason);
-  }
 
   return {
     ok: true,
@@ -99,8 +97,7 @@ function fallbackInsight(scenario, internalReason = "") {
     reasoningPoints: fallback.reasoningPoints,
     nextActions: fallback.nextActions,
     riskWarnings: fallback.riskWarnings,
-    confidenceNote: fallback.confidenceNote,
-    internalReason,
+    confidenceNote: reason ? `${fallback.confidenceNote} ${reason}` : fallback.confidenceNote,
   };
 }
 
@@ -121,91 +118,9 @@ function getDashScopeConfig() {
   };
 }
 
-function compactValue(value, fallback = "") {
-  if (value === null || value === undefined) return fallback;
-  if (typeof value === "string") return value.trim() || fallback;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  return fallback;
-}
-
-function pickFields(source = {}, fields = []) {
-  const safeSource = source && typeof source === "object" && !Array.isArray(source) ? source : {};
-
-  return fields.reduce((data, field) => {
-    const value = safeSource[field];
-    if (value !== null && value !== undefined && String(value).trim() !== "") {
-      data[field] = value;
-    }
-    return data;
-  }, {});
-}
-
-function summarizeArray(items, limit = 4) {
-  if (!Array.isArray(items)) return [];
-  return items
-    .map((item) => {
-      if (typeof item === "string") return item.trim();
-      if (item && typeof item === "object") {
-        return item.title || item.label || item.name || item.text || "";
-      }
-      return String(item || "").trim();
-    })
-    .filter(Boolean)
-    .slice(0, limit);
-}
-
-function buildCompactPayload({ product, result, marketEvidence, reviewData }) {
-  const safeProduct = product && typeof product === "object" ? product : {};
-  const safeResult = result && typeof result === "object" ? result : {};
-  const safeMarketEvidence = marketEvidence && typeof marketEvidence === "object" ? marketEvidence : {};
-  const safeReviewData = reviewData && typeof reviewData === "object" ? reviewData : {};
-
-  return {
-    product: pickFields(safeProduct, [
-      "name",
-      "productName",
-      "category",
-      "categoryKey",
-      "cost",
-      "price",
-      "suggestedPrice",
-      "moq",
-      "material",
-      "targetUser",
-      "targetAudience",
-      "channel",
-      "supplier",
-      "note",
-    ]),
-    result: {
-      score: safeResult.score || safeResult.totalScore || safeResult.finalScore || "",
-      suggestion: safeResult.suggestion || safeResult.aiSuggestion || safeResult.recommendation || "",
-      grossMargin: safeResult.grossMargin || safeResult.margin || "",
-      unitProfit: safeResult.unitProfit || "",
-      firstBatchCost: safeResult.firstBatchCost || safeResult.initialCost || "",
-      riskLevel: safeResult.riskLevel || safeResult.risk || "",
-      risks: summarizeArray(safeResult.risks || safeResult.riskWarnings || safeResult.warnings),
-      nextActions: summarizeArray(safeResult.nextActions || safeResult.actions),
-      contentAdvice: safeResult.contentAdvice || safeResult.contentSummary || "",
-    },
-    marketEvidence: {
-      priceEvidence: safeMarketEvidence.priceEvidence || safeMarketEvidence.price || null,
-      manualMarketEvidence: safeMarketEvidence.manualMarketEvidence || safeMarketEvidence.manual || null,
-      douyinEvidence: safeMarketEvidence.douyinEvidence || safeMarketEvidence.douyin || null,
-    },
-    reviewData: pickFields(safeReviewData, [
-      "views",
-      "likes",
-      "saves",
-      "comments",
-      "inquiries",
-      "orders",
-      "cost",
-      "conversionRate",
-      "interactionRate",
-      "inquiryRate",
-    ]),
-  };
+function truncateJson(value, maxLength = 12000) {
+  const text = JSON.stringify(value || {}, null, 2);
+  return text.length > maxLength ? `${text.slice(0, maxLength)}\n...已截断` : text;
 }
 
 function buildScenarioInstruction(scenario) {
@@ -238,8 +153,6 @@ function buildScenarioInstruction(scenario) {
 }
 
 function buildPrompt({ product, result, marketEvidence, reviewData, scenario }) {
-  const compactPayload = buildCompactPayload({ product, result, marketEvidence, reviewData });
-
   return `
 你是 TradePilot AI 的“智能推理补充层”，只做定性分析，不替代规则评分。
 
@@ -256,8 +169,8 @@ function buildPrompt({ product, result, marketEvidence, reviewData, scenario }) 
 场景任务：
 ${buildScenarioInstruction(scenario)}
 
-关键输入：
-${JSON.stringify(compactPayload, null, 2)}
+用户输入和系统结果如下：
+${truncateJson({ product, result, marketEvidence, reviewData })}
 
 请严格返回 JSON，不要 Markdown，不要解释 JSON 之外的内容。格式如下：
 {
@@ -275,18 +188,20 @@ ${JSON.stringify(compactPayload, null, 2)}
 
 function parseModelJson(rawText) {
   const cleaned = String(rawText || "")
-    .replace(/```json/g, "")
+    .replace(/```json/gi, "")
     .replace(/```/g, "")
     .trim();
-
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+  try {
+    return JSON.parse(cleaned);
+  } catch (error) {
+    // 模型偶尔会在 JSON 前后带说明文字，尝试截取第一个 { 到最后一个 } 再解析。
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start !== -1 && end !== -1 && end > start) {
+      return JSON.parse(cleaned.slice(start, end + 1));
+    }
+    throw error;
   }
-
-  return JSON.parse(cleaned);
 }
 
 function normalizeArray(value, fallback) {
@@ -294,6 +209,75 @@ function normalizeArray(value, fallback) {
     ? value.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 5)
     : [];
   return items.length ? items : fallback;
+}
+
+// 测款复盘漏斗：构建 prompt（要求返回更丰富的 JSON 结构）。
+function buildReviewFunnelPrompt(body) {
+  const { product, reviewData, reviewMetrics, ruleJudgment } = body || {};
+  return `
+你是 TradePilot AI 的“测款复盘分析层”，只做定性复盘，不替代规则指标。
+
+硬性要求：
+- 只能基于当前测款数据判断，不得伪造平台真实流量质量、销量、点赞、播放或成交。
+- 不得把小样本直接判断为爆款；样本量小时必须降低置信度并说明不确定。
+- 如果成交量、测款成本或售价缺失，必须降低置信度，并在 missingData 中列出。
+- 必须说明主要问题更可能出现在“曝光、互动、收藏、询价还是成交”哪个环节。
+- 建议必须具体：下一轮怎么改封面、标题、价格、素材、供应商确认或补货策略。
+- 不要输出空泛话术，不要堆叠形容词。
+
+当前商品与测款数据：
+${truncateJson({ product, reviewData, reviewMetrics, ruleJudgment })}
+
+请严格返回 JSON（不要 Markdown，不要 JSON 之外的内容），格式如下：
+{
+  "ok": true,
+  "source": "llm",
+  "scenario": "review_funnel",
+  "summary": "一句话结论",
+  "keyFindings": ["3-5 条关键发现"],
+  "bottleneck": "主要流失环节及原因",
+  "nextActions": ["3-5 条下一轮具体动作"],
+  "decision": "继续测 / 改内容再测 / 小批量补货 / 暂停",
+  "confidence": "高 / 中 / 低",
+  "missingData": ["还缺哪些数据"],
+  "warning": "不要把小样本误判为爆款的提醒"
+}
+`;
+}
+
+// review_funnel 专用错误响应（不含任何 Key，仅非敏感调试字段）。
+function reviewFunnelError(errorCode, message, debug = {}) {
+  return {
+    ok: false,
+    source: "fallback",
+    scene: "review_funnel",
+    scenario: "review_funnel",
+    error: errorCode,
+    message,
+    hasTextModelConfig: Boolean(debug.hasTextModelConfig),
+    model: debug.model || "",
+    statusCode: debug.statusCode,
+  };
+}
+
+function normalizeReviewFunnelInsight(value, debug = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  return {
+    ok: true,
+    source: "llm",
+    scene: "review_funnel",
+    scenario: "review_funnel",
+    model: debug.model || "",
+    hasTextModelConfig: true,
+    summary: String(source.summary || "").trim(),
+    keyFindings: normalizeArray(source.keyFindings, []),
+    bottleneck: String(source.bottleneck || "").trim(),
+    nextActions: normalizeArray(source.nextActions, []),
+    decision: String(source.decision || "").trim(),
+    confidence: String(source.confidence || "").trim(),
+    missingData: normalizeArray(source.missingData, []),
+    warning: String(source.warning || "").trim(),
+  };
 }
 
 function normalizeInsight(value, scenario) {
@@ -319,11 +303,20 @@ export default async function handler(req, res) {
   }
 
   const body = getBody(req);
-  const scenario = VALID_SCENARIOS.has(body?.scenario) ? body.scenario : "purchase_decision";
+  // 同时兼容 scene / scenario 两种字段名，避免因字段不一致而走不到 review_funnel 分支。
+  const requestedScene = body?.scene || body?.scenario;
+  const scenario = VALID_SCENARIOS.has(requestedScene) ? requestedScene : "purchase_decision";
+  const isReviewFunnel = scenario === "review_funnel";
   const dashScope = getDashScopeConfig();
+  const hasTextModelConfig = Boolean(dashScope.apiKey);
 
   if (!dashScope.apiKey) {
-    sendJson(res, 200, fallbackInsight(scenario, "missing_dashscope_api_key"));
+    if (isReviewFunnel) {
+      // 明确告知缺少模型配置（不假装 AI 成功），前端据此降级为规则复盘。
+      sendJson(res, 200, reviewFunnelError("llm_config_missing", "服务端未配置 AI 文本模型，已使用规则复盘。", { hasTextModelConfig: false, model: dashScope.model }));
+      return;
+    }
+    sendJson(res, 200, fallbackInsight(scenario, "服务端未配置 DASHSCOPE_API_KEY。"));
     return;
   }
 
@@ -343,37 +336,51 @@ export default async function handler(req, res) {
           },
           {
             role: "user",
-            content: buildPrompt({
-              product: body.product || {},
-              result: body.result || {},
-              marketEvidence: body.marketEvidence || {},
-              reviewData: body.reviewData || null,
-              scenario,
-            }),
+            content: isReviewFunnel
+              ? buildReviewFunnelPrompt(body)
+              : buildPrompt({
+                  product: body.product || {},
+                  result: body.result || {},
+                  marketEvidence: body.marketEvidence || {},
+                  reviewData: body.reviewData || null,
+                  scenario,
+                }),
           },
         ],
         temperature: 0.25,
-        max_tokens: 900,
       }),
     });
 
-    let data = {};
-    try {
-      data = await response.json();
-    } catch (jsonError) {
-      data = {};
-    }
+    const data = await response.json();
 
     if (!response.ok) {
-      sendJson(res, 200, fallbackInsight(scenario, `llm_http_${response.status}`));
+      if (isReviewFunnel) {
+        sendJson(res, 200, reviewFunnelError("llm_request_failed", `LLM 请求失败：${data?.error?.message || response.status}`, { hasTextModelConfig, model: dashScope.model, statusCode: response.status }));
+        return;
+      }
+      sendJson(res, 200, fallbackInsight(scenario, `LLM 请求失败：${data?.error?.message || response.status}`));
       return;
     }
 
     const rawText = data.choices?.[0]?.message?.content || "";
-    const parsed = parseModelJson(rawText);
 
+    if (isReviewFunnel) {
+      try {
+        const parsed = parseModelJson(rawText);
+        sendJson(res, 200, normalizeReviewFunnelInsight(parsed, { model: dashScope.model }));
+      } catch (parseError) {
+        sendJson(res, 200, reviewFunnelError("llm_parse_failed", "AI 返回内容无法解析为结构化结果，已使用规则复盘。", { hasTextModelConfig, model: dashScope.model, statusCode: response.status }));
+      }
+      return;
+    }
+
+    const parsed = parseModelJson(rawText);
     sendJson(res, 200, normalizeInsight(parsed, scenario));
   } catch (error) {
-    sendJson(res, 200, fallbackInsight(scenario, "llm_request_or_parse_failed"));
+    if (isReviewFunnel) {
+      sendJson(res, 200, reviewFunnelError("llm_request_error", "AI 请求异常，已使用规则复盘。", { hasTextModelConfig, model: dashScope.model }));
+      return;
+    }
+    sendJson(res, 200, fallbackInsight(scenario, "LLM 请求或解析失败。"));
   }
 }

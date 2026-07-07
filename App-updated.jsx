@@ -1,110 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { demoProducts } from "./src/constants/demoData";
-import {
-  categoryTemplates,
-  categoryTermRules,
-  productIdentityProfiles,
-} from "./src/constants/productConfig";
-import {
-  contextRequiredModules,
-  supplierQuestionTemplates,
-  testDecisionStandardTemplates,
-} from "./src/constants/contentTemplates";
-import {
-  IMAGE_COMPRESSION_OPTIONS,
-  IMAGE_TOO_LARGE_FALLBACK_MESSAGE,
-  feedbackFormUrl,
-  flowSteps,
-  painPoints,
-  statusOptions,
-} from "./src/constants/uiContent";
-import CoverCard from "./src/components/CoverCard";
-import FloatingFeedback from "./src/components/FloatingFeedback";
-import OperateView from "./src/components/OperateView";
-import ResultView from "./src/components/ResultView";
-import HistoryView from "./src/components/HistoryView";
-import PKView from "./src/components/PKView";
-import ReviewView from "./src/components/ReviewView";
-import StorageModeSelector from "./src/components/StorageModeSelector";
-import StorageStatusBadge from "./src/components/StorageStatusBadge";
-import SupabaseLoginPanel from "./src/components/SupabaseLoginPanel";
-import DemoView from "./src/components/DemoView";
-import ContentPatternView from "./src/components/ContentPatternView";
-import SidebarNavigation, { PAGE_METADATA } from "./src/components/SidebarNavigation";
-import {
-  deleteProductRecord,
-  getStorageMode,
-  getStorageStatus,
-  loadProductRecords,
-  migrateLocalRecordsToCloud,
-  saveStorageMode,
-  saveLocalRecords,
-  saveProductRecord,
-  STORAGE_MODES,
-} from "./src/services/productStorage";
-import { supabase } from "./supabaseClient";
-import {
-  cleanFileName,
-  generateHtmlReport,
-  generatePrintablePdfReport,
-  generateProductLibraryWordDocument,
-} from "./src/utils/reportUtils";
-import {
-  buildImageRecognitionErrorMessage,
-  buildImageRecognitionMessage,
-  normalizeImageQualityLevel,
-} from "./src/utils/imageQualityUtils";
-import {
-  applyDouyinFallbackToResult,
-  evaluateDouyinFallbackEvidence,
-} from "./src/utils/douyinFallbackUtils";
-import { fetchAlibabaPriceEvidence } from "./src/utils/alibabaPriceClient";
-import { requestImageAnalysis } from "./src/utils/imageAnalysisClient";
-import {
-  applyPriceEvidenceToResult,
-  evaluatePriceEvidence,
-} from "./src/utils/priceEvidenceUtils";
-import {
-  applyManualMarketEvidenceToResult,
-  evaluateManualMarketEvidence,
-} from "./src/utils/manualMarketEvidenceUtils";
-import { generateAiInsight } from "./src/utils/aiInsightClient";
-import {
-  buildAiInsightMarketEvidence,
-  hasReviewInsightData,
-} from "./src/utils/aiInsightUtils";
-import {
-  buildCurrentProductContext,
-  computeProductFingerprint,
-  stableHash,
-} from "./src/utils/currentProductContext";
-import {
-  buildContextKeywordText,
-  sanitizeLegacyPollutionText,
-  stripLegacyPollution,
-} from "./src/utils/historyPollutionGuard";
-import {
-  buildProductSpecificBrief,
-  enrichXhsPackage,
-  enrichDouyinPackage,
-  enrichKeywordPlan,
-  buildSpecificRiskPoints,
-  buildSpecificSupplierQuestions,
-  buildSpecificNextActions,
-} from "./src/utils/productSpecificContent";
-import {
-  downloadTextFile,
-  exportProductRecordsToCsv,
-  exportProductRecordsToJson,
-  importProductRecordsFromJson,
-  mergeProductRecords,
-} from "./src/utils/productBackupUtils";
-
+import React, { useMemo, useState } from "react";
 
 const ANALYZE_IMAGE_ENDPOINT =
   import.meta.env.VITE_ANALYZE_IMAGE_URL || "/api/analyze-image";
 
-export const initialProduct = {
+const IMAGE_RECOGNITION_FALLBACK_MESSAGE =
+  "图片识别暂时失败，可能是图片过大、网络不稳定或模型返回异常。你可以保留图片预览，手动填写产品信息后继续生成进货报告，产品库、候选产品 PK 和测款复盘仍可正常使用。";
+
+const IMAGE_TOO_LARGE_FALLBACK_MESSAGE =
+  "图片仍然过大，建议使用截图或更小尺寸图片；也可以手动填写产品信息继续生成报告。";
+
+const initialProduct = {
   name: "蝴蝶结珍珠耳夹",
   category: "饰品 / 小商品",
   cost: "3.8",
@@ -118,16 +23,9 @@ export const initialProduct = {
   competitorPrice: "15.9-29.9元",
   logistics: "小件轻货，包装成本低",
   note: "适合春夏穿搭、校园摆摊、礼物场景，建议先拿样拍图测款。",
-  wholesalePriceReference: "",
-  retailPriceReference: "",
-  contentHeatReference: "",
-  marketReferenceLinks: "",
-  competitorDensity: "未观察",
-  contentHomogeneity: "未观察",
-  manualMarketNote: "",
 };
 
-export const blankProduct = {
+const blankProduct = {
   name: "",
   category: "",
   cost: "",
@@ -141,37 +39,123 @@ export const blankProduct = {
   competitorPrice: "",
   logistics: "",
   note: "",
-  wholesalePriceReference: "",
-  retailPriceReference: "",
-  contentHeatReference: "",
-  marketReferenceLinks: "",
-  competitorDensity: "未观察",
-  contentHomogeneity: "未观察",
-  manualMarketNote: "",
 };
 
-// 当前商品 Prompt 强约束：随所有 LLM 调用一起下发，
-// 要求模型只能基于当前商品上下文生成，禁止引用历史/示例/seed/演示内容。
-export const CURRENT_PRODUCT_PROMPT_GUARD = [
-  "你只能基于当前提供的商品上下文生成内容。",
-  "严禁引用历史案例、示例商品、演示商品、seed 样本或之前生成过的任何商品内容。",
-  "如果当前上下文没有明确给出材质、用途、风格、场景、目标人群、包装、礼物属性、挂件用途、校园市集场景等，不得自行编造。",
-  "如果信息不足，必须明确写“信息不足”或“建议补充”，不得套用其他商品内容。",
-  "输出必须与当前商品名称、类目、图片识别结果和用户填写字段保持一致。",
-  "不得伪造销量、点赞、收藏、播放量、成交数据。",
-  "不得声称接入了真实平台数据，除非当前输入中提供了明确证据。",
-  "严禁出现木珠、果核、帆布包、钥匙扣、国风、校园市集、小礼物、包包挂件等词，除非当前商品上下文明确包含它们。",
-].join("\n");
+const demoProducts = [
+  {
+    name: "蝴蝶结珍珠耳夹",
+    category: "饰品 / 耳饰",
+    cost: "3.8",
+    price: "19.9",
+    moq: "100",
+    material: "合金 + 仿珍珠",
+    audience: "18-25岁女生、学生党、通勤人群、礼物消费人群",
+    channel: "小红书 / 抖音 / 校园私域",
+    supplier: "支持混批，7天补货，可提供礼盒包装",
+    keywords: "法式、温柔风、不打耳洞、春夏氛围感、礼物推荐",
+    competitorPrice: "15.9-29.9元",
+    logistics: "小件轻货，包装成本低",
+    note: "适合做小红书穿搭场景和礼物场景测款。",
+  },
+  {
+    name: "奶油色大肠发圈",
+    category: "发饰 / 女生日用小商品",
+    cost: "2.1",
+    price: "12.9",
+    moq: "200",
+    material: "绒感布料 / 弹力发绳",
+    audience: "16-28岁女生、学生党、宿舍人群、通勤女性",
+    channel: "小红书 / 抖音 / 校园社群",
+    supplier: "支持混批，10天补货，颜色可选",
+    keywords: "氛围感发圈、宿舍好物、低成本变精致、显发量",
+    competitorPrice: "8.8-25.9元",
+    logistics: "轻货，适合组合销售",
+    note: "单价低但同质化强，建议做套装和颜色组合测款。",
+  },
+  {
+    name: "宿舍桌面香薰摆件",
+    category: "家居生活 / 宿舍好物",
+    cost: "12.5",
+    price: "49.9",
+    moq: "120",
+    material: "玻璃瓶 + 香薰精油 + 木盖",
+    audience: "大学生、宿舍党、办公室人群、礼物消费人群",
+    channel: "小红书 / 校园私域 / 摆摊市集",
+    supplier: "支持混批，15天补货，需要防震包装",
+    keywords: "宿舍氛围感、桌面改造、礼物、治愈、生活方式",
+    competitorPrice: "39.9-89.9元",
+    logistics: "玻璃瓶易碎，包装和运费成本较高",
+    note: "适合拍宿舍桌面改造和氛围图，但要重点核算破损和运费。",
+  },
+  {
+    name: "国风城市贴纸套装",
+    category: "文创 / 贴纸 / 旅行纪念",
+    cost: "4.6",
+    price: "18.8",
+    moq: "60",
+    material: "防水PET贴纸 + 卡纸包装",
+    audience: "大学生、手帐爱好者、景区游客、文创市集人群",
+    channel: "小红书 / 校园市集 / 文旅摊位",
+    supplier: "支持混批，7天补货，可定制城市主题",
+    keywords: "国风、城市记忆、手帐、文旅、市集、收藏",
+    competitorPrice: "12.9-29.9元",
+    logistics: "轻货，包装成本低，适合组合装",
+    note: "适合做节日市集和校园社团活动场景测款。",
+  },
+  {
+    name: "透明防摔手机壳挂绳套装",
+    category: "数码周边 / 手机壳 / 挂绳",
+    cost: "6.2",
+    price: "29.9",
+    moq: "300",
+    material: "TPU透明壳 + 尼龙挂绳",
+    audience: "学生党、通勤人群、喜欢个性化手机配件的人群",
+    channel: "抖音 / 摆摊市集 / 1688批发复购",
+    supplier: "支持补货，但不同机型需分开备货",
+    keywords: "防摔、挂绳、通勤、解放双手、手机配件",
+    competitorPrice: "19.9-39.9元",
+    logistics: "轻货，机型库存需要拆分管理",
+    note: "适合短视频演示，但首单机型太多会带来滞销风险。",
+  },
+  {
+    name: "便携去污湿巾组合装",
+    category: "低价日用 / 清洁小商品",
+    cost: "1.2",
+    price: "8.8",
+    moq: "500",
+    material: "无纺布湿巾 / 独立包装",
+    audience: "校园宿舍、办公室、宝妈、社群团购用户",
+    channel: "校园私域 / 社群团购 / 1688批发复购",
+    supplier: "支持稳定补货，起订量较高",
+    keywords: "低价引流、宿舍清洁、办公室、组合装、复购",
+    competitorPrice: "6.9-12.9元",
+    logistics: "小件但走量，适合搭售",
+    note: "单件利润薄，更适合作为社群引流和组合销售。",
+  },
+];
 
-const IMAGE_RECOGNITION_UNAVAILABLE_MESSAGE =
-  "识别接口暂不可用，也可以手动填写商品信息，或使用示例数据体验完整流程。";
+const flowSteps = [
+  ["上传产品图", "用样品图或供应商图先判断视觉卖点。"],
+  ["AI识别推断", "补全品类、材质、人群和内容关键词。"],
+  ["利润测算", "估算单件成本、毛利率和首批压货资金。"],
+  ["风险判断", "提示MOQ、补货周期、同质化和物流风险。"],
+  ["内容测款", "生成小红书图文方向和抖音短视频脚本。"],
+  ["产品库", "把每次判断保存为可比较的产品记录。"],
+  ["候选PK", "对比评分、利润、风险和渠道适配。"],
+  ["测款复盘", "用真实互动、询单和成交数据决定补货。"],
+];
 
-export function n(value) {
+const painPoints = ["凭感觉拿货", "MOQ压货", "利润算不清", "爆款潜力难判断", "内容测款没方向", "进货后缺少复盘"];
+
+const statusOptions = ["全部", "准备拿样", "正在测款", "建议补货", "暂不考虑"];
+const feedbackFormUrl = "https://v.wjx.cn/vm/r7Utha0.aspx";
+
+function n(value) {
   const parsed = parseNumberValue(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export function money(value) {
+function money(value) {
   return Number.isFinite(value) ? value.toFixed(2) : "0.00";
 }
 
@@ -207,7 +191,7 @@ function pickFirstNumber(...values) {
   return 0;
 }
 
-export function getEffectivePrice(product = {}, reportContext = {}) {
+function getEffectivePrice(product = {}, reportContext = {}) {
   const userPrice = pickFirstNumber(product.price, product.suggestedPrice, product.sellingPrice, product.recommendedPrice);
   const contextPrice = pickFirstNumber(reportContext.price, reportContext.suggestedPrice, reportContext.recommendedPrice);
   const competitorPrice = parsePriceRangeValue(product.competitorPrice || reportContext.competitorPrice);
@@ -229,7 +213,7 @@ export function getEffectivePrice(product = {}, reportContext = {}) {
   };
 }
 
-export function formatEffectivePrice(priceInfo, fallback = "待补充") {
+function formatEffectivePrice(priceInfo, fallback = "待补充") {
   if (!priceInfo?.price) return fallback;
   return `¥${moneyDisplay(priceInfo.price)}${priceInfo.hasEstimatedPrice ? "（估算）" : ""}`;
 }
@@ -259,6 +243,184 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+const categoryTemplates = {
+  jewelry: {
+    label: "饰品类",
+    marketType: "饰品 / 礼物 / 穿搭小商品",
+    focus: ["佩戴场景", "礼物属性", "材质质感", "过敏风险", "包装溢价", "佩戴图", "同质化"],
+    insight: "这类产品不能只看款式好不好看，更要看佩戴图、材质信任感和礼物包装是否能支撑溢价。",
+    cover: "这款配饰值不值得拿样？先看佩戴图和材质信任感",
+    titles: (product) => [
+      `${product.name || "这款饰品"}，真正影响转化的是佩戴图`,
+      "低预算礼物感配饰，包装和质感能不能撑住售价？",
+      "饰品拿货前先看这4点：材质、过敏、佩戴场景、同质化",
+      "小红书测饰品：平铺图和上身图差别有多大",
+    ],
+    script: [
+      "0-2秒：展示平铺图与佩戴图的第一眼差异",
+      "3-7秒：特写材质、扣头、光泽和包装细节",
+      "8-13秒：切换通勤、约会、礼物三个佩戴场景",
+      "14-18秒：说明过敏风险、材质信息和售后承诺",
+      "结尾：让用户投票更想买自用款还是礼物款",
+    ],
+    imageAdvice: "必须补佩戴图、近景材质图和包装图；只有白底平铺会显得普通，难以支撑溢价。",
+    contentRisk: "饰品同质化高，且过敏、掉色、质感翻车会直接伤害信任，需要提前说明材质和保养方式。",
+    differentiation: ["补一张真实佩戴图，突出脸型/穿搭适配", "增加礼物包装或手写卡片，提高溢价理由", "用材质说明和售后承诺降低过敏、掉色疑虑"],
+    testActions: ["拍摄佩戴图、包装开箱、材质特写各1组", "小红书测试自用穿搭和礼物推荐两个标题方向", "记录收藏率、评论询问材质次数和私信询价量"],
+    contentWords: ["礼物", "穿搭", "佩戴", "法式", "通勤", "约会", "小红书", "精致", "包装"],
+  },
+  hair_accessory: {
+    label: "发饰类",
+    marketType: "发饰 / 校园低价小商品",
+    focus: ["颜色组合", "套装销售", "宿舍场景", "低客单价", "同质化风险", "上头效果", "私域成交"],
+    insight: "发饰类单价低，适合作为引流品或套装销售，但需要靠颜色组合和上头效果降低同质化。",
+    cover: "发饰不是只看便宜，关键看颜色组合和上头效果",
+    titles: (product) => [
+      `${product.name || "这款发饰"}适合宿舍姐妹拼单吗？`,
+      "低客单发饰怎么卖：单件引流还是套装提升客单？",
+      "不同发量试戴同一款发饰，效果差别很明显",
+      "校园群测发饰：哪个颜色最容易被问链接？",
+    ],
+    script: [
+      "0-2秒：普通发型和佩戴后的上头效果对比",
+      "3-7秒：展示颜色组合、弹力、夹力或褶皱细节",
+      "8-13秒：宿舍、上课、通勤三个使用场景快速切换",
+      "14-18秒：展示单件价与套装价，强调拼单更划算",
+      "结尾：评论区投票最想要的颜色组合",
+    ],
+    imageAdvice: "重点拍上头效果、颜色矩阵和套装组合图；发饰需要真人或半真人场景降低廉价感。",
+    contentRisk: "低价发饰容易撞款，单件利润有限，若不做颜色组合和套装，很难拉开客单价。",
+    differentiation: ["做3件/5件颜色套装，提升客单价", "用宿舍、校园群和姐妹拼单场景强化购买理由", "拍不同发量上头效果，减少用户担心不适配"],
+    testActions: ["测试单件引流价和套装价两个版本", "在校园群收集颜色投票，再决定首批配色", "短视频重点拍上头前后对比和颜色矩阵"],
+    contentWords: ["颜色", "套装", "宿舍", "校园", "姐妹", "低价", "上头", "拼单", "私域"],
+  },
+  home_lifestyle: {
+    label: "家居生活类",
+    marketType: "家居生活 / 宿舍办公室好物",
+    focus: ["物流体积", "易碎风险", "包装成本", "生活方式场景", "宿舍适配", "氛围图", "运费影响"],
+    insight: "家居生活类产品更依赖场景图和氛围感，但物流、包装和破损风险会明显影响真实利润。",
+    cover: "家居小物好不好卖，先看场景图和物流成本",
+    titles: (product) => [
+      `${product.name || "这款家居小物"}能不能成为宿舍氛围感好物？`,
+      "家居生活类拿货前，一定要把运费和破损算进去",
+      "宿舍桌面改造：这个小物能不能提升幸福感？",
+      "氛围图能种草，但真实利润要看包装成本",
+    ],
+    script: [
+      "0-2秒：展示使用前后的宿舍/桌面氛围对比",
+      "3-8秒：展示尺寸、材质、包装保护和细节质感",
+      "9-14秒：说明适合宿舍、办公室或礼物场景",
+      "15-20秒：拆解售价、运费、包装和破损风险",
+      "结尾：让用户选择更想看宿舍版还是办公室版",
+    ],
+    imageAdvice: "优先拍氛围场景图、尺寸参照图和包装保护图，避免只有孤立产品图。",
+    contentRisk: "家居品若体积大或易碎，运费、包装和售后破损会吃掉利润，需要先确认发货保护。",
+    differentiation: ["用宿舍/办公室真实场景图增强代入感", "把尺寸、重量、包装保护说清楚，降低售后风险", "做套装或礼物版，给用户一个完整生活方式场景"],
+    testActions: ["拍摄宿舍桌面、办公室桌面、礼物开箱三组图", "先小批量测试破损率和用户对运费的接受度", "内容标题分别测试氛围感、收纳效率和礼物属性"],
+    contentWords: ["宿舍", "办公室", "氛围", "生活方式", "桌面", "治愈", "礼物", "收纳", "小红书"],
+  },
+  stationery_cultural: {
+    label: "文创类",
+    marketType: "文创 / 校园市集 / 文旅小商品",
+    focus: ["审美垂直度", "文创调性", "节日文旅场景", "收藏属性", "复购弱点", "市集适配", "文化人群"],
+    insight: "文创类产品需要明确人群审美和使用场景，不能只靠“好看”判断，应重点看内容叙事和场景适配。",
+    cover: "文创小商品要卖故事，不只是卖图案",
+    titles: (product) => [
+      `${product.name || "这款文创"}适合校园市集还是文旅摊位？`,
+      "文创产品测款：审美垂直度比低价更重要",
+      "国风/城市记忆类小物，怎么讲出购买理由？",
+      "好看不等于好卖，文创拿货前先看人群和场景",
+    ],
+    script: [
+      "0-2秒：展示图案细节和文化主题",
+      "3-8秒：说明设计故事、适合人群和使用场景",
+      "9-14秒：展示手帐、钥匙、书包或礼物包装应用",
+      "15-20秒：说明市集、校园、文旅渠道的差异",
+      "结尾：让用户投票最喜欢哪个主题或城市款",
+    ],
+    imageAdvice: "要拍使用场景、套装陈列和故事卡；文创只拍单品会弱化调性和收藏感。",
+    contentRisk: "文创审美垂直，复购通常弱于日用品，如果故事和场景不清楚，容易只被夸好看但不成交。",
+    differentiation: ["给产品增加主题故事卡或城市/节日限定标签", "用套装陈列提高收藏感和客单价", "优先测试校园、市集、文旅三类场景的反馈差异"],
+    testActions: ["做3个主题标题测试：审美、纪念、送礼", "在线下市集观察停留率和询价率", "记录用户最常问的主题、城市和用途"],
+    contentWords: ["文创", "国风", "手帐", "收藏", "城市", "节日", "文旅", "市集", "校园"],
+  },
+  phone_accessory: {
+    label: "数码周边类",
+    marketType: "数码周边 / 手机配件",
+    focus: ["机型适配", "更新周期", "个性化表达", "库存滞销", "款式迭代", "短视频演示", "机型变化"],
+    insight: "手机周边类要注意机型库存风险，热门款生命周期短，适合小批量快测快补。",
+    cover: "手机周边别盲目囤货，机型库存才是最大风险",
+    titles: (product) => [
+      `${product.name || "这款手机周边"}适合快测，但不适合盲目压机型`,
+      "手机壳/挂绳拿货前，先算清楚机型库存风险",
+      "短视频能展示效果，但热门款生命周期很短",
+      "学生党手机配件，低价冲动消费怎么测？",
+    ],
+    script: [
+      "0-2秒：展示使用前后或防摔/挂绳演示",
+      "3-7秒：展示适配机型、材质、按键孔位和手感",
+      "8-13秒：做通勤、拍照、出门携带等场景演示",
+      "14-18秒：说明热门机型先测，冷门机型少备",
+      "结尾：评论区收集用户手机型号和想要颜色",
+    ],
+    imageAdvice: "需要拍机型适配、上手机效果、孔位细节和使用演示，避免只展示壳本身。",
+    contentRisk: "数码周边容易受机型更新影响，备货分散会造成库存滞销，首单应控制机型数量。",
+    differentiation: ["先集中热门机型，不一次性铺太多型号", "用短视频演示防摔、挂绳、支架等功能点", "评论区收集机型需求，再决定补货结构"],
+    testActions: ["先测试2-3个热门机型和2个颜色", "抖音拍强演示视频，收集评论区机型需求", "把滞销机型设置为低库存观察，不盲目补齐"],
+    contentWords: ["手机壳", "挂绳", "防摔", "机型", "短视频", "通勤", "个性", "抖音", "低价"],
+  },
+  daily_necessity: {
+    label: "低价日用类",
+    marketType: "低价日用 / 社群团购小商品",
+    focus: ["复购", "组合销售", "走量逻辑", "低价引流", "利润薄", "社群团购", "搭售品"],
+    insight: "低价日用类不适合只看单件利润，应该看复购、组合装、私域转化和走量能力。",
+    cover: "低价日用不是爆款逻辑，是复购和组合销售逻辑",
+    titles: (product) => [
+      `${product.name || "这款日用小商品"}适合做引流品还是搭售品？`,
+      "单件利润薄的小商品，靠什么赚钱？",
+      "社群团购测日用品：先看复购和组合装",
+      "低价日用拿货前，别只盯着毛利率",
+    ],
+    script: [
+      "0-2秒：展示一个高频生活痛点",
+      "3-7秒：演示使用前后或多场景用途",
+      "8-13秒：展示组合装、家庭装或宿舍拼单方案",
+      "14-18秒：说明单件利润薄，需要走量和复购",
+      "结尾：引导用户评论最常用的场景",
+    ],
+    imageAdvice: "重点拍使用效果、组合装和真实消耗场景，视觉不强时要靠前后对比提升理解速度。",
+    contentRisk: "低价日用单件利润薄，若没有复购、组合销售或私域走量，很难覆盖履约和售后成本。",
+    differentiation: ["做组合装、宿舍拼单装或家庭补充装", "在私域和社群团购里验证复购，而不是只看单条内容流量", "把产品设计成搭售品，提高客单和订单稳定性"],
+    testActions: ["先在校园群或社群团购测拼单价", "记录复购周期、搭售率和用户抱怨点", "用短视频演示使用效果，验证低价冲动购买"],
+    contentWords: ["复购", "组合", "日用", "宿舍", "社群", "团购", "走量", "低价", "搭售"],
+  },
+  unknown: {
+    label: "待判断品类",
+    marketType: "小商品 / 待分类",
+    focus: ["基础信息", "目标人群", "价格结构", "渠道测试", "竞品校准", "图片表现"],
+    insight: "当前信息还不足以明确品类，建议先补充产品名称、材质、使用场景和目标渠道，再做拿货判断。",
+    cover: "别让第一次进货，变成第一次压货",
+    titles: (product) => [
+      `逛到这款${product.name || "产品"}，我先用AI算了一遍账`,
+      `${product.price || "这个价位"}元的小商品，到底值不值得进？`,
+      "新手进货前一定要看这4个指标",
+      "低成本测款：先发内容再决定是否补货",
+    ],
+    script: [
+      "0-2秒：展示产品并提出痛点",
+      "3-8秒：展示核心卖点和细节",
+      "9-14秒：展示使用场景和价格结构",
+      "15-20秒：给出是否建议拿样的结论",
+      "结尾：评论区投票收集购买意愿",
+    ],
+    imageAdvice: "建议补充清晰产品图、使用场景图和细节图，方便判断视觉卖点。",
+    contentRisk: "品类信息不足，建议先补充竞品价格、目标人群和供应商政策。",
+    differentiation: ["补全产品名称、材质和使用场景", "先做同款价格搜索，避免定价脱离市场", "用小范围内容测试确定用户是否理解卖点"],
+    testActions: ["补充至少3个竞品价格和2个目标渠道", "先发布1条图文和1条短视频测试卖点理解度", "保存到产品库后与明确品类产品一起PK"],
+    contentWords: ["小商品", "测款", "进货", "价格", "渠道", "人群"],
+  },
+};
+
 function getProductSource(product = {}) {
   const fields = {
     name: product?.name || "",
@@ -284,6 +446,137 @@ function getProductSource(product = {}) {
 function productText(product) {
   return getProductSource(product).allText.toLowerCase();
 }
+
+const productIdentityProfiles = {
+  hair_accessory: {
+    categoryKey: "hair_accessory",
+    label: "发饰 / 发圈",
+    fallbackTerm: "发饰",
+    priority: 90,
+    categoryHints: ["发饰", "发圈", "发夹", "头饰"],
+    strongTerms: ["发圈", "大肠发圈", "发夹", "头绳", "发绳", "扎发", "发量", "不勒头", "低丸子头", "上头效果", "刘海夹", "鲨鱼夹", "发簪", "皮筋", "丸子头", "半扎发", "低马尾"],
+    weakTerms: ["宿舍姐妹", "发型", "布料弹力"],
+    allowedTerms: ["发圈", "发夹", "大肠发圈", "扎发", "半扎", "丸子头", "低马尾", "上头效果", "颜色矩阵", "套装组合", "宿舍日常", "校园穿搭", "显发量", "不勒头", "发量", "发型", "布料弹力"],
+    bannedTerms: ["钥匙扣", "钥匙串", "钥匙链", "钥匙圈", "包包挂件", "书包挂件", "挂饰", "挂件", "可挂包", "挂包", "帆布包搭配", "文创挂件", "手链", "手绳", "腕饰", "耳夹", "不打耳洞", "果核", "木珠"],
+    coreProductTerms: ["发圈", "发夹", "发饰", "大肠发圈", "头绳"],
+    scenarioTerms: ["宿舍日常", "校园穿搭", "通勤扎发", "上课发型", "镜子前出门"],
+    styleTerms: ["奶油色系", "温柔感", "干净感", "低预算好物", "宿舍姐妹同款"],
+    functionTerms: ["上头效果", "颜色矩阵", "套装组合", "不勒头", "布料弹力"],
+    longTailTerms: ["显发量大肠发圈", "宿舍日常发圈套装", "不勒头发圈女", "奶油色发饰套装"],
+  },
+  earring_accessory: {
+    categoryKey: "jewelry",
+    label: "饰品 / 耳饰 / 配饰",
+    fallbackTerm: "耳饰",
+    priority: 85,
+    categoryHints: ["耳饰", "耳夹", "耳环"],
+    strongTerms: ["耳夹", "耳环", "耳饰", "耳钉", "不打耳洞", "耳垂", "珍珠耳夹", "佩戴耳朵", "上耳", "耳部"],
+    weakTerms: ["珍珠", "蝴蝶结", "金属光泽", "礼盒"],
+    allowedTerms: ["耳夹", "耳环", "耳饰", "耳钉", "珍珠", "金属光泽", "不打耳洞", "佩戴图", "礼物包装", "通勤配饰", "约会穿搭", "显脸小", "过敏风险", "材质说明"],
+    bannedTerms: ["发圈", "扎发", "上头效果", "低丸子头", "大肠发圈", "钥匙扣", "钥匙串", "钥匙链", "钥匙圈", "包包挂件", "挂饰", "挂件", "手链", "手绳", "腕饰", "果核", "木珠"],
+    coreProductTerms: ["耳夹", "耳环", "耳饰", "珍珠耳夹", "不打耳洞耳夹"],
+    scenarioTerms: ["通勤配饰", "约会穿搭", "春夏穿搭", "低预算礼物", "校园穿搭"],
+    styleTerms: ["温柔风", "法式感", "氛围感", "小众配饰", "精致感"],
+    functionTerms: ["不打耳洞", "轻便", "佩戴图", "礼物包装", "材质说明"],
+    longTailTerms: ["不打耳洞珍珠耳夹女", "温柔风耳夹学生党", "低预算礼物耳饰", "通勤珍珠耳夹"],
+  },
+  wrist_accessory: {
+    categoryKey: "jewelry",
+    label: "饰品 / 手链 / 手绳",
+    fallbackTerm: "手腕饰品",
+    priority: 80,
+    categoryHints: ["手链", "手绳", "腕饰", "手串"],
+    strongTerms: ["手链", "手绳", "腕饰", "手串", "编织手链", "编织手绳", "串珠手链", "手腕佩戴", "戴手上", "戴在手腕", "手腕搭配", "编织绳", "串珠", "珠子"],
+    weakTerms: ["小熊", "胡萝卜", "低预算礼物", "学生党礼物", "手作绳"],
+    allowedTerms: ["手绳", "手链", "腕饰", "手串", "编织绳", "串珠", "珠子", "手腕佩戴", "佩戴图", "小众饰品", "低预算礼物", "学生党礼物", "手腕搭配", "编织手链"],
+    bannedTerms: ["钥匙扣", "钥匙串", "钥匙链", "钥匙圈", "包包挂件", "挂包", "挂饰", "挂件", "可挂包", "书包挂件", "文创挂件", "帆布包", "帆布包搭配", "木珠", "果核", "木珠果核包包挂件", "发圈", "扎发", "上头效果", "大肠发圈", "低丸子头", "不勒头", "发量", "耳夹", "不打耳洞"],
+    coreProductTerms: ["手绳", "手链", "腕饰", "编织手链", "串珠手链"],
+    scenarioTerms: ["手腕佩戴", "日常搭配", "校园穿搭", "学生党礼物", "低预算礼物"],
+    styleTerms: ["可爱感", "田园风", "手作感", "小众饰品", "清新感"],
+    functionTerms: ["编织绳", "串珠", "珠子", "可调节", "轻便佩戴"],
+    longTailTerms: ["小众编织手链女", "学生党低预算手绳", "可爱手绳礼物", "田园风串珠手链"],
+  },
+  cultural_charm: {
+    categoryKey: "stationery_cultural",
+    label: "文创挂饰 / 钥匙扣 / 包包挂件",
+    fallbackTerm: "文创挂饰",
+    priority: 75,
+    categoryHints: ["钥匙扣", "挂件", "挂饰", "包包挂件", "文创挂件"],
+    strongTerms: ["钥匙扣", "钥匙链", "钥匙圈", "钥匙串", "包包挂件", "书包挂件", "挂件", "挂饰", "可挂包", "挂包", "帆布包搭配", "文创挂件", "手机挂件", "小挂件"],
+    weakTerms: ["文创", "国风", "手作", "木珠", "果核", "手作绳结", "校园市集", "文旅纪念", "自然感"],
+    allowedTerms: ["文创挂饰", "钥匙扣", "钥匙链", "钥匙圈", "钥匙串", "挂饰", "包包挂件", "帆布包", "手账包", "木珠", "果核", "手作感", "自然感", "故事感", "低预算礼物", "校园市集", "文旅纪念", "小众审美", "包包装饰", "手作绳结", "国风感", "送朋友"],
+    bannedTerms: ["手链", "手绳", "腕饰", "手腕佩戴", "戴在手腕", "耳夹", "不打耳洞", "发圈", "扎发", "上头效果", "大肠发圈", "低丸子头"],
+    coreProductTerms: ["文创挂饰", "钥匙扣", "包包挂件", "国风挂件", "手作挂件"],
+    scenarioTerms: ["帆布包搭配", "钥匙串装饰", "校园市集", "文旅纪念", "低预算礼物"],
+    styleTerms: ["国风感", "自然感", "故事感", "手作感", "小众审美"],
+    functionTerms: ["木珠", "果核元素", "挂饰", "可挂包", "可当钥匙扣"],
+    longTailTerms: ["文创钥匙扣小众礼物", "木珠果核包包挂件", "国风手作钥匙扣", "低预算送朋友小礼物"],
+  },
+  stationery_cultural: {
+    categoryKey: "stationery_cultural",
+    label: "文创纸品 / 手帐 / 贴纸",
+    fallbackTerm: "文创纸品",
+    priority: 70,
+    categoryHints: ["文创", "贴纸", "手帐", "明信片", "书签"],
+    strongTerms: ["贴纸", "手帐", "手账", "明信片", "书签", "卡片", "文创纸品", "城市贴纸", "国风贴纸", "旅行纪念", "收藏卡", "PET贴纸"],
+    weakTerms: ["文创", "国风", "城市记忆", "文旅", "收藏", "纸品"],
+    allowedTerms: ["文创纸品", "贴纸", "手帐", "手账", "明信片", "书签", "卡片", "城市贴纸", "国风贴纸", "旅行纪念", "收藏卡", "文旅纪念", "校园市集", "国风感", "故事感", "系列化", "低预算礼物"],
+    bannedTerms: ["手链", "手绳", "腕饰", "钥匙扣", "钥匙串", "包包挂件", "挂饰", "可挂包", "发圈", "扎发", "上头效果", "耳夹", "不打耳洞"],
+    coreProductTerms: ["文创贴纸", "国风贴纸", "手帐贴纸", "明信片", "书签"],
+    scenarioTerms: ["手帐拼贴", "旅行纪念", "校园市集", "文旅纪念", "书桌收集"],
+    styleTerms: ["国风感", "城市记忆", "故事感", "小众审美", "收藏感"],
+    functionTerms: ["PET贴纸", "防水", "系列套装", "卡纸包装", "可收藏"],
+    longTailTerms: ["国风城市贴纸套装", "旅行纪念手帐贴纸", "文创贴纸低预算礼物", "城市记忆PET贴纸"],
+  },
+  phone_accessory: {
+    categoryKey: "phone_accessory",
+    label: "数码周边 / 手机配件",
+    fallbackTerm: "手机配件",
+    priority: 65,
+    categoryHints: ["手机壳", "手机挂绳", "数码周边"],
+    strongTerms: ["手机壳", "手机链", "手机挂绳", "手机支架", "镜头膜", "数据线", "充电线", "防摔壳", "机型", "镜头保护", "上机效果"],
+    weakTerms: ["挂绳", "防摔", "孔位", "按键", "数码"],
+    allowedTerms: ["手机壳", "手机挂绳", "手机支架", "镜头保护", "机型适配", "上机效果", "孔位", "按键", "防摔", "支架角度", "个性化"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "手链", "手绳", "腕饰", "果核", "木珠", "钥匙扣"],
+    coreProductTerms: ["手机壳", "手机挂绳", "手机支架", "镜头保护", "数码配件"],
+    scenarioTerms: ["通勤出门", "上机效果", "日常防摔", "拍照支架", "出门携带"],
+    styleTerms: ["高颜值", "实用党", "个性化", "简约耐看", "上机才知道"],
+    functionTerms: ["机型适配", "防摔", "支架角度", "挂绳承重", "按键孔位"],
+    longTailTerms: ["透明防摔手机壳", "手机壳挂绳套装", "适配机型手机支架", "高颜值手机配件"],
+  },
+  home_lifestyle: {
+    categoryKey: "home_lifestyle",
+    label: "家居生活 / 宿舍好物",
+    fallbackTerm: "家居小物",
+    priority: 60,
+    categoryHints: ["家居", "宿舍好物", "桌面好物"],
+    strongTerms: ["香薰", "摆件", "收纳", "桌面", "宿舍", "家居", "氛围灯", "装饰画", "杯垫", "床头", "办公桌"],
+    weakTerms: ["氛围感", "生活方式", "办公室", "桌搭"],
+    allowedTerms: ["宿舍好物", "桌面好物", "家居小物", "收纳", "桌搭", "床头", "厨房", "办公室", "氛围感", "尺寸参照", "包装保护", "破损风险", "运费"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "钥匙扣", "手链", "手绳", "果核"],
+    coreProductTerms: ["桌面好物", "宿舍好物", "家居小物", "氛围感摆件", "收纳小物"],
+    scenarioTerms: ["宿舍桌面", "办公桌", "床头小物", "书桌改造", "低预算改造"],
+    styleTerms: ["生活方式感", "治愈感", "氛围感", "干净桌搭", "精致生活"],
+    functionTerms: ["尺寸参照", "容量", "防碎包装", "易摆放", "不占地方"],
+    longTailTerms: ["宿舍桌面香薰摆件", "低预算桌面好物", "办公室桌面小物", "宿舍氛围感摆件"],
+  },
+  daily_necessity: {
+    categoryKey: "daily_necessity",
+    label: "低价日用 / 实用小物",
+    fallbackTerm: "实用小物",
+    priority: 55,
+    categoryHints: ["日用", "清洁", "耗材"],
+    strongTerms: ["湿巾", "清洁", "去污", "收纳袋", "抹布", "一次性", "补充装", "日用", "复购", "纸巾", "洗脸巾"],
+    weakTerms: ["囤货", "组合装", "社群团购", "家庭收纳"],
+    allowedTerms: ["低价好物", "实用小物", "生活小工具", "宿舍神器", "办公室好物", "家庭收纳", "使用前后对比", "多件组合", "囤货", "性价比", "复购"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "手链", "手绳", "果核", "木珠", "机型适配"],
+    coreProductTerms: ["低价好物", "实用小物", "生活小工具", "宿舍神器", "办公室好物"],
+    scenarioTerms: ["宿舍日常", "办公室", "家庭收纳", "清洁整理", "囤货清单"],
+    styleTerms: ["性价比", "实用党", "低预算", "方便省事", "生活幸福感"],
+    functionTerms: ["多件组合", "独立包装", "小巧", "耐用", "易收纳"],
+    longTailTerms: ["宿舍低价实用小物", "办公室清洁好物", "日用组合装囤货", "懒人清洁小工具"],
+  },
+};
 
 function uniqueIdentityTerms(...lists) {
   return [...new Set(lists.flat().map((term) => String(term || "").trim()).filter(Boolean))];
@@ -379,7 +672,7 @@ function inferCategoryKey(product) {
   return inferProductIdentity(product).categoryKey;
 }
 
-export function getPriceBand(price) {
+function getPriceBand(price) {
   if (!price) {
     return {
       label: "价格待补充",
@@ -415,7 +708,7 @@ export function getPriceBand(price) {
   };
 }
 
-export function getMoqAdvice(moq) {
+function getMoqAdvice(moq) {
   if (!moq) {
     return {
       label: "MOQ待补充",
@@ -451,7 +744,7 @@ export function getMoqAdvice(moq) {
   };
 }
 
-export function getChannelFit(product, categoryKey) {
+function getChannelFit(product, categoryKey) {
   const declared = product.channel || "";
   const map = {
     jewelry: {
@@ -536,7 +829,7 @@ export function getChannelFit(product, categoryKey) {
   };
 }
 
-export function getCategoryNarrative(product, categoryKey, productIdentity = null) {
+function getCategoryNarrative(product, categoryKey, productIdentity = null) {
   const name = product.name || "该产品";
   const identityKey = productIdentity?.identityKey || categoryKey;
   const narratives = {
@@ -711,20 +1004,124 @@ function getSamplingStrategy({ categoryKey, priceBand, moqAdvice, channelFit, st
 
 function getTestDecisionStandards(categoryKey, productIdentity = null) {
   const identityKey = productIdentity?.identityKey || categoryKey;
-  const categoryNote = testDecisionStandardTemplates.categoryNote;
+  const categoryNote = {
+    earring_accessory: "耳饰类还要重点观察用户是否追问材质、是否过敏、是否有礼盒和佩戴尺寸。",
+    wrist_accessory: "手链/手绳类要额外观察用户是否追问手腕尺寸、松紧、编织绳耐用度和礼物包装；如果只被夸可爱但没人问价格，说明佩戴场景还不够强。",
+    cultural_charm: "文创挂饰类要关注评论里是否出现“想送人”“挂包好看”“有故事感”“价格能接受”等信号；如果只被夸好看但没人问用途和价格，说明购买理由还不够强。",
+    stationery_cultural: "文创纸品类要关注用户是否询问主题、套装、手帐使用效果和收藏价值；如果只有点赞没有收藏，说明系列化或场景图还不够清楚。",
+    jewelry: "饰品类还要重点观察用户是否追问材质、是否过敏、是否有礼盒和佩戴尺寸。",
+    hair_accessory: "发饰类要额外记录用户偏好的颜色、套装数量和上头效果反馈，颜色投票比单条点赞更有参考价值。",
+    home_lifestyle: "家居生活类要同时记录用户对尺寸、运费、破损和真实场景的疑问，不能只看氛围图互动。",
+    stationery_category: "文创类要关注评论里是否出现“想送人”“挂包好看”“有故事感”“价格能接受”等信号；如果只被夸好看但没人问用途和价格，说明购买理由还不够强。",
+    phone_accessory: "手机周边类要把询单机型单独统计，避免内容热度高但实际可售机型不匹配。",
+    daily_necessity: "低价日用类要看复购意愿、组合装接受度和社群团购转化，而不是只看单条内容曝光。",
+    unknown: "品类不明确时，先看用户是否能快速理解产品用途和价格，再决定是否继续补充信息。",
+  };
 
   return [
-    ...testDecisionStandardTemplates.baseStandards,
+    "收藏率高于5%：说明款式、场景或使用结果有种草潜力，可以继续观察评论和询单。",
+    "询单率高于1.5%：说明价格、场景或产品卖点已经产生初步购买吸引力。",
+    "24-72小时内有连续询单：可以考虑进入小批量补货观察，但仍不建议直接大批量压货。",
+    "只有点赞没有询单：说明内容有吸引力但购买理由不够强，优先优化价格、包装、材质说明和信任信息。",
+    "收藏高但评论弱：说明用户有兴趣但决策不急，可以补充实拍、价格说明或组合优惠后再测一次。",
+    "材质、过敏、掉色、破损、尺寸等负面反馈明显：暂停补货，优先重新核验样品质量和供应商售后。",
+    "成交转化稳定且测款成本可控：可以考虑小批量补货，而不是一次性大批量进货。",
     categoryNote[identityKey] || categoryNote[categoryKey] || categoryNote.unknown,
   ];
 }
 
 function getSupplierQuestions(categoryKey, productIdentity = null) {
   const identityKey = productIdentity?.identityKey || categoryKey;
-  const questions = supplierQuestionTemplates;
-  const selectedQuestions = questions[identityKey] || questions[categoryKey] || questions.unknown;
+  const questions = {
+    earring_accessory: [
+      "是否支持1-3件拿样？样品和大货是否一致？",
+      "MOQ是否可以混批颜色、款式或套装？",
+      "是否支持7天内补货？热卖款断货周期通常多久？",
+      "是否可以提供材质说明、防过敏说明或检测信息？",
+      "包装是否包含礼盒、卡纸或袋子？包装成本如何计算？",
+      "掉色、断裂、过敏等售后如何处理？",
+    ],
+    wrist_accessory: [
+      "是否支持1-3件拿样？手绳/手链样品和大货是否一致？",
+      "编织绳、珠子、扣头和结尾处是否有实拍细节？",
+      "手腕尺寸是否可调节？是否有不同长度或儿童/成人尺寸？",
+      "MOQ是否可以混批颜色、款式或组合套装？",
+      "是否容易掉珠、断绳、褪色或金属扣过敏？售后如何处理？",
+      "包装是否支持卡纸、礼袋或低预算礼物套装？",
+    ],
+    cultural_charm: [
+      "挂扣、钥匙圈、绳结和连接处是否牢固？是否有拉力或掉件售后规则？",
+      "木珠、果核、金属扣等材质参数是否清楚？大货和样品是否一致？",
+      "是否支持小批量定制或系列化组合？最低定制量是多少？",
+      "包装、卡片和礼袋是否支持定制？低预算礼物场景的包装成本如何计算？",
+      "图案版权和文旅/国风元素授权是否清楚？",
+      "节日款、文旅款或校园市集款是否有稳定补货周期？",
+    ],
+    stationery_category: [
+      "贴纸、卡片、明信片或书签的材质、厚度和印刷工艺是否清楚？",
+      "图案版权和城市/国风/文旅元素授权是否清楚？",
+      "是否可以做系列套装、主题组合或小批量定制？",
+      "包装卡纸、外封和礼袋是否支持定制？成本如何计算？",
+      "印刷色差、防水程度、边缘裁切和材质误差如何处理？",
+      "节日款、文旅款或校园市集款是否有稳定补货周期？",
+    ],
+    jewelry: [
+      "是否支持1-3件拿样？样品和大货是否一致？",
+      "MOQ是否可以混批颜色、款式或套装？",
+      "是否支持7天内补货？热卖款断货周期通常多久？",
+      "是否可以提供材质说明、防过敏说明或检测信息？",
+      "包装是否包含礼盒、卡纸或袋子？包装成本如何计算？",
+      "掉色、断裂、过敏等售后如何处理？",
+    ],
+    hair_accessory: [
+      "是否支持颜色混批？热卖颜色是否稳定有货？",
+      "套装组合是否可以自选颜色？3件装和5件装价格如何算？",
+      "弹力、缝线、面料厚度是否有实拍细节或样品图？",
+      "是否支持低MOQ补货？补货周期通常多久？",
+      "是否容易变形、掉毛或脱线？售后规则是什么？",
+      "能否提供颜色矩阵图和上头效果图供测款使用？",
+    ],
+    home_lifestyle: [
+      "包装是否防摔防碎？是否有包装保护实拍图？",
+      "运费和体积重如何计算？不同地区是否有加价？",
+      "破损售后如何处理？是否包赔或补发？",
+      "是否支持一件拿样？样品和大货是否一致？",
+      "是否有真实场景图或买家秀可供参考？",
+      "批量发货时包装、标签和质检是否稳定？",
+    ],
+    stationery_cultural: [
+      "木珠、果核、绳结和金属扣的材质参数是否清楚？大货和样品是否一致？",
+      "图案版权和授权是否清楚？如果涉及国风、城市或文旅元素，能否提供授权说明？",
+      "手作绳结、挂扣和钥匙圈是否牢固？是否有拉力或掉件售后规则？",
+      "包装、卡片和礼袋是否支持定制？低预算礼物场景的包装成本如何计算？",
+      "是否支持小批量定制或系列化组合？最低定制量是多少？",
+      "节日款、文旅款或校园市集款是否有稳定补货周期？",
+    ],
+    phone_accessory: [
+      "当前适配哪些具体机型？热门机型库存分别有多少？",
+      "孔位、按键、镜头保护和边框厚度是否准确？",
+      "是否支持不同机型混批？每个机型最低起订量是多少？",
+      "热门机型是否容易断货？补货周期通常多久？",
+      "防摔、支架、挂绳等功能是否有测试说明或视频？",
+      "不适配、孔位偏差和功能问题的售后退换如何处理？",
+    ],
+    daily_necessity: [
+      "是否支持组合装或批量折扣？不同数量阶梯价是多少？",
+      "是否有稳定库存和补货周期？大促期间是否容易断货？",
+      "单件包装成本是多少？是否适合快递和批量发货？",
+      "是否适合社群团购或批量发货？是否可做团购包装？",
+      "是否有尺寸、容量、材质等清晰参数和检测说明？",
+      "退换货、破损和漏发处理规则是什么？",
+    ],
+    unknown: [
+      "是否支持低数量拿样？样品和大货是否一致？",
+      "MOQ、混批、补货周期和阶梯价分别是多少？",
+      "是否有真实图片、买家秀或使用视频？",
+      "包装、物流和售后规则如何处理？",
+    ],
+  };
 
-  return [...selectedQuestions];
+  return questions[identityKey] || questions[categoryKey] || questions.unknown;
 }
 
 function getIdentityDifferentiation(productIdentity, fallback = []) {
@@ -741,7 +1138,7 @@ function getIdentityDifferentiation(productIdentity, fallback = []) {
   return map[productIdentity?.identityKey] || fallback;
 }
 
-export function getXhsContentPackage(product, categoryKey, productIdentity = null) {
+function getXhsContentPackage(product, categoryKey, productIdentity = null) {
   const name = product.name || "这款小物";
   const identityKey = productIdentity?.identityKey || categoryKey;
   const packages = {
@@ -962,7 +1359,7 @@ export function getXhsContentPackage(product, categoryKey, productIdentity = nul
   return packages[identityKey] || packages[categoryKey] || fallbackPackage;
 }
 
-export function getDouyinVideoPackage(product, categoryKey, productIdentity = null) {
+function getDouyinVideoPackage(product, categoryKey, productIdentity = null) {
   const identityKey = productIdentity?.identityKey || categoryKey;
   const packages = {
     jewelry: {
@@ -1200,7 +1597,7 @@ function buildKeywordPlanFromIdentity(product, productIdentity) {
   };
 }
 
-export function getPlatformKeywordPlan(product, categoryKey, productIdentity = null) {
+function getPlatformKeywordPlan(product, categoryKey, productIdentity = null) {
   const identityPlan = buildKeywordPlanFromIdentity(product, productIdentity);
   if (identityPlan) return identityPlan;
   const name = product.name || "";
@@ -1431,7 +1828,64 @@ function formatKeywordPlatform(platform) {
     `属性/功能词：${platform.attribute.join("、")}`,
     platform.longTail?.length ? `长尾词：${platform.longTail.join("、")}` : "",
   ].filter(Boolean).join(String.fromCharCode(10));
-}function getCategoryRule(categoryKey) {
+}
+
+const categoryTermRules = {
+  stationery_cultural: {
+    allowedTerms: ["文创小物", "钥匙扣", "挂饰", "包包挂件", "帆布包", "钥匙串", "手账包", "木珠", "果核", "手作感", "自然感", "故事感", "低预算礼物", "校园市集", "文旅纪念", "小众审美", "包包装饰", "手作绳结", "国风感", "送朋友"],
+    bannedTerms: ["手链", "发圈", "大肠发圈", "扎发", "丸子头", "半扎", "低马尾", "普通皮筋", "皮筋", "不勒头", "显发量", "上头效果", "发量", "发夹", "鲨鱼夹", "发簪", "耳夹", "耳环"],
+    fallbackTerm: "文创挂件",
+  },
+  hair_accessory: {
+    allowedTerms: ["发圈", "发夹", "大肠发圈", "扎发", "半扎", "丸子头", "低马尾", "上头效果", "颜色矩阵", "套装组合", "宿舍日常", "校园穿搭", "显发量", "不勒头", "发量", "发型", "布料弹力"],
+    bannedTerms: ["钥匙扣", "果核", "木珠", "包包挂件", "文旅纪念", "帆布包挂件", "钥匙串", "手账包"],
+    fallbackTerm: "发饰",
+  },
+  jewelry: {
+    allowedTerms: ["耳夹", "耳环", "耳饰", "项链", "手链", "戒指", "珍珠", "金属光泽", "不打耳洞", "佩戴图", "礼物包装", "通勤配饰", "约会穿搭", "显脸小", "过敏风险", "材质说明"],
+    bannedTerms: ["发圈", "扎发", "丸子头", "低马尾", "钥匙扣", "包包挂件", "果核", "木珠", "大肠发圈", "上头效果"],
+    fallbackTerm: "饰品",
+  },
+  home_lifestyle: {
+    allowedTerms: ["宿舍好物", "桌面好物", "家居小物", "收纳", "桌搭", "床头", "厨房", "办公室", "氛围感", "尺寸参照", "包装保护", "破损风险", "运费"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "钥匙扣", "果核"],
+    fallbackTerm: "家居小物",
+  },
+  phone_accessory: {
+    allowedTerms: ["手机壳", "手机挂绳", "手机支架", "镜头保护", "机型适配", "上机效果", "孔位", "按键", "防摔", "支架角度", "个性化"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "果核", "木珠"],
+    fallbackTerm: "数码周边",
+  },
+  daily_necessity: {
+    allowedTerms: ["低价好物", "实用小物", "生活小工具", "宿舍神器", "办公室好物", "家庭收纳", "使用前后对比", "多件组合", "囤货", "性价比", "复购"],
+    bannedTerms: ["发圈", "扎发", "耳夹", "果核", "木珠", "机型适配"],
+    fallbackTerm: "实用小物",
+  },
+  unknown: {
+    allowedTerms: ["实用小物", "低预算好物", "使用场景", "目标人群", "内容测试"],
+    bannedTerms: [],
+    fallbackTerm: "小商品",
+  },
+};
+
+const contextRequiredModules = new Set([
+  "imagePlan",
+  "xhsPackage",
+  "douyinPackage",
+  "keywordPlan",
+  "samplingStrategy",
+  "testStandards",
+  "supplierQuestions",
+  "differentiation",
+  "risks",
+  "fitReasons",
+  "unfitReasons",
+  "executiveSummary",
+  "report",
+  "htmlReport",
+]);
+
+function getCategoryRule(categoryKey) {
   return categoryTermRules[categoryKey] || categoryTermRules.unknown;
 }
 
@@ -1460,7 +1914,7 @@ function buildProductIdentity(product, categoryKey) {
   return inferProductIdentity(product, categoryKey);
 }
 
-export function createContentContext(product, hasImage, market, channelFit, priceBand, moqAdvice) {
+function createContentContext(product, hasImage, market, channelFit, priceBand, moqAdvice) {
   const productIdentity = buildProductIdentity(product, market?.categoryKey);
   const categoryKey = productIdentity.categoryKey || market?.categoryKey || inferCategoryKey(product);
   const rule = getCategoryRule(categoryKey);
@@ -1500,21 +1954,6 @@ export function createContentContext(product, hasImage, market, channelFit, pric
     moqRisk: moqAdvice,
     effectivePrice,
     fallbackTerm: productIdentity.fallbackTerm || rule.fallbackTerm,
-    // 当前商品“真实输入”关键词文本：只来自当前这次填写/识别的字段。
-    // 历史污染拦截器用它来判断疑似旧词是否真的属于当前商品。
-    rawInputText: buildContextKeywordText(
-      product?.name,
-      product?.category,
-      product?.material,
-      product?.audience,
-      product?.channel,
-      product?.keywords,
-      product?.supplier,
-      product?.note,
-      product?.logistics,
-      productIdentity?.displayName,
-      productIdentity?.productTypeLabel
-    ),
   };
 }
 
@@ -1604,14 +2043,6 @@ function sanitizeStringByContext(contentContext, value, moduleName = "") {
   bannedTerms.sort((a, b) => b.length - a.length).forEach((term) => {
     if (term) text = text.replaceAll(term, getNaturalReplacementTerm(contentContext, term));
   });
-  // 历史污染拦截：剥离当前商品输入里并不存在的疑似旧商品实体词
-  // （木珠/果核/帆布包/钥匙扣/国风/校园市集/小礼物/包包挂件 等）。
-  // 只有当前商品真实输入里出现过该词，才允许保留。
-  text = sanitizeLegacyPollutionText(
-    text,
-    contentContext?.rawInputText || "",
-    (term) => getNaturalReplacementTerm(contentContext, term)
-  );
   text = normalizeGeneratedText(text);
   if (moduleName === "report") text = dedupeRepeatedSentences(text);
   return normalizeGeneratedText(text);
@@ -1637,7 +2068,7 @@ function anchorGeneratedContent(contentContext, value) {
   return value;
 }
 
-export function validateGeneratedContent(contentContext, generatedContent, moduleName = "module") {
+function validateGeneratedContent(contentContext, generatedContent, moduleName = "module") {
   const cleaned = sanitizeGeneratedObject(contentContext, generatedContent, moduleName);
   const text = contentToText(cleaned);
   const bannedHits = (contentContext?.bannedTerms || []).filter((term) => term && text.includes(term));
@@ -1663,7 +2094,7 @@ function scrubHairOnlyTerms(categoryKey, content) {
   return sanitizeStringByContext(contentContext, content);
 }
 
-export function inferMarketInfo(product) {
+function inferMarketInfo(product) {
   const categoryKey = inferCategoryKey(product);
   const template = categoryTemplates[categoryKey] || categoryTemplates.unknown;
 
@@ -1684,7 +2115,7 @@ export function inferMarketInfo(product) {
   };
 }
 
-export function analyzeProduct(product, hasImage) {
+function analyzeProduct(product, hasImage) {
   const market = inferMarketInfo(product);
   const categoryKey = market.categoryKey;
   const channelFit = getChannelFit(product, categoryKey);
@@ -1695,30 +2126,16 @@ export function analyzeProduct(product, hasImage) {
   const priceBand = getPriceBand(price);
   const moqAdvice = getMoqAdvice(moq);
   const contentContext = createContentContext(product, hasImage, market, channelFit, priceBand, moqAdvice);
-  // 当前商品具体化简报：所有内容模块都基于它生成，信息越具体输出越具体。
-  const brief = buildProductSpecificBrief(contentContext, product);
-  // 用“商品表达层”压缩后的简洁商品名替换长识别名，确保叙述/报告/标题/锚点都用短名。
-  const compressedDisplayName = brief.expression.displayName || contentContext.productIdentity.displayName;
-  contentContext.productIdentity = {
-    ...contentContext.productIdentity,
-    displayName: compressedDisplayName,
-  };
-  if (compressedDisplayName) contentContext.productName = compressedDisplayName;
-  // 把“商品表达层”推断出的当前商品合法用途词（如 书包挂件 / 包包装饰）并入 rawInputText，
-  // 让历史污染拦截器不会把当前商品真实用途词误删（避免过度清洗）。
-  contentContext.rawInputText = `${contentContext.rawInputText || ""} ${brief.contextWhitelistText || ""}`.trim();
   const identityProduct = {
     ...product,
     name: contentContext.productIdentity.displayName,
     category: contentContext.productIdentity.productTypeLabel,
   };
   const validateModule = (moduleName, generatedContent) => validateGeneratedContent(contentContext, generatedContent, moduleName).content;
-  // 先用品类模板生成结构，再用 brief 注入当前商品的名称/材质/场景/人群/价格，
-  // 最后再统一过 validateModule（保留历史污染拦截与品类禁用词清洗）。
   const imagePlan = validateModule("imagePlan", getImageContentPlan(contentContext.categoryKey, contentContext.platformFit, contentContext.productIdentity));
-  const xhsPackage = validateModule("xhsPackage", enrichXhsPackage(getXhsContentPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), brief));
-  const douyinPackage = validateModule("douyinPackage", enrichDouyinPackage(getDouyinVideoPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), brief));
-  const keywordPlan = validateModule("keywordPlan", enrichKeywordPlan(getPlatformKeywordPlan(identityProduct, contentContext.categoryKey, contentContext.productIdentity), brief));
+  const xhsPackage = validateModule("xhsPackage", getXhsContentPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity));
+  const douyinPackage = validateModule("douyinPackage", getDouyinVideoPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity));
+  const keywordPlan = validateModule("keywordPlan", getPlatformKeywordPlan(identityProduct, contentContext.categoryKey, contentContext.productIdentity));
 
   const categoryPackaging = {
     jewelry: /礼盒|包装|礼物/.test(`${product.supplier} ${product.note}`) ? 1.8 : 1.1,
@@ -1810,8 +2227,6 @@ export function analyzeProduct(product, hasImage) {
   const categoryNarrative = validateGeneratedContent(contentContext, getCategoryNarrative(identityProduct, categoryKey, contentContext.productIdentity), "categoryNarrative").content;
 
   let risks = [];
-  // 先加入基于当前材质/尺寸/价格/MOQ 的具体风险点。
-  buildSpecificRiskPoints(brief).forEach((point) => risks.push(point));
   if (price > 0 && cost > 0 && margin < 0.35) risks.push("毛利率偏低，后续广告、退换货和包装成本会挤压利润。建议重新核算售价或寻找更低拿货价。");
   if (price > 0 && !cost) risks.push("当前已有建议售价，但缺少单件成本，暂时无法准确判断毛利空间。");
   if (!price && cost > 0) risks.push("当前已有单件成本，但缺少建议售价，暂时无法判断利润空间。");
@@ -1821,11 +2236,10 @@ export function analyzeProduct(product, hasImage) {
   if (!product.competitorPrice) risks.push("缺少同类竞品价格，建议补充1688/淘宝/小红书同款价格区间。");
   risks.push(contentRisk);
   if (risks.length === 0) risks.push("基础风险较可控，但仍需核实样品与大货一致性、质检信息和售后条款。");
-  risks = validateModule("risks", risks).slice(0, 8);
+  risks = validateModule("risks", risks).slice(0, 3);
   contentContext.risks = risks;
 
   const nextTestActions = validateGeneratedContent(contentContext, [
-    ...buildSpecificNextActions(brief),
     ...categoryTestActions,
     "收集收藏、评论、询单和私信数据，至少观察24-72小时。",
     "把测款数据回填到测款复盘，再决定补货、改图、降价或停测。",
@@ -1860,10 +2274,7 @@ export function analyzeProduct(product, hasImage) {
 
   const samplingStrategy = validateModule("samplingStrategy", getSamplingStrategy({ categoryKey, priceBand, moqAdvice, channelFit, status, productIdentity: contentContext.productIdentity }));
   const testStandards = validateModule("testStandards", getTestDecisionStandards(categoryKey, contentContext.productIdentity));
-  const supplierQuestions = validateModule("supplierQuestions", [
-    ...buildSpecificSupplierQuestions(brief),
-    ...getSupplierQuestions(categoryKey, contentContext.productIdentity),
-  ]);
+  const supplierQuestions = validateModule("supplierQuestions", getSupplierQuestions(categoryKey, contentContext.productIdentity));
   const biggestRisk = risks.find((risk) => !risk.includes("暂未上传产品图片")) || risks[0] || safeMarket.contentRisk;
   const executiveSummary = validateModule("executiveSummary", [
     status === "暂不考虑" ? "暂不建议直接下单，先降低首单量或补充关键信息。" : status === "建议补货" ? "可以进入补货观察，但仍需用真实测款数据复核。" : "建议先拿样或小批量测款，不建议直接大批量压货。",
@@ -1888,7 +2299,7 @@ export function analyzeProduct(product, hasImage) {
   let report = `【TradePilot AI 进货决策报告】
 
 一、产品基础信息
-产品名称：${brief.expression?.displayName || contentContext.productIdentity.displayName || "未填写"}
+产品名称：${contentContext.productIdentity.displayName || "未填写"}
 产品类型：${contentContext.productIdentity.productTypeLabel || safeMarket.marketType || "未填写"}
 拿货价：${cost > 0 ? money(cost) : "未填写"} 元
 建议售价：${price > 0 ? `${moneyDisplay(price)} 元${effectivePrice.hasEstimatedPrice ? "（估算）" : ""}` : "未填写"}
@@ -2010,7 +2421,6 @@ ${scoringItems.map((item, index) => `${index + 1}. ${item.title}：${item.score}
     contentContext,
     categoryNarrative,
     productIdentity: contentContext.productIdentity,
-    productExpression: brief.expression,
     categoryKey,
     categoryName: safeMarket.categoryName,
     channelFit,
@@ -2054,11 +2464,11 @@ ${scoringItems.map((item, index) => `${index + 1}. ${item.title}：${item.score}
   };
 }
 
-export function getRecordStatus(record) {
+function getRecordStatus(record) {
   return record?.result?.status || record?.result?.level || record?.advice || (record?.score >= 85 ? "准备拿样" : record?.score >= 70 ? "正在测款" : "暂不考虑");
 }
 
-export function getRecordMetrics(record) {
+function getRecordMetrics(record) {
   const fallback = record?.product ? analyzeProduct(record.product, Boolean(record.product.imagePreview)) : null;
   const result = record?.result || {};
   return {
@@ -2075,7 +2485,7 @@ export function getRecordMetrics(record) {
   };
 }
 
-export function getRecordReport(record) {
+function getRecordReport(record) {
   if (record?.product) {
     return analyzeProduct(record.product, Boolean(record.product.imagePreview)).report;
   }
@@ -2085,19 +2495,201 @@ export function getRecordReport(record) {
   return validateGeneratedContent(contentContext, record?.report || "暂无报告内容", "report").content;
 }
 
+function formatRecordDate(value) {
+  if (!value) return "未填写";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("zh-CN", { hour12: false });
+}
 
+function formatWordMoney(value, fallback = "暂无") {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return `¥${money(parsed)}`;
+}
 
+function getReviewRows(review = {}) {
+  const views = n(review.views);
+  const likes = n(review.likes);
+  const saves = n(review.saves);
+  const comments = n(review.comments);
+  const inquiries = n(review.inquiries);
+  const orders = n(review.orders);
+  const cost = n(review.cost);
+  const engagementRate = views ? ((likes + saves + comments) / views) * 100 : 0;
+  const inquiryRate = views ? (inquiries / views) * 100 : 0;
+  const conversionRate = inquiries ? (orders / inquiries) * 100 : 0;
 
+  return [
+    ["浏览量", views || "未填写"],
+    ["点赞", likes || "未填写"],
+    ["收藏", saves || "未填写"],
+    ["评论", comments || "未填写"],
+    ["询单", inquiries || "未填写"],
+    ["成交", orders || "未填写"],
+    ["测款成本", cost ? `¥${money(cost)}` : "未填写"],
+    ["互动率", views ? `${engagementRate.toFixed(1)}%` : "暂无"],
+    ["询单率", views ? `${inquiryRate.toFixed(1)}%` : "暂无"],
+    ["询单转化率", inquiries ? `${conversionRate.toFixed(1)}%` : "暂无"],
+  ];
+}
 
+function hasReviewData(review = {}) {
+  return Object.values(review || {}).some((value) => String(value ?? "").trim());
+}
 
+function getWordContentAdvice(result = {}) {
+  const items = [
+    result.samplingStrategy?.headline,
+    ...(result.samplingStrategy?.checkpoints || []).slice(0, 3),
+    ...(result.nextTestActions || []).slice(0, 2),
+    result.xhsPackage?.coverDesign,
+    result.xhsPackage?.merchantStrategy,
+    result.douyinPackage?.direction,
+    result.douyinPackage?.merchantGoal,
+  ].filter(Boolean);
 
+  return items.length ? items : ["暂无"];
+}
 
+function generateProductLibraryWordDocument(records = []) {
+  const exportedAt = new Date().toLocaleString("zh-CN", { hour12: false });
+  const productSections = records.map((record, index) => {
+    const product = record?.product || {};
+    const analyzedResult = record?.product ? analyzeProduct(product, Boolean(product.imagePreview)) : null;
+    const savedResult = record?.result || {};
+    const result = analyzedResult || savedResult;
+    const metrics = getRecordMetrics(record);
+    const review = savedResult.review || record?.review || {};
+    const effectivePrice = analyzedResult?.effectivePrice || savedResult.effectivePrice || getEffectivePrice(product);
+    const risks = safeArray(analyzedResult?.risks || savedResult.risks);
+    const logisticsRisk = [
+      product.logistics,
+      product.supplier,
+      risks.slice(0, 2).join("；"),
+    ].filter(Boolean).join("；") || "未填写";
+    const margin = Number(analyzedResult?.margin ?? savedResult.margin ?? metrics.margin);
+    const profit = Number(analyzedResult?.profit ?? savedResult.profit);
+    const stockCost = Number(analyzedResult?.stockCost ?? savedResult.stockCost ?? metrics.stockCost);
+    const rows = [
+      ["产品名称", metrics.displayName || record?.product_name || product.name || "未命名产品"],
+      ["产品类型 / 品类", metrics.productTypeLabel || record?.category || product.category || "未分类"],
+      ["拿货价", product.cost || (effectivePrice.cost ? `¥${money(effectivePrice.cost)}` : "未填写")],
+      ["建议售价", record?.price || product.price || formatEffectivePrice(effectivePrice, "未填写")],
+      ["MOQ 最小起订量", product.moq || "未填写"],
+      ["材质", product.material || "未填写"],
+      ["目标人群", product.audience || "未填写"],
+      ["销售渠道", product.channel || "未填写"],
+      ["竞品价格", record?.competitor_price || product.competitorPrice || "未填写"],
+      ["物流 / 供应风险", logisticsRisk],
+      ["综合评分", metrics.score ? `${Math.round(metrics.score)}/100` : "暂无"],
+      ["AI 进货建议", result.level || record?.advice || metrics.status || "暂无"],
+      ["预计毛利率", Number.isFinite(margin) ? `${Math.round(margin * 100)}%` : "暂无"],
+      ["单件利润", Number.isFinite(profit) ? formatWordMoney(profit) : "暂无"],
+      ["首批压货资金", Number.isFinite(stockCost) ? formatWordMoney(stockCost) : "暂无"],
+      ["保存时间 / 创建时间", formatRecordDate(record?.created_at)],
+    ];
 
+    return `
+      <section class="product-card">
+        <h2>${index + 1}. ${escapeHtml(metrics.displayName || record?.product_name || product.name || "未命名产品")}</h2>
+        ${htmlTable(["字段", "内容"], rows)}
+        <h3>内容测款建议</h3>
+        ${htmlList(getWordContentAdvice(result), false)}
+        <h3>测款复盘数据</h3>
+        ${hasReviewData(review) ? htmlTable(["指标", "数据"], getReviewRows(review)) : '<p class="muted">暂无测款复盘数据。</p>'}
+      </section>
+      <hr>
+    `;
+  }).join("");
 
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>TradePilot AI｜产品库复盘报告</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 28px;
+      color: #14221b;
+      font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif;
+      line-height: 1.7;
+      background: #ffffff;
+    }
+    h1 {
+      margin: 0 0 12px;
+      color: #0f3f2d;
+      font-size: 28px;
+      font-weight: 800;
+    }
+    h2 {
+      margin: 0 0 14px;
+      color: #11633f;
+      font-size: 20px;
+      font-weight: 800;
+    }
+    h3 {
+      margin: 18px 0 8px;
+      color: #164d38;
+      font-size: 16px;
+      font-weight: 800;
+    }
+    p { margin: 8px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 14px;
+    }
+    th, td {
+      border: 1px solid #cbd5d0;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+    th {
+      background: #e7f5ee;
+      color: #0f3f2d;
+      font-weight: 800;
+    }
+    ul { margin: 8px 0 14px 22px; padding: 0; }
+    li { margin: 4px 0; }
+    .summary {
+      margin-bottom: 22px;
+      padding: 16px 18px;
+      border: 1px solid #b7d8ca;
+      background: #f3fbf7;
+    }
+    .product-card {
+      margin: 22px 0;
+      padding: 18px;
+      border: 1px solid #b7d8ca;
+      background: #fbfffd;
+      page-break-inside: avoid;
+    }
+    .strong { font-weight: 800; color: #0f3f2d; }
+    .muted { color: #64756d; }
+    hr {
+      border: none;
+      border-top: 1px solid #d8e4df;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>TradePilot AI｜产品库复盘报告</h1>
+  <div class="summary">
+    <p><span class="strong">导出时间：</span>${escapeHtml(exportedAt)}</p>
+    <p><span class="strong">产品记录数量：</span>${escapeHtml(records.length)}</p>
+    <p><span class="strong">说明：</span>本报告由 TradePilot AI 根据本地产品库记录生成，用于选品复盘、候选产品对比和团队讨论。</p>
+  </div>
+  ${productSections || '<p class="muted">暂无产品记录。</p>'}
+</body>
+</html>`;
+}
 
-
-
-export function getPkRecommendation(left, right) {
+function getPkRecommendation(left, right) {
   if (!left || !right) return "请选择两个产品后生成优先级建议。";
   const leftMetrics = getRecordMetrics(left);
   const rightMetrics = getRecordMetrics(right);
@@ -2109,19 +2701,51 @@ export function getPkRecommendation(left, right) {
   return `${winnerMetrics.displayName || "候选产品"}更适合${action}，原因是评分、内容潜力和渠道适配综合更稳，同时当前风险数量为${winnerMetrics.riskCount}个。`;
 }
 
+function cleanFileName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "-")
+    .slice(0, 40);
+}
 
+function escapeHtml(value) {
+  const text = value === undefined || value === null || value === "" ? "未填写" : String(value);
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/\r?\n/g, "<br>")
+    .trim() || "未填写";
+}
 
+function htmlTable(headers, rows) {
+  return `<table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${(rows || [])
+    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
+    .join("")}</tbody></table>`;
+}
 
+function htmlList(items, ordered = true) {
+  const safeItems = (items || []).filter(Boolean);
+  const tag = ordered ? "ol" : "ul";
+  if (!safeItems.length) return `<${tag}><li>暂无</li></${tag}>`;
+  return `<${tag}>${safeItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</${tag}>`;
+}
 
+function htmlChecklist(items) {
+  const safeItems = (items || []).filter(Boolean);
+  if (!safeItems.length) return `<ul class="checklist"><li><span class="box"></span><span>暂无</span></li></ul>`;
+  return `<ul class="checklist">${safeItems.map((item) => `<li><span class="box"></span><span>${escapeHtml(item)}</span></li>`).join("")}</ul>`;
+}
 
+function htmlPills(items) {
+  const safeItems = (items || []).filter(Boolean);
+  return `<div class="pills">${safeItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("") || "<span>暂无</span>"}</div>`;
+}
 
-
-
-
-
-
-
-export function safeArray(value) {
+function safeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
@@ -2144,7 +2768,7 @@ function normalizeScoringItem(item) {
   return null;
 }
 
-export function getScoringItems(result) {
+function getScoringItems(result) {
   return safeArray(result?.scoringItems || result?.explanations)
     .map(normalizeScoringItem)
     .filter((item) => item && item.title.length > 1 && !["针", "对", "田"].includes(item.title));
@@ -2155,10 +2779,236 @@ function getScoreValue(result, keyword, fallback = "") {
   return found?.[1] ?? fallback;
 }
 
-function hasAgentReviewData(reviewData = {}) {
-  return ["views", "likes", "saves", "comments", "inquiries", "orders", "cost"].some((key) => {
-    return String(reviewData?.[key] ?? "").trim().length > 0;
-  });
+function generateHtmlReport(product, result) {
+  const fallbackMarket = result.market || inferMarketInfo(product);
+  const fallbackChannelFit = result.channelFit || getChannelFit(product, fallbackMarket.categoryKey);
+  const fallbackEffectivePrice = result.effectivePrice || getEffectivePrice(product);
+  const contentContext = result.contentContext || createContentContext(product, Boolean(product?.imagePreview), fallbackMarket, fallbackChannelFit, result.priceBand || getPriceBand(fallbackEffectivePrice.price), result.moqAdvice || getMoqAdvice(n(product.moq)));
+  const effectivePrice = result.effectivePrice || contentContext.effectivePrice || getEffectivePrice(product);
+  const identityProduct = {
+    ...product,
+    name: contentContext.productIdentity.displayName,
+    category: contentContext.productIdentity.productTypeLabel,
+  };
+  const xhs = validateGeneratedContent(contentContext, result.xhsPackage || getXhsContentPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "xhsPackage").content;
+  const douyin = validateGeneratedContent(contentContext, result.douyinPackage || getDouyinVideoPackage(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "douyinPackage").content;
+  const keywordPlan = validateGeneratedContent(contentContext, result.keywordPlan || getPlatformKeywordPlan(identityProduct, contentContext.categoryKey, contentContext.productIdentity), "keywordPlan").content;
+  const nextActions = (result.actions && result.actions.length)
+    ? result.actions
+    : [...(result.samplingStrategy?.checkpoints || []), ...(result.nextTestActions || []).slice(-2)];
+  const channelScore = getScoreValue(result, "渠道", result.channelFit?.score || "");
+  const basicRows = [
+    ["产品名称", contentContext.productIdentity?.displayName || product.name || "未填写"],
+    ["产品类型", contentContext.productIdentity?.productTypeLabel || product.category || result.market?.marketType || "未填写"],
+    ["拿货价", effectivePrice.cost ? `¥${money(effectivePrice.cost)}` : "未填写"],
+    ["建议售价", formatEffectivePrice(effectivePrice, "未填写")],
+    ["MOQ", product.moq ? `${product.moq} 件` : "未填写"],
+    ["材质", product.material || "未填写"],
+    ["目标人群", product.audience || "未填写"],
+    ["销售渠道", product.channel || "未填写"],
+    ["竞品价格", product.competitorPrice || "未填写"],
+    ["供应商信息", product.supplier || "未填写"],
+  ];
+  const scoreRows = getScoringItems(result).map((item) => [item.title, item.score, item.description]);
+
+  const html = `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TradePilot AI 进货决策报告</title>
+  <style>
+    :root { color-scheme: dark; --bg: #06120d; --panel: #0d2017; --panel-2: #10291d; --line: rgba(129, 255, 193, .22); --accent: #7df5ac; --accent-2: #b6ffd1; --text: #edfdf4; --muted: #a8bfb0; --warn: #fde68a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at top left, rgba(125,245,172,.14), transparent 32rem), var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif; line-height: 1.72; }
+    .page { max-width: 1080px; margin: 0 auto; padding: 40px 20px 64px; }
+    .hero { border: 1px solid var(--line); background: linear-gradient(135deg, rgba(125,245,172,.14), rgba(255,255,255,.035)); border-radius: 28px; padding: 32px; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+    h1 { margin: 0; font-size: 36px; line-height: 1.15; letter-spacing: 0; }
+    .subtitle { margin: 12px 0 0; color: var(--accent-2); font-weight: 700; }
+    .print-note { margin: 18px 0 0; color: var(--muted); font-size: 14px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+    .metric { border: 1px solid rgba(255,255,255,.08); border-radius: 18px; background: rgba(0,0,0,.22); padding: 14px; }
+    .metric span { display: block; color: var(--muted); font-size: 12px; }
+    .metric strong { display: block; margin-top: 6px; color: var(--text); font-size: 17px; }
+    section { margin-top: 22px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.045); border-radius: 24px; padding: 24px; break-inside: avoid; }
+    h2 { margin: 0 0 16px; display: flex; align-items: center; gap: 10px; font-size: 22px; line-height: 1.3; }
+    h2::before { content: ""; width: 6px; height: 24px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 18px rgba(125,245,172,.5); }
+    h3 { margin: 22px 0 10px; color: var(--accent-2); font-size: 16px; }
+    p { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 16px; background: rgba(0,0,0,.18); }
+    th, td { border: 1px solid rgba(255,255,255,.08); padding: 11px 12px; text-align: left; vertical-align: top; }
+    th { background: rgba(125,245,172,.13); color: var(--accent-2); font-size: 13px; }
+    td { color: #e4f5eb; font-size: 14px; }
+    ol, ul { margin: 10px 0 0 22px; padding: 0; }
+    li { margin: 8px 0; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .card { border: 1px solid rgba(255,255,255,.08); border-radius: 18px; background: rgba(0,0,0,.2); padding: 16px; }
+    .card strong { color: var(--accent-2); }
+    .summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .summary p { margin: 0; border-radius: 16px; background: rgba(0,0,0,.22); padding: 14px; }
+    .checklist { list-style: none; margin-left: 0; }
+    .checklist li { display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; background: rgba(0,0,0,.18); padding: 10px 12px; }
+    .box { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 6px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(125,245,172,.08); }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .pills span { border: 1px solid var(--line); border-radius: 999px; background: rgba(125,245,172,.1); color: var(--accent-2); padding: 6px 10px; font-size: 13px; font-weight: 700; }
+    .notice { border-color: rgba(253,230,138,.22); background: rgba(253,230,138,.08); color: #fff4bc; }
+    .footer { color: var(--muted); font-size: 13px; }
+    @media (max-width: 760px) { .metrics, .grid, .summary { grid-template-columns: 1fr; } h1 { font-size: 28px; } .hero, section { padding: 20px; border-radius: 20px; } }
+    @media print { body { background: #fff; color: #111; } .hero, section { box-shadow: none; break-inside: avoid; } .print-note { color: #444; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <h1>TradePilot AI 进货决策报告</h1>
+      <p class="subtitle">进货前，先算清楚。别让第一次进货，变成第一次压货。</p>
+      <p class="print-note">可在浏览器中使用 Ctrl+P / 打印功能导出为 PDF。</p>
+      <div class="metrics">
+        <div class="metric"><span>综合评分</span><strong>${escapeHtml(result.totalScore)}/100</strong></div>
+        <div class="metric"><span>状态</span><strong>状态：${escapeHtml(result.status)}</strong></div>
+        <div class="metric"><span>决策建议</span><strong>${escapeHtml(result.level)}</strong></div>
+        <div class="metric"><span>最适合渠道</span><strong>${escapeHtml(result.channelFit?.best)}</strong></div>
+      </div>
+    </header>
+
+    <section>
+      <h2>基础信息</h2>
+      ${htmlTable(["项目", "内容"], basicRows)}
+    </section>
+
+    <section>
+      <h2>一、执行摘要</h2>
+      <div class="summary">${(result.executiveSummary || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>
+    </section>
+
+    <section>
+      <h2>二、利润测算</h2>
+      ${htmlTable(["指标", "数值"], [
+        ["单件成本", `¥${money(result.unitCost)}`],
+        ["预估单件利润", `¥${money(result.profit)}`],
+        ["预估毛利率", `${Math.round(result.margin * 100)}%`],
+        ["首批压货资金", `¥${money(result.stockCost)}`],
+      ])}
+      <p class="footer">说明：当前毛利按建议售价与单件成本计算；包装、物流、平台费和售后成本仍需按实际渠道另行校正。</p>
+    </section>
+
+    <section>
+      <h2>三、品类判断</h2>
+      <div class="card"><p><strong>识别品类：</strong>${escapeHtml(result.categoryName || contentContext.categoryName)}（${escapeHtml(contentContext.productIdentity?.identityKey || contentContext.categoryKey)}）</p><p>${escapeHtml(result.categoryNarrative || getCategoryNarrative(identityProduct, contentContext.categoryKey, contentContext.productIdentity))}</p></div>
+    </section>
+
+    <section>
+      <h2>四、渠道适配建议</h2>
+      ${htmlTable(["项目", "内容"], [
+        ["最适合渠道", result.channelFit?.best || "未填写"],
+        ["适合理由", result.channelFit?.reason || "未填写"],
+        ["暂不建议渠道", result.channelFit?.avoid || "未填写"],
+        ["不建议理由", result.channelFit?.avoidReason || "未填写"],
+        ["当前填写渠道", result.channelFit?.declared || product.channel || "未填写"],
+        ["渠道适配评分", `${channelScore}/100`],
+      ])}
+    </section>
+
+    <section>
+      <h2>五、价格带与 MOQ 判断</h2>
+      <div class="grid">
+        <div class="card"><h3>价格带判断</h3><p><strong>价格带：</strong>${escapeHtml(result.priceBand?.label)}</p><p><strong>建议：</strong>${escapeHtml(result.priceBand?.advice)}</p><p><strong>风险：</strong>${escapeHtml(result.priceBand?.risk)}</p></div>
+        <div class="card"><h3>MOQ 风险判断</h3><p><strong>MOQ 区间：</strong>${escapeHtml(result.moqAdvice?.label)}</p><p><strong>风险等级：</strong>${escapeHtml(result.moqAdvice?.riskLevel)}</p><p><strong>建议：</strong>${escapeHtml(result.moqAdvice?.advice)}</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>六、图片与内容素材建议</h2>
+      <p class="card">${escapeHtml(result.visualEvidenceNote)}</p>
+      <div class="grid">
+        <div class="card"><h3>必拍图片</h3>${htmlList(result.imagePlan?.mustShoot || [])}</div>
+        <div class="card"><h3>加分图片</h3>${htmlList(result.imagePlan?.bonusShots || [])}</div>
+        <div class="card"><h3>首图 / 封面建议</h3><p>${escapeHtml(result.imagePlan?.coverAdvice)}</p><h3>不建议缺失的图片</h3><p>${escapeHtml(result.imagePlan?.missingRisk)}</p></div>
+        <div class="card"><h3>渠道拍摄重点</h3>${htmlList(result.imagePlan?.preferredFocus || [])}</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>七、测款判断标准</h2>
+      ${htmlList(result.testStandards || [], false)}
+    </section>
+
+    <section>
+      <h2>八、供应商沟通清单</h2>
+      ${htmlChecklist(result.supplierQuestions || [])}
+    </section>
+
+    <section>
+      <h2>九、产品差异化建议</h2>
+      ${htmlList(result.market?.differentiation || [])}
+    </section>
+
+    <section>
+      <h2>十、风险备忘</h2>
+      ${htmlList((result.risks || []).slice(0, 3))}
+    </section>
+
+    <section>
+      <h2>十一、跨平台搜索关键词建议</h2>
+      <p class="footer">这些词用于标题、正文、标签、短视频字幕和商品标题，按平台区分消费者真实搜索习惯。</p>
+      <div class="grid">
+        <div class="card"><h3>小红书搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.xhs.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.xhs.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.xhs.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.xhs.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.xhs.attribute.join("、"))}</p></div>
+        <div class="card"><h3>抖音搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.douyin.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.douyin.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.douyin.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.douyin.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.douyin.attribute.join("、"))}</p></div>
+        <div class="card"><h3>电商平台搜索词</h3><p><strong>核心产品词：</strong>${escapeHtml(keywordPlan.ecommerce.core.join("、"))}</p><p><strong>场景词：</strong>${escapeHtml(keywordPlan.ecommerce.scene.join("、"))}</p><p><strong>痛点词：</strong>${escapeHtml(keywordPlan.ecommerce.pain.join("、"))}</p><p><strong>风格/情绪词：</strong>${escapeHtml(keywordPlan.ecommerce.style.join("、"))}</p><p><strong>属性/功能词：</strong>${escapeHtml(keywordPlan.ecommerce.attribute.join("、"))}</p>${keywordPlan.ecommerce.longTail?.length ? `<p><strong>长尾词：</strong>${escapeHtml(keywordPlan.ecommerce.longTail.join("、"))}</p>` : ""}</div>
+        <div class="card"><h3>标题组合建议</h3>${htmlList(keywordPlan.titles.map(([platform, title]) => `${platform}标题：${title}`))}</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>十二、小红书种草发布方案</h2>
+      <p class="footer">这一部分是给卖家/创业者使用的内容发布方案，但标题、正文、封面文案使用消费者视角。</p>
+      <div class="grid">
+        <div class="card"><h3>封面钩子</h3>${htmlList(xhs.coverHooks)}</div>
+        <div class="card"><h3>标题建议</h3>${htmlList(xhs.titles)}</div>
+        <div class="card"><h3>首图 / 封面设计建议</h3><p>${escapeHtml(xhs.coverDesign)}</p></div>
+        <div class="card"><h3>互动引导</h3>${htmlList(xhs.interactions)}</div>
+      </div>
+      <h3>图文结构</h3>${htmlList(xhs.pages)}
+      <h3>正文示例</h3><p class="card">${escapeHtml(xhs.body)}</p>
+      <h3>推荐标签</h3>${htmlPills(xhs.tags || [])}
+      <h3>商家发布策略</h3><p class="card">${escapeHtml(xhs.merchantStrategy)}</p>
+    </section>
+
+    <section>
+      <h2>十三、抖音视频脚本</h2>
+      <p class="footer">这一部分是给卖家/创业者使用的短视频拍摄方案，但脚本本身面向消费者。</p>
+      <div class="card"><h3>视频方向</h3><p>${escapeHtml(douyin.direction)}</p></div>
+      <h3>抖音封面文案</h3>${htmlList(douyin.coverTexts)}
+      <h3>20 秒分镜脚本</h3>
+      ${htmlTable(["镜头", "时间", "画面怎么拍", "字幕 / 口播", "目的"], (douyin.shots || []).map((shot, index) => [
+        `镜头${index + 1}`,
+        shot.time,
+        shot.visual,
+        shot.copy,
+        shot.purpose,
+      ]))}
+      <h3>拍摄注意点</h3>${htmlList(douyin.shootingNotes)}
+      <h3>商家测试目标</h3><p class="card">${escapeHtml(douyin.merchantGoal)}</p>
+    </section>
+
+    <section>
+      <h2>十四、下一步执行动作</h2>
+      ${htmlList(nextActions)}
+    </section>
+
+    <section>
+      <h2>十五、AI 评分依据</h2>
+      ${htmlTable(["维度", "分数", "说明"], scoreRows)}
+    </section>
+
+    <section class="notice">
+      <h2>报告说明</h2>
+      <p>本报告由 TradePilot AI 基于用户填写的产品信息、图片识别结果、成本结构、目标人群、销售渠道和测款逻辑自动生成。报告适用于进货前判断、内容测款准备、团队讨论和后续复盘，不构成绝对经营承诺。</p>
+    </section>
+  </main>
+</body>
+</html>`;
+  return validateGeneratedContent(contentContext, html, "htmlReport").content;
 }
 
 function App() {
@@ -2170,25 +3020,9 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState(null);
-  const [aiReasoningInsights, setAiReasoningInsights] = useState({});
-  const [aiReasoningLoading, setAiReasoningLoading] = useState(false);
-  const [imageQualityNotice, setImageQualityNotice] = useState(null);
-  const [imageRecognitionNotice, setImageRecognitionNotice] = useState(null);
   const [historyRecords, setHistoryRecords] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMessage, setHistoryMessage] = useState("");
-  const [storageMode, setStorageMode] = useState(() => getStorageMode());
-  const [storageStatus, setStorageStatus] = useState({
-    selectedMode: storageMode,
-    selectedModeLabel: storageMode === "cloud" ? "云端同步" : storageMode === "local" ? "仅本地保存" : "自动选择",
-    effectiveMode: "local",
-    mode: "local",
-    label: "本地模式",
-    description: "正在检测产品库存储状态。",
-    localCount: 0,
-    localRecordLimit: 100,
-    canUseCloud: false,
-  });
   const [saveMessage, setSaveMessage] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatus, setHistoryStatus] = useState("全部");
@@ -2205,203 +3039,13 @@ function App() {
     cost: "",
   });
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [priceEvidence, setPriceEvidence] = useState(null);
-  // 当前会话 ID（仅本次浏览器会话），用于标记当前报告来源，不持久化。
-  const [sessionId] = useState(() => `session-${stableHash(`${Date.now()}-${Math.random()}`)}`);
-  // 记录每个 fingerprint 首次生成时间，保持 React 渲染期间稳定。
-  const generatedAtRef = React.useRef({});
-  // 当前 AI 推理结果所绑定的 fingerprint，用于校验是否仍属于当前商品。
-  const [aiInsightFingerprint, setAiInsightFingerprint] = useState("");
 
-  const baseResult = useMemo(() => analyzeProduct(product, Boolean(image)), [product, image]);
-  const fallbackPriceEvidence = useMemo(() => evaluatePriceEvidence(product, {}), [product]);
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [page, mode]);
-
-  useEffect(() => {
-    let isActive = true;
-    setPriceEvidence(fallbackPriceEvidence);
-
-    fetchAlibabaPriceEvidence(product).then((nextPriceEvidence) => {
-      if (isActive) setPriceEvidence(nextPriceEvidence);
-    });
-
-    return () => {
-      isActive = false;
-    };
-  }, [product, fallbackPriceEvidence]);
-
-  useEffect(() => {
-    let isActive = true;
-    getStorageStatus(storageMode).then((status) => {
-      if (isActive) setStorageStatus(status);
-    });
-    return () => {
-      isActive = false;
-    };
-  }, [storageMode]);
-
-  const result = useMemo(() => {
-    const douyinEvidence = evaluateDouyinFallbackEvidence(product, baseResult);
-    const resultWithDouyinEvidence = applyDouyinFallbackToResult(baseResult, douyinEvidence);
-    const resultWithPriceEvidence = applyPriceEvidenceToResult(resultWithDouyinEvidence, priceEvidence || fallbackPriceEvidence || {});
-    const manualEvidence = evaluateManualMarketEvidence(product, resultWithPriceEvidence);
-    return applyManualMarketEvidenceToResult(resultWithPriceEvidence, manualEvidence);
-  }, [baseResult, product, priceEvidence, fallbackPriceEvidence]);
-  const aiMarketEvidence = useMemo(() => buildAiInsightMarketEvidence(result), [result]);
-
-  // 当前商品 fingerprint：商品关键字段变化即变化。用于校验衍生模块归属。
-  const productFingerprint = useMemo(
-    () =>
-      computeProductFingerprint({
-        name: product?.name,
-        category: product?.category,
-        cost: product?.cost,
-        price: product?.price,
-        moq: product?.moq,
-        audience: product?.audience,
-        channel: product?.channel,
-        imageRecognitionSummary: imageRecognitionNotice?.message || "",
-      }),
-    [product, imageRecognitionNotice]
-  );
-
-  // 记录该 fingerprint 的首次生成时间（稳定）。
-  if (productFingerprint && !generatedAtRef.current[productFingerprint]) {
-    generatedAtRef.current[productFingerprint] = new Date().toISOString();
-  }
-
-  // 当前商品标准上下文：所有衍生模块的唯一数据来源。
-  const currentProductContext = useMemo(
-    () =>
-      buildCurrentProductContext({
-        product,
-        result,
-        hasImage: Boolean(image),
-        imageRecognition: {
-          summary: imageRecognitionNotice?.message || "",
-          detectedStyle: result?.productIdentity?.identityKey || "",
-          detectedMaterial: product?.material || "",
-        },
-        sessionId,
-        generatedAt: generatedAtRef.current[productFingerprint] || "",
-      }),
-    [product, result, image, imageRecognitionNotice, sessionId, productFingerprint]
-  );
-
-  // 当前 AI 推理结果是否仍属于当前商品（fingerprint 一致才可展示）。
-  const aiInsightMatchesCurrent = aiInsightFingerprint === productFingerprint;
-  const safeAiReasoningInsights = aiInsightMatchesCurrent ? aiReasoningInsights : {};
-
-  const hasCurrentReviewInsightData = useMemo(() => hasReviewInsightData(review), [review]);
-  const agentReviewRecords = useMemo(() => {
-    const savedReviewRecords = (Array.isArray(historyRecords) ? historyRecords : [])
-      .map((record) => record?.review)
-      .filter(hasAgentReviewData);
-
-    return hasAgentReviewData(review) ? [review, ...savedReviewRecords] : savedReviewRecords;
-  }, [historyRecords, review]);
-
-  useEffect(() => {
-    if (!analyzed) {
-      // 新商品分析前 / 编辑商品时强制清空旧 AI 推理结果，避免串线。
-      setAiReasoningInsights({});
-      setAiReasoningLoading(false);
-      setAiInsightFingerprint("");
-      return undefined;
-    }
-
-    let isActive = true;
-    const fingerprintAtRequest = productFingerprint;
-    const contextKeywords = currentProductContext?.contextKeywordText || "";
-    // 测款复盘总结已由“测款复盘”页面（ReviewView）用 review_funnel 场景独立调用，
-    // 这里只生成进货决策与内容测款两类推理，避免重复调用。
-    const scenarios = ["purchase_decision", "content_testing"];
-
-    setAiReasoningLoading(true);
-
-    Promise.all(
-      scenarios.map((scenario) => generateAiInsight({
-        product,
-        result,
-        marketEvidence: aiMarketEvidence,
-        reviewData: scenario === "review_summary" ? review : null,
-        scenario,
-        // Prompt 强约束：只允许基于当前商品上下文生成，禁止引用历史/示例/seed 内容。
-        constraints: CURRENT_PRODUCT_PROMPT_GUARD,
-      }))
-    )
-      .then((insights) => {
-        if (!isActive) return;
-        // 客户端二次防线：剥离当前商品上下文里并不存在的疑似历史污染词。
-        setAiReasoningInsights(
-          insights.reduce((nextInsights, insight) => {
-            const cleaned = stripLegacyPollution(insight, contextKeywords, "");
-            nextInsights[insight.scenario] = cleaned;
-            return nextInsights;
-          }, {})
-        );
-        // 标记本批 AI 结果归属的 fingerprint，渲染前据此校验。
-        setAiInsightFingerprint(fingerprintAtRequest);
-      })
-      .finally(() => {
-        if (isActive) setAiReasoningLoading(false);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [analyzed, product, result, aiMarketEvidence, review, hasCurrentReviewInsightData, productFingerprint, currentProductContext]);
+  const result = useMemo(() => analyzeProduct(product, Boolean(image)), [product, image]);
 
   function update(key, value) {
     setProduct((old) => ({ ...old, [key]: value }));
     setAnalyzed(false);
     setSaveMessage("");
-  }
-
-  function applyStorageResult(storageResult, fallbackMessage = "") {
-    if (storageResult?.status) setStorageStatus(storageResult.status);
-    if (storageResult?.warning) {
-      setHistoryMessage(storageResult.warning);
-    } else if (fallbackMessage) {
-      setHistoryMessage(fallbackMessage);
-    }
-  }
-
-  async function syncLocalRecordsToCloud() {
-    setHistoryMessage("正在尝试同步本地产品库到云端...");
-    const storageResult = await migrateLocalRecordsToCloud(storageMode);
-    setHistoryRecords(storageResult.records || []);
-    applyStorageResult(
-      storageResult,
-      storageResult.mode === "cloud" ? "本地产品库已同步到云端。" : "当前仍使用本地模式。"
-    );
-  }
-
-  async function handleStorageModeChange(nextMode) {
-    const savedMode = saveStorageMode(nextMode);
-    setStorageMode(savedMode);
-    setHistoryMessage("正在切换产品库存储方式...");
-    await loadHistoryRecords(savedMode, `已切换为${savedMode === STORAGE_MODES.CLOUD ? "云端同步" : savedMode === STORAGE_MODES.LOCAL ? "仅本地保存" : "自动选择"}。`);
-  }
-
-  async function handleCloudAuthChange() {
-    setHistoryMessage("登录状态已更新，正在读取产品库...");
-    await loadHistoryRecords(storageMode, "云端账号已连接，产品库已重新加载。");
-  }
-
-  async function handleCloudSignOut() {
-    try {
-      await supabase?.auth.signOut();
-      const nextMode = saveStorageMode(STORAGE_MODES.AUTO);
-      setStorageMode(nextMode);
-      setHistoryMessage("已退出云端账号，已切回自动选择；本地记录不会清空。");
-      await loadHistoryRecords(nextMode, "已退出云端账号，当前自动回退到本地模式。");
-    } catch (error) {
-      setHistoryMessage("退出登录失败：" + error.message);
-    }
   }
 
   function copyReport() {
@@ -2410,122 +3054,37 @@ function App() {
     setTimeout(() => setCopied(false), 1200);
   }
 
-  function downloadReport(currentProduct = product, currentResult = result, currentAiReasoningInsights = aiReasoningInsights) {
-    const safeProduct = currentProduct && typeof currentProduct === "object" ? currentProduct : product;
-    const safeResult = currentResult && typeof currentResult === "object" ? currentResult : result;
-
-    if (!safeResult || !Object.keys(safeResult).length) {
-      alert("请先生成进货报告，再下载可视化报告。");
-      return;
-    }
-
-    let url = "";
-
-    try {
-      const html = generateHtmlReport(safeProduct || {}, {
-        ...safeResult,
-        aiReasoningInsights: currentAiReasoningInsights || {},
-      });
-      if (!html || typeof html !== "string") {
-        throw new Error("empty_report_html");
-      }
-
-      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-      url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      const cleanName = cleanFileName(safeProduct?.name || "tradepilot-report");
-      anchor.href = url;
-      anchor.download = `${cleanName || "tradepilot-report"}.html`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-    } catch (error) {
-      console.error("下载可视化报告失败：", error);
-      alert("下载报告失败，请先确认报告已生成。");
-    } finally {
-      if (url) {
-        setTimeout(() => URL.revokeObjectURL(url), 0);
-      }
-    }
+  function downloadReport() {
+    const html = generateHtmlReport(product, result);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const cleanName = cleanFileName(result.productIdentity?.displayName || product.name);
+    anchor.href = url;
+    anchor.download = cleanName ? `TradePilot-${cleanName}-进货决策报告.html` : "TradePilot-进货决策报告.html";
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
-  function handleExportPdfReport(currentProduct = product, currentResult = result, currentAiReasoningInsights = aiReasoningInsights) {
-    const safeProduct = currentProduct && typeof currentProduct === "object" ? currentProduct : product;
-    const safeResult = currentResult && typeof currentResult === "object" ? currentResult : result;
-
-    if (!safeProduct || !safeResult || !Object.keys(safeResult).length) {
-      alert("请先生成进货报告，再导出 PDF 报告。");
-      return;
-    }
-
+  function exportRecordsBackup() {
     try {
-      const html = generatePrintablePdfReport(safeProduct, {
-        ...safeResult,
-        aiReasoningInsights: currentAiReasoningInsights || {},
-      });
-      const printWindow = window.open("", "_blank");
+      const records = JSON.parse(localStorage.getItem("tradepilot_local_records") || "[]");
 
-      if (!printWindow) {
-        alert("浏览器拦截了打印窗口，请允许弹窗后重试。");
+      if (!Array.isArray(records) || records.length === 0) {
+        alert("当前暂无可导出的产品记录");
         return;
       }
 
-      printWindow.document.open();
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-      }, 300);
-    } catch (error) {
-      console.error("PDF 报告导出失败：", error);
-      alert("PDF 报告导出失败，请确认报告已生成。");
-    }
-  }
-
-  async function exportRecordsBackup() {
-    try {
-      const storageResult = await loadProductRecords(storageMode);
-      const records = storageResult.records || [];
-      setHistoryRecords(records);
-      applyStorageResult(storageResult);
-
-      if (!Array.isArray(records) || records.length === 0) {
-        alert("当前暂无可导出的产品记录");
-        return { ok: false, message: "当前暂无可导出的产品记录" };
-      }
-
-      const backup = exportProductRecordsToJson(records);
-      downloadTextFile(backup.content, backup.fileName, "application/json;charset=utf-8");
-      const successMessage = storageResult.mode === "cloud" ? "产品库 JSON 备份已导出，文件仅保存在本机。" : "本地产品库 JSON 备份已导出。";
-      setHistoryMessage(successMessage);
-      return { ok: true, message: successMessage };
+      const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "tradepilot_records_backup.json";
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setHistoryMessage("产品库备份已导出。");
     } catch (error) {
       alert("产品库备份导出失败：" + error.message);
-      return { ok: false, message: "产品库备份导出失败：" + error.message };
-    }
-  }
-
-  async function exportRecordsCsv() {
-    try {
-      const storageResult = await loadProductRecords(storageMode);
-      const records = storageResult.records || [];
-      setHistoryRecords(records);
-      applyStorageResult(storageResult);
-
-      if (!Array.isArray(records) || records.length === 0) {
-        alert("当前暂无可导出的产品记录");
-        return { ok: false, message: "当前暂无可导出的产品记录" };
-      }
-
-      const csv = exportProductRecordsToCsv(records);
-      downloadTextFile(csv.content, csv.fileName, "text/csv;charset=utf-8");
-      const successMessage = "产品库 CSV 表格已导出，可用 Excel / WPS 打开。";
-      setHistoryMessage(successMessage);
-      return { ok: true, message: successMessage };
-    } catch (error) {
-      alert("产品库 CSV 导出失败：" + error.message);
-      return { ok: false, message: "产品库 CSV 导出失败：" + error.message };
     }
   }
 
@@ -2553,34 +3112,50 @@ function App() {
     if (!file) return;
 
     try {
-      const oldStorageResult = await loadProductRecords(storageMode);
-      const importedRecords = await importProductRecordsFromJson(file);
-      const mergedRecords = mergeProductRecords(oldStorageResult.records || [], importedRecords);
-      const storageResult = saveLocalRecords(mergedRecords, { selectedMode: storageMode });
-      const records = storageResult.records || [];
-      const cloudSyncTip = storageMode === STORAGE_MODES.CLOUD || storageMode === STORAGE_MODES.AUTO
-        ? " 当前备份已先合并到本地产品库；如需上传到云端，请手动点击“同步本地记录到云端”。"
-        : "";
-      const successMessage = `产品库备份导入成功，已合并 ${importedRecords.length || 0} 条记录。${cloudSyncTip}`;
+      const text = await file.text();
+      const importedRecords = JSON.parse(text);
 
-      setHistoryRecords(records);
-      applyStorageResult(
-        {
-          ...storageResult,
-          warning: "",
-          status: {
-            ...storageResult.status,
-            warning: "",
-          },
-        },
-        successMessage
+      if (!Array.isArray(importedRecords)) {
+        throw new Error("invalid_backup_format");
+      }
+
+      let oldRecords = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem("tradepilot_local_records") || "[]");
+        oldRecords = Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        oldRecords = [];
+      }
+
+      const existingIds = new Set(
+        oldRecords
+          .map((record) => record?.id)
+          .filter((id) => id !== undefined && id !== null)
+          .map(String)
       );
-      alert(successMessage);
-      return { ok: true, message: successMessage };
+      const importedIds = new Set();
+      const uniqueImportedRecords = importedRecords.reduce((records, record, index) => {
+        if (!record || typeof record !== "object" || Array.isArray(record)) return records;
+
+        const id = record.id !== undefined && record.id !== null && String(record.id).trim()
+          ? String(record.id)
+          : `imported-${Date.now()}-${index}`;
+
+        if (existingIds.has(id) || importedIds.has(id)) return records;
+
+        importedIds.add(id);
+        records.push({ ...record, id });
+        return records;
+      }, []);
+
+      const nextRecords = [...uniqueImportedRecords, ...oldRecords];
+      localStorage.setItem("tradepilot_local_records", JSON.stringify(nextRecords));
+      setHistoryRecords(nextRecords);
+      setHistoryMessage("产品库备份导入成功");
+      alert("产品库备份导入成功");
     } catch (error) {
-      setHistoryMessage("备份文件格式不正确");
-      alert("备份文件格式不正确");
-      return { ok: false, message: "备份文件格式不正确" };
+      setHistoryMessage("备份文件格式不正确，请选择 TradePilot 导出的 JSON 文件");
+      alert("备份文件格式不正确，请选择 TradePilot 导出的 JSON 文件");
     } finally {
       event.target.value = "";
     }
@@ -2628,37 +3203,38 @@ function App() {
         report: result?.report || "暂无报告内容",
       };
 
-      const storageResult = await saveProductRecord(localRecord, storageMode);
-
-      setHistoryRecords(storageResult.records || []);
-      applyStorageResult(storageResult);
-      setSaveMessage(
-        storageResult.mode === "cloud"
-          ? "已保存到我的产品库 ✓（云端同步已启用）"
-          : storageResult.warning
-            ? `已保存到我的产品库 ✓（本地模式）${storageResult.warning}`
-            : "已保存到我的产品库 ✓（本地模式）"
+      const oldRecords = JSON.parse(
+        localStorage.getItem("tradepilot_local_records") || "[]"
       );
+
+      const nextRecords = [localRecord, ...oldRecords].slice(0, 50);
+
+      localStorage.setItem(
+        "tradepilot_local_records",
+        JSON.stringify(nextRecords)
+      );
+
+      setHistoryRecords(nextRecords);
+      setSaveMessage("已保存到我的产品库 ✓（游客演示模式，本地保存）");
     } catch (error) {
       setSaveMessage("保存失败：" + error.message);
     }
   }
 
-  async function loadHistoryRecords(modeOverride = storageMode, fallbackMessage = "") {
+  async function loadHistoryRecords() {
     try {
       setHistoryLoading(true);
       setHistoryMessage("");
 
-      const storageResult = await loadProductRecords(modeOverride);
-      const records = storageResult.records || [];
-
-      setHistoryRecords(records);
-      applyStorageResult(
-        storageResult,
-        fallbackMessage || (records.length === 0
-          ? "当前为本地/游客可用模式，保存的产品会优先同步云端；云端不可用时会记录在本浏览器中。"
-          : "")
+      const localRecords = JSON.parse(
+        localStorage.getItem("tradepilot_local_records") || "[]"
       );
+
+      setHistoryRecords(localRecords);
+
+      if (localRecords.length === 0) {
+        setHistoryMessage("当前为游客演示模式，保存的产品会记录在本浏览器中。");
+      }
     } catch (error) {
       setHistoryMessage("读取产品库失败：" + error.message);
     } finally {
@@ -2670,22 +3246,18 @@ function App() {
     const ok = window.confirm("确定删除这条产品记录吗？");
     if (!ok) return;
 
-    const storageResult = await deleteProductRecord(id, storageMode);
-    setHistoryRecords(storageResult.records || []);
-    applyStorageResult(storageResult, "已删除产品记录。");
-  }
+    const oldRecords = JSON.parse(
+      localStorage.getItem("tradepilot_local_records") || "[]"
+    );
 
-  function showImageRecognitionFallbackNotice(detail = "", errorCode = "") {
-    const notice = buildImageRecognitionErrorMessage("api_unavailable", detail);
-    const configMissing = errorCode === "vision_config_missing";
-    // 页面内温和降级，不再使用 alert。保留用户已填内容与图片预览，
-    // 不阻止手动生成报告 / 产品库 / PK / 复盘 / 内容结构库。
-    setImageRecognitionNotice({
-      ...notice,
-      summary: configMissing
-        ? "服务端未配置视觉识别模型，已切换为手动填写模式。你仍可继续填写商品名称、成本、售价、MOQ、材质和销售渠道，生成完整进货报告。"
-        : "图片识别暂未返回结果，已切换为手动填写模式。你仍可继续填写商品名称、成本、售价、MOQ、材质和销售渠道，生成完整进货报告。",
-    });
+    const nextRecords = oldRecords.filter((record) => record.id !== id);
+
+    localStorage.setItem(
+      "tradepilot_local_records",
+      JSON.stringify(nextRecords)
+    );
+
+    setHistoryRecords(nextRecords);
   }
 
   async function analyzeImageWithAI() {
@@ -2696,26 +3268,9 @@ function App() {
 
     if (getTextByteSize(image) > IMAGE_COMPRESSION_OPTIONS.maxDataUrlBytes) {
       alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
-      setImageRecognitionNotice(buildImageRecognitionErrorMessage("payload", IMAGE_TOO_LARGE_FALLBACK_MESSAGE));
       return;
     }
 
-    if (imageQualityNotice?.level === "error") {
-      alert("当前图片未通过上传检查，请重新上传清晰单品图；也可以直接手动填写产品信息生成报告。");
-      return;
-    }
-
-    setImageRecognitionNotice({
-      level: "ok",
-      title: "正在识别图片",
-      summary: imageQualityNotice?.level === "warning"
-        ? "当前图片存在质量提醒，识别结果建议人工复核。"
-        : imageQualityNotice?.level === "minor_warning"
-          ? "当前图片存在轻微质量提醒，仍可继续识别。"
-          : "正在识别商品图片……",
-      issues: imageQualityNotice?.level === "warning" ? imageQualityNotice.issues || [] : [],
-      suggestions: ["识别完成后请核对商品名称、品类、材质、价格和 MOQ。"],
-    });
     setAiLoading(true);
 
     const controller = new AbortController();
@@ -2735,31 +3290,44 @@ function App() {
     };
 
     try {
-      const result = await requestImageAnalysis({
-        image,
-        hint:
-          "请只根据上传图片识别产品。不要沿用页面旧字段。先判断这是项链/耳饰/发饰/其他，若看到一整圈珍珠串、扣头、延长链或包装盒内圆形珠链，优先判断为珍珠项链/锁骨链，不要判断为耳夹。",
-        endpoint: ANALYZE_IMAGE_ENDPOINT,
+      const response = await fetch(ANALYZE_IMAGE_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         signal: controller.signal,
+        body: JSON.stringify({
+          image,
+          hint:
+            "请只根据上传图片识别产品。不要沿用页面旧字段。先判断这是项链/耳饰/发饰/其他，若看到一整圈珍珠串、扣头、延长链或包装盒内圆形珠链，优先判断为珍珠项链/锁骨链，不要判断为耳夹。",
+        }),
       });
 
       clearTimeout(timer);
 
-      // 识别失败 / 配置缺失：页面内温和降级，不弹 alert，不清空已填内容与图片预览。
-      if (result.kind !== "success") {
-        setAiInsight(null);
-        const detail = result.message || result.errorCode || "";
-        if (/EXCEED_MAX_PAYLOAD_SIZE|payload|请求体|too large/i.test(String(detail))) {
-          setImageRecognitionNotice(buildImageRecognitionErrorMessage("payload", detail));
-          return;
-        }
-        showImageRecognitionFallbackNotice(detail, result.errorCode);
+      const text = await response.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        console.error("接口返回不是 JSON：", text);
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
         return;
       }
 
-      const data = result.raw || {};
-      const aiProduct = result.product || {};
-      const recognitionMessage = buildImageRecognitionMessage(data, aiProduct);
+      if (!response.ok) {
+        console.error("AI识别接口错误：", data);
+        const apiMessage = data.error || data.message || "";
+        if (/EXCEED_MAX_PAYLOAD_SIZE|payload|请求体|too large/i.test(apiMessage)) {
+          alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
+          return;
+        }
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
+        return;
+      }
+
+      const aiProduct = data?.product || {};
 
       const hasAiProductInfo = Object.values(aiProduct).some((value) => {
         if (Array.isArray(value)) return value.length > 0;
@@ -2769,21 +3337,11 @@ function App() {
 
       if (!hasAiProductInfo) {
         setAiInsight(data);
-        // 模型可达但未提取到可用字段：仍页面内降级，不弹 alert。
-        showImageRecognitionFallbackNotice("模型返回内容为空，未能提取商品名称或品类。");
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
         return;
       }
 
       setAiInsight(data);
-      setImageRecognitionNotice({
-        ...recognitionMessage,
-        title: recognitionMessage.level === "warning" ? recognitionMessage.title : "图片识别已完成",
-        summary:
-          recognitionMessage.level === "warning"
-            ? recognitionMessage.summary
-            : "图片识别已完成，建议核对识别结果后继续生成报告。",
-      });
-      setImageQualityNotice((oldNotice) => normalizeImageQualityLevel(oldNotice, recognitionMessage));
 
       setProduct((old) => ({
         ...old,
@@ -2803,15 +3361,15 @@ function App() {
       }));
 
       setAnalyzed(false);
-      // 成功仅页面内提示，不弹 alert。
+      alert("AI识别完成，已自动回填产品信息");
     } catch (error) {
       clearTimeout(timer);
 
       if (error.name === "AbortError") {
-        showImageRecognitionFallbackNotice("请求超时或被中断");
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
       } else {
         console.error(error);
-        showImageRecognitionFallbackNotice(error.message);
+        alert(IMAGE_RECOGNITION_FALLBACK_MESSAGE);
       }
     } finally {
       clearTimeout(timer);
@@ -2825,8 +3383,6 @@ function App() {
       setProduct({ ...blankProduct, ...restProduct });
       setImage(imagePreview || null);
     }
-    setImageQualityNotice(null);
-    setImageRecognitionNotice(null);
     setAnalyzed(true);
     setMode("result");
   }
@@ -2835,15 +3391,13 @@ function App() {
     setProduct(demo);
     setImage(null);
     setAiInsight(null);
-    setImageQualityNotice(null);
-    setImageRecognitionNotice(null);
     setAnalyzed(true);
     setSaveMessage("");
     setPage("app");
     setMode("result");
   }
 
-  async function loadDemoRecords() {
+  function loadDemoRecords() {
     const demoRecords = demoProducts.map((demo, index) => {
       const demoResult = analyzeProduct(demo, false);
       return {
@@ -2879,15 +3433,11 @@ function App() {
       };
     });
 
-    const oldStorageResult = await loadProductRecords(storageMode);
-    const nextRecords = [...demoRecords, ...(oldStorageResult.records || [])];
-    const localSaveResult = saveLocalRecords(nextRecords, { selectedMode: storageMode });
-    const storageResult = storageMode === STORAGE_MODES.LOCAL
-      ? localSaveResult
-      : await migrateLocalRecordsToCloud(storageMode);
-
-    setHistoryRecords(storageResult.records || nextRecords);
-    applyStorageResult(storageResult, "已加载示例产品到产品库，可直接体验筛选、PK和复盘流程。");
+    const oldRecords = JSON.parse(localStorage.getItem("tradepilot_local_records") || "[]");
+    const nextRecords = [...demoRecords, ...oldRecords].slice(0, 50);
+    localStorage.setItem("tradepilot_local_records", JSON.stringify(nextRecords));
+    setHistoryRecords(nextRecords);
+    setHistoryMessage("已加载示例产品到本浏览器产品库，可直接体验筛选、PK和复盘流程。");
   }
 
   if (page === "cover") {
@@ -2913,7 +3463,7 @@ function App() {
             面向小商品进货、内容电商测款和大学生创业场景的 AI 决策工作台，覆盖义乌拿货、校园零售和小微电商，让用户从凭感觉拿货转向先测算、再测款、后复盘。
           </p>
           <div className="mt-5 max-w-4xl rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
-            当前为游客演示模式：无需注册即可体验完整流程；未登录或云端不可用时记录保存在本浏览器，Supabase 已配置且已登录时会自动启用云端同步。
+            当前为游客演示模式：无需注册即可体验完整流程；产品记录将暂存在本浏览器中，正式版可接入账号体系实现云端同步。
           </div>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
@@ -2950,39 +3500,32 @@ function App() {
     );
   }
 
-  const activePageMeta = PAGE_METADATA[mode] || PAGE_METADATA.intro;
-  const handleSidebarNavigate = (nextMode) => {
-    setMode(nextMode);
-    if (nextMode === "history" || nextMode === "pk") {
-      loadHistoryRecords();
-    }
-  };
-
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#061311] text-white">
-      <SidebarNavigation
-        activeMode={mode}
-        onNavigate={handleSidebarNavigate}
-        onBrandClick={() => setPage("cover")}
-      />
+    <div className="min-h-screen bg-[#08100d] text-white">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#08100d]/85 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
+          <button onClick={() => setPage("cover")} className="text-left">
+            <p className="text-sm text-emerald-300">TradePilot AI</p>
+            <h1 className="text-xl font-black">进货判断、内容测款与产品复盘</h1>
+          </button>
 
-      <div className="relative min-h-screen lg:pl-60">
-        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_82%_0%,rgba(95,225,195,0.055),transparent_30%),radial-gradient(circle_at_45%_100%,rgba(59,191,167,0.035),transparent_34%)] lg:left-60" />
-        <main className="relative min-h-screen px-4 pb-12 pt-6 sm:px-6 lg:px-8 lg:py-8">
-          <div className="mx-auto w-full max-w-[1440px]">
-            <section className="flex flex-col gap-4 border-b border-[#5fe1c3]/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#5d8178]">TradePilot Workspace</p>
-                <h1 className="mt-2 text-2xl font-black tracking-tight text-[#f4f7f7] sm:text-3xl">{activePageMeta.title}</h1>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#8fa09c]">{activePageMeta.description}</p>
-              </div>
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#5fe1c3]/15 bg-[#5fe1c3]/[0.05] px-3 py-2 text-[11px] font-semibold text-[#9fc1b9]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#5fe1c3]" />
-                游客模式可用 · Supabase 可选同步
-              </div>
-            </section>
+          <div className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs font-bold text-cyan-100">
+            游客演示模式 · 本地体验不强制登录
+          </div>
 
-            <div className="mt-6">
+          <nav className="flex flex-wrap gap-2 text-sm font-bold">
+            <Tab active={mode === "intro"} onClick={() => setMode("intro")}>项目介绍</Tab>
+            <Tab active={mode === "operate"} onClick={() => setMode("operate")}>开始判断</Tab>
+            <Tab active={mode === "result"} onClick={() => setMode("result")}>进货报告</Tab>
+            <Tab active={mode === "history"} onClick={() => { setMode("history"); loadHistoryRecords(); }}>我的产品库</Tab>
+            <Tab active={mode === "pk"} onClick={() => { setMode("pk"); loadHistoryRecords(); }}>候选产品PK</Tab>
+            <Tab active={mode === "review"} onClick={() => setMode("review")}>测款复盘</Tab>
+            <Tab active={mode === "demo"} onClick={() => setMode("demo")}>评委演示</Tab>
+          </nav>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-7xl px-6 py-8">
         {mode === "intro" && <IntroView setMode={setMode} />}
         {mode === "operate" && (
           <OperateView
@@ -2996,10 +3539,6 @@ function App() {
             setMode={setMode}
             analyzeImageWithAI={analyzeImageWithAI}
             aiLoading={aiLoading}
-            imageQualityNotice={imageQualityNotice}
-            setImageQualityNotice={setImageQualityNotice}
-            imageRecognitionNotice={imageRecognitionNotice}
-            setImageRecognitionNotice={setImageRecognitionNotice}
           />
         )}
         {mode === "result" && (
@@ -3008,64 +3547,34 @@ function App() {
             image={image}
             result={result}
             analyzed={analyzed}
-            records={historyRecords}
-            reviewRecords={agentReviewRecords}
-            imageQuality={imageQualityNotice}
-            recognitionStatus={imageRecognitionNotice}
             setMode={setMode}
             copyReport={copyReport}
             copied={copied}
             saveCurrentReport={saveCurrentReport}
             saveMessage={saveMessage}
             aiInsight={aiInsight}
-            aiReasoningInsights={safeAiReasoningInsights}
-            aiReasoningLoading={aiReasoningLoading}
-            currentProductContext={currentProductContext}
-            aiInsightStale={analyzed && !aiInsightMatchesCurrent && Boolean(aiInsightFingerprint)}
-            reviewData={review}
             downloadReport={downloadReport}
-            onExportPdfReport={handleExportPdfReport}
           />
         )}
-        {mode === "content-pattern" && <ContentPatternView />}
         {mode === "history" && (
-          <div>
-            <StorageModeSelector mode={storageMode} onChange={handleStorageModeChange} disabled={historyLoading} />
-            <StorageStatusBadge
-              status={storageStatus}
-              onMigrate={syncLocalRecordsToCloud}
-              onSignOut={handleCloudSignOut}
-              onUseLocal={() => handleStorageModeChange(STORAGE_MODES.LOCAL)}
-            />
-            {storageMode === STORAGE_MODES.CLOUD && (!storageStatus.hasSupabaseConfig || storageStatus.needsLogin) && (
-              <SupabaseLoginPanel
-                onAuthChange={handleCloudAuthChange}
-                onUseLocal={() => handleStorageModeChange(STORAGE_MODES.LOCAL)}
-              />
-            )}
-            <HistoryView
-              records={historyRecords}
-              storageStatus={storageStatus}
-              loading={historyLoading}
-              message={historyMessage}
-              onDelete={deleteHistoryRecord}
-              onRestore={restoreRecord}
-              onGoReview={(record) => { restoreRecord(record); setMode("review"); }}
-              onAddToPk={(record) => { setPkLeftId(record?.id || ""); setMode("pk"); }}
-              onRefresh={loadHistoryRecords}
-              onLoadDemo={loadDemoRecords}
-              onExportBackup={exportRecordsBackup}
-              onExportCsv={exportRecordsCsv}
-              onExportDocument={exportProductLibraryDocument}
-              onImportBackup={importRecordsBackup}
-              search={historySearch}
-              setSearch={setHistorySearch}
-              statusFilter={historyStatus}
-              setStatusFilter={setHistoryStatus}
-              sortMode={historySort}
-              setSortMode={setHistorySort}
-            />
-          </div>
+          <HistoryView
+            records={historyRecords}
+            loading={historyLoading}
+            message={historyMessage}
+            onDelete={deleteHistoryRecord}
+            onRestore={restoreRecord}
+            onRefresh={loadHistoryRecords}
+            onLoadDemo={loadDemoRecords}
+            onExportBackup={exportRecordsBackup}
+            onExportDocument={exportProductLibraryDocument}
+            onImportBackup={importRecordsBackup}
+            search={historySearch}
+            setSearch={setHistorySearch}
+            statusFilter={historyStatus}
+            setStatusFilter={setHistoryStatus}
+            sortMode={historySort}
+            setSortMode={setHistorySort}
+          />
         )}
         {mode === "pk" && (
           <PKView
@@ -3088,19 +3597,88 @@ function App() {
             setReview={setReview}
             saveCurrentReport={saveCurrentReport}
             saveMessage={saveMessage}
-            records={historyRecords}
           />
         )}
-        {mode === "demo" && <DemoView applyDemo={applyDemo} records={historyRecords} />}
-            </div>
-          </div>
-        </main>
-      </div>
+        {mode === "demo" && <DemoView applyDemo={applyDemo} />}
+      </main>
       <FloatingFeedback
         open={feedbackOpen}
         setOpen={setFeedbackOpen}
       />
     </div>
+  );
+}
+
+function CoverCard({ title, desc, onClick, highlight }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-[2rem] border p-6 text-left transition hover:-translate-y-1 hover:shadow-2xl ${
+        highlight ? "border-emerald-300 bg-emerald-300 text-black shadow-emerald-300/20" : "border-white/10 bg-white/[0.06] text-white"
+      }`}
+    >
+      <h3 className="text-2xl font-black">{title}</h3>
+      <p className={`mt-3 text-sm leading-7 ${highlight ? "text-black/70" : "text-slate-400"}`}>{desc}</p>
+      <p className="mt-6 font-black">进入 →</p>
+    </button>
+  );
+}
+
+function FloatingFeedback({ open, setOpen }) {
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-5 right-5 z-50 rounded-full border border-emerald-300/40 bg-[#0d2017] px-4 py-3 text-sm font-black text-emerald-200 shadow-2xl shadow-black/40 transition hover:-translate-y-0.5 hover:bg-emerald-300 hover:text-black"
+      >
+        反馈建议
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 py-5 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-xl rounded-[2rem] border border-emerald-300/20 bg-[#08100d] p-5 text-white shadow-2xl shadow-black/50">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Feedback</p>
+                <h2 className="mt-2 text-2xl font-black leading-tight">帮助 TradePilot AI 变得更懂进货场景</h2>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-sm font-black text-slate-200 hover:bg-white/10"
+              >
+                关闭
+              </button>
+            </div>
+
+            <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
+              如果你觉得报告不够准确，或希望增加功能，请通过问卷星反馈表提交建议。反馈会直接汇总到项目团队，方便后续优化。
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs leading-6 text-slate-400">
+                问卷约 1 分钟完成，感谢你帮助我们优化进货决策智能体。
+              </p>
+              <a
+                href={feedbackFormUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-2xl bg-emerald-300 px-5 py-3 text-center font-black text-black shadow-lg shadow-emerald-300/10"
+              >
+                填写反馈表
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Tab({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} className={`rounded-full px-4 py-2 ${active ? "bg-emerald-300 text-black" : "bg-white/[0.06] text-slate-300 hover:bg-white/[0.1]"}`}>
+      {children}
+    </button>
   );
 }
 
@@ -3165,6 +3743,20 @@ function Info({ title, items }) {
   );
 }
 
+const IMAGE_COMPRESSION_OPTIONS = {
+  maxWidth: 900,
+  maxHeight: 900,
+  targetDataUrlBytes: 450 * 1024,
+  maxDataUrlBytes: 900 * 1024,
+  compressionSteps: [
+    { maxWidth: 900, maxHeight: 900, qualities: [0.68] },
+    { maxWidth: 720, maxHeight: 720, qualities: [0.52] },
+    { maxWidth: 512, maxHeight: 512, qualities: [0.36] },
+    { maxWidth: 384, maxHeight: 384, qualities: [0.3] },
+    { maxWidth: 320, maxHeight: 320, qualities: [0.24] },
+  ],
+};
+
 function getTextByteSize(value) {
   try {
     return new Blob([String(value || "")]).size;
@@ -3212,7 +3804,7 @@ function renderImageToJpegDataUrl(image, width, height, quality) {
   return canvas.toDataURL("image/jpeg", quality);
 }
 
-export async function compressImageToDataUrl(file, options = {}) {
+async function compressImageToDataUrl(file, options = {}) {
   const config = { ...IMAGE_COMPRESSION_OPTIONS, ...options };
   const sourceDataUrl = await readFileAsDataUrl(file);
   const image = await loadImageFromDataUrl(sourceDataUrl);
@@ -3263,7 +3855,242 @@ export async function compressImageToDataUrl(file, options = {}) {
   };
 }
 
-export function StructuredReport({ product, result }) {
+function OperateView({ product, update, image, setImage, result, setProduct, setAnalyzed, setMode, analyzeImageWithAI, aiLoading }) {
+  async function handleImage(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("请上传 JPG、PNG、WebP 等图片文件。");
+      return;
+    }
+
+    try {
+      const compressed = await compressImageToDataUrl(file);
+      setImage(compressed.dataUrl);
+      setAnalyzed(false);
+
+      if (compressed.tooLarge) {
+        alert(IMAGE_TOO_LARGE_FALLBACK_MESSAGE);
+      }
+    } catch (error) {
+      alert(error.message ? `${error.message}；也可以手动填写产品信息继续生成报告。` : "图片读取失败，请换一张图片再试；也可以手动填写产品信息继续生成报告。");
+    }
+  }
+
+  function analyze() {
+    setAnalyzed(true);
+    setMode("result");
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+      <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+        <h2 className="text-2xl font-black">第一步：上传产品图片</h2>
+        <p className="mt-2 text-sm leading-7 text-slate-400">建议上传进货样品图、供应商图或产品细节图。图片会参与信息完整度和内容潜力判断。</p>
+
+        <div className="mt-5 grid min-h-80 place-items-center rounded-3xl border border-dashed border-white/20 bg-black/25 p-4">
+          {image ? (
+            <img src={image} alt="产品图" className="max-h-80 rounded-3xl object-contain" />
+          ) : (
+            <div className="text-center text-slate-400">
+              <p className="text-5xl">📷</p>
+              <p className="mt-3 font-bold">暂未上传产品图</p>
+            </div>
+          )}
+        </div>
+
+        <label className="mt-4 block cursor-pointer rounded-2xl bg-emerald-300 px-5 py-3 text-center font-black text-black">
+          上传图片
+          <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
+        </label>
+        <p className="mt-2 text-xs leading-6 text-slate-400">图片已自动压缩后用于识别，不影响报告生成。</p>
+        <p className="mt-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-xs leading-6 text-cyan-100">
+          图片识别是加速入口，不是唯一入口。识别失败时，可手动填写产品名称、拿货价、建议售价、MOQ、材质、目标人群和销售渠道，系统仍可生成完整进货决策报告。
+        </p>
+
+        <button onClick={analyzeImageWithAI} disabled={aiLoading} className="mt-3 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black disabled:opacity-60">
+          {aiLoading ? "AI正在识别图片..." : "AI识别图片并自动填写"}
+        </button>
+
+        <button onClick={() => { setProduct(initialProduct); setAnalyzed(false); }} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-black text-white">套用示例产品</button>
+        <button onClick={() => { setProduct(blankProduct); setImage(null); setAnalyzed(false); }} className="mt-3 w-full rounded-2xl border border-white/10 bg-transparent px-5 py-3 font-bold text-slate-300">清空重填</button>
+      </section>
+
+      <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl font-black">第二步：填写进货信息</h2>
+            <p className="mt-2 text-sm text-slate-400">字段越完整，AI判断越可靠。带价格和MOQ才能测算利润与压货风险。</p>
+          </div>
+          <div className="rounded-2xl bg-white/[0.06] px-4 py-3 text-sm font-bold text-slate-300">
+            当前评分：{result.totalScore}/100
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <Input label="产品名称" value={product.name} onChange={(value) => update("name", value)} placeholder="如：珍珠项链" />
+          <Input label="产品类型" value={product.category} onChange={(value) => update("category", value)} placeholder="如：饰品/文创/家居" />
+          <Input label="拿货价 / 元" value={product.cost} onChange={(value) => update("cost", value)} placeholder="如：3.8" />
+          <Input label="建议售价 / 元" value={product.price} onChange={(value) => update("price", value)} placeholder="如：19.9" />
+          <Input label="MOQ 最小起订量 / 件" value={product.moq} onChange={(value) => update("moq", value)} placeholder="如：100" />
+          <Input label="材质" value={product.material} onChange={(value) => update("material", value)} placeholder="如：合金+仿珍珠" />
+          <Input label="目标人群" value={product.audience} onChange={(value) => update("audience", value)} placeholder="如：学生党、通勤人群" />
+          <Input label="销售渠道" value={product.channel} onChange={(value) => update("channel", value)} placeholder="如：小红书/抖音/私域" />
+          <Input label="供应商信息" value={product.supplier} onChange={(value) => update("supplier", value)} placeholder="如：支持混批，7天补货" wide />
+          <Input label="内容关键词" value={product.keywords} onChange={(value) => update("keywords", value)} placeholder="如：温柔风、礼物推荐" wide />
+          <Input label="竞品价格" value={product.competitorPrice} onChange={(value) => update("competitorPrice", value)} placeholder="如：15.9-29.9元" />
+          <Input label="物流/包装风险" value={product.logistics} onChange={(value) => update("logistics", value)} placeholder="如：小件轻货/易碎" />
+          <Input label="补充备注" value={product.note} onChange={(value) => update("note", value)} placeholder="如：适合礼物场景" wide />
+        </div>
+
+        <button onClick={analyze} className="mt-5 w-full rounded-2xl bg-emerald-300 px-5 py-4 text-lg font-black text-black">
+          生成进货决策报告
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function ResultView({ product, image, result, analyzed, setMode, copyReport, copied, saveCurrentReport, saveMessage, aiInsight, downloadReport }) {
+  return (
+    <div className="space-y-6">
+      {!analyzed && (
+        <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">
+          当前展示的是实时预览结果，建议返回开始判断页面生成正式报告。
+        </div>
+      )}
+
+      <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm text-emerald-300">Key Conclusion</p>
+            <h2 className="text-3xl font-black text-white">进货关键结论</h2>
+            <p className="mt-2 text-slate-400">先确认状态和关键指标，再展开查看评分依据与完整报告。</p>
+          </div>
+          <span className="text-sm font-bold text-cyan-200">状态：{result.status}</span>
+        </div>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-4">
+          <Card label="综合评分" value={`${result.totalScore}/100`} />
+          <Card label="AI建议" value={result.level} />
+          <Card label="预计毛利率" value={`${Math.round(result.margin * 100)}%`} />
+          <Card label="首批压货" value={`¥${money(result.stockCost)}`} />
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="space-y-4">
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+            <p className="text-sm text-slate-400">当前产品</p>
+            <h2 className="mt-2 text-3xl font-black text-emerald-300">{result.productIdentity?.displayName || product.name || "未命名产品"}</h2>
+            <p className="mt-2 text-sm font-bold text-emerald-100">{result.productIdentity?.productTypeLabel || product.category || "未分类"}</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Card label="单件利润" value={`¥${money(result.profit)}`} />
+              <Card label="单件成本" value={`¥${money(result.unitCost)}`} />
+              <Card label="建议售价" value={formatEffectivePrice(result.effectivePrice)} />
+              <Card label="竞品价格" value={product.competitorPrice || "待补充"} />
+            </div>
+            {image && <img src={image} alt="产品图" className="mt-5 max-h-80 w-full rounded-3xl object-contain bg-black/30" />}
+          </div>
+          <SamplingStrategyCard result={result} />
+          <MaterialChecklistCard result={result} />
+        </div>
+
+        <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+          <h2 className="text-2xl font-black">AI评分依据</h2>
+          <div className="mt-5 space-y-4">
+            {getScoringItems(result).map((item) => (
+              <div key={item.title} className="rounded-3xl bg-white/[0.06] p-4">
+                <Score label={item.title} value={item.score} />
+                <p className="mt-3 text-sm leading-7 text-slate-300">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {aiInsight && (
+        <section className="rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
+          <h2 className="text-2xl font-black text-cyan-200">AI图片识别结果</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <Card label="识别产品" value={aiInsight.product?.name || "未识别"} />
+            <Card label="推断品类" value={aiInsight.product?.category || "未识别"} />
+            <Card label="置信度" value={aiInsight.confidence || "中等"} />
+          </div>
+        </section>
+      )}
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+          <h2 className="text-2xl font-black">小红书内容包</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-400">消费者视角的种草素材，商家策略单独放在最后，避免把经营分析写进对外文案。</p>
+          <div className="mt-4 grid gap-2">
+            {result.xhsPackage.coverHooks.map((hook) => (
+              <p key={hook} className="rounded-2xl bg-emerald-300 p-3 text-sm font-black text-black">封面钩子：{hook}</p>
+            ))}
+          </div>
+          <h3 className="mt-5 font-black text-white">标题建议</h3>
+          <div className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+            {result.xhsPackage.titles.slice(0, 5).map((title, index) => (
+              <p key={title} className="rounded-2xl bg-black/25 p-4">标题{index + 1}：{title}</p>
+            ))}
+          </div>
+          <h3 className="mt-5 font-black text-white">图文结构</h3>
+          <ol className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+            {result.xhsStructure.map((item, index) => <li key={item}>{index + 1}. {item}</li>)}
+          </ol>
+          <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm leading-7 text-emerald-50">
+            商家发布策略：{result.xhsPackage.merchantStrategy}
+          </p>
+        </div>
+
+        <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+          <h2 className="text-2xl font-black">抖音视频脚本</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-400">{result.douyinPackage.direction}</p>
+          <div className="mt-4 space-y-3 text-sm leading-7 text-slate-300">
+            {result.douyinPackage.shots.map((shot, index) => (
+              <div key={`${shot.time}-${shot.copy}`} className="rounded-2xl bg-black/25 p-4">
+                <p className="font-black text-emerald-200">镜头{index + 1}｜{shot.time}｜{shot.focus}</p>
+                <p className="mt-2">画面：{shot.visual}</p>
+                <p>口播/字幕：{shot.copy}</p>
+                <p className="text-slate-400">目的：{shot.purpose}</p>
+              </div>
+            ))}
+          </div>
+          <h3 className="mt-5 font-black text-white">封面文案</h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {result.douyinPackage.coverTexts.map((text) => (
+              <span key={text} className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-bold text-emerald-100">{text}</span>
+            ))}
+          </div>
+          <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-50">
+            商家测试目标：{result.douyinPackage.merchantGoal}
+          </p>
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-2xl font-black">完整AI进货报告</h2>
+            <p className="mt-2 text-sm text-slate-400">报告可复制给团队、保存到产品库，也可以下载为可视化HTML留档。</p>
+            {saveMessage && <p className="mt-3 rounded-2xl bg-emerald-300/10 p-3 text-sm text-emerald-100">{saveMessage}</p>}
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button onClick={() => setMode("operate")} className="rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-bold text-white">返回修改</button>
+            <button onClick={saveCurrentReport} className="rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">保存到我的产品库</button>
+            <button onClick={copyReport} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">{copied ? "已复制" : "复制给团队"}</button>
+            <button onClick={downloadReport} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-200">下载可视化报告</button>
+          </div>
+        </div>
+        <StructuredReport product={product} result={result} />
+      </section>
+    </div>
+  );
+}
+
+function StructuredReport({ product, result }) {
   const xhs = result.xhsPackage;
   const douyin = result.douyinPackage;
   const keywordPlan = result.keywordPlan;
@@ -3499,12 +4326,12 @@ export function StructuredReport({ product, result }) {
 
 function ReportSection({ number, title, children }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.045] p-4 sm:p-5">
+    <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.045] p-5">
       <div className="flex items-center gap-3 border-b border-white/10 pb-4">
         <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-emerald-300 px-3 text-sm font-black text-black">{number}</span>
-        <h3 className="break-words text-lg font-black text-white sm:text-xl">{title}</h3>
+        <h3 className="text-xl font-black text-white">{title}</h3>
       </div>
-      <div className="mt-4 min-w-0 break-words">{children}</div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -3619,7 +4446,7 @@ function ShotCard({ index, shot }) {
   );
 }
 
-export function SamplingStrategyCard({ result }) {
+function SamplingStrategyCard({ result }) {
   return (
     <section className="rounded-[2rem] border border-emerald-300/15 bg-emerald-300/[0.07] p-5">
       <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">Sampling Strategy</p>
@@ -3635,7 +4462,7 @@ export function SamplingStrategyCard({ result }) {
   );
 }
 
-export function MaterialChecklistCard({ result }) {
+function MaterialChecklistCard({ result }) {
   return (
     <section className="rounded-[2rem] border border-white/10 bg-black/30 p-5">
       <p className="text-xs font-bold uppercase tracking-wide text-cyan-200">Content Materials</p>
@@ -3654,16 +4481,211 @@ export function MaterialChecklistCard({ result }) {
   );
 }
 
-export function HistoryCard({ record, onDelete, onRestore }) {
+function ReviewView({ product, result, review, setReview, saveCurrentReport, saveMessage }) {
+  const views = n(review.views);
+  const likes = n(review.likes);
+  const saves = n(review.saves);
+  const comments = n(review.comments);
+  const inquiries = n(review.inquiries);
+  const orders = n(review.orders);
+  const cost = n(review.cost);
+
+  const engagementRate = views ? ((likes + saves + comments) / views) * 100 : 0;
+  const inquiryRate = views ? (inquiries / views) * 100 : 0;
+  const conversionRate = inquiries ? (orders / inquiries) * 100 : 0;
+  const costPerOrder = orders ? cost / orders : 0;
+
+  let suggestion = "继续观察";
+  let suggestionDetail = "先积累足够浏览和询单数据，再判断是否改内容、改价格或补货。";
+  if (engagementRate >= 8 && conversionRate < 20 && inquiries > 0) {
+    suggestion = "互动高但成交偏低";
+    suggestionDetail = "说明内容能吸引用户，但成交信任还没有建立。建议优化售价、详情页、包装展示、材质说明、评价证明和售后承诺。";
+  }
+  if (views > 0 && engagementRate < 3) {
+    suggestion = "内容吸引力不足";
+    suggestionDetail = "建议重做封面、标题和前3秒内容，把使用前后对比、佩戴/使用场景和价格利益点提前展示。";
+  }
+  if (inquiryRate >= 1 && conversionRate < 20 && inquiries >= 5) {
+    suggestion = "询单高但成交低";
+    suggestionDetail = "用户有购买兴趣，但下单链路可能卡住了。建议检查售价、运费、付款路径、库存说明和客服回复速度。";
+  }
+  if (orders >= 5 && conversionRate >= 25 && costPerOrder > 0 && costPerOrder <= Math.max(result.profit, 1) * 0.6) {
+    suggestion = "成交好且成本可控";
+    suggestionDetail = "可以进入小批量补货观察，但仍建议控制首单量，继续跟踪退换货、复购和真实利润。";
+  }
+
+  function updateReview(key, value) {
+    setReview((old) => ({ ...old, [key]: value }));
+  }
+
+  function applyReviewDemo() {
+    setReview({
+      views: "4200",
+      likes: "260",
+      saves: "180",
+      comments: "42",
+      inquiries: "68",
+      orders: "16",
+      cost: "120",
+    });
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+      <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+        <p className="text-sm text-emerald-300">Test Review</p>
+        <h2 className="text-3xl font-black">测款数据复盘</h2>
+        <p className="mt-2 text-sm leading-7 text-slate-400">把小红书、抖音或私域的真实反馈填进来，用测款数据辅助下一步补货判断。</p>
+        <button onClick={applyReviewDemo} className="mt-5 rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black shadow-lg shadow-emerald-300/10">
+          填入示例数据
+        </button>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <Input label="浏览量" value={review.views} onChange={(value) => updateReview("views", value)} placeholder="如：3000" />
+          <Input label="点赞数" value={review.likes} onChange={(value) => updateReview("likes", value)} placeholder="如：120" />
+          <Input label="收藏数" value={review.saves} onChange={(value) => updateReview("saves", value)} placeholder="如：80" />
+          <Input label="评论数" value={review.comments} onChange={(value) => updateReview("comments", value)} placeholder="如：20" />
+          <Input label="私信/询单数" value={review.inquiries} onChange={(value) => updateReview("inquiries", value)} placeholder="如：15" />
+          <Input label="实际成交数" value={review.orders} onChange={(value) => updateReview("orders", value)} placeholder="如：5" />
+          <Input label="测款成本 / 元" value={review.cost} onChange={(value) => updateReview("cost", value)} placeholder="如：50" wide />
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+        <h2 className="text-2xl font-black">测款复盘结论</h2>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <Card label="当前产品" value={product.name || "未命名产品"} />
+          <Card label="进货评分" value={`${result.totalScore}/100`} />
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <MetricBar label="互动率" value={engagementRate} max={12} suffix="%" desc="判断内容吸引力，收藏、点赞和评论越集中，说明封面与卖点越能抓住用户。" />
+          <MetricBar label="询单率" value={inquiryRate} max={3} suffix="%" desc="判断购买兴趣，用户愿意私信或评论问价，说明产品已经进入购买考虑。" />
+          <MetricBar label="成交转化率" value={conversionRate} max={35} suffix="%" desc="判断价格、信任和付款路径是否成立，高询单低成交时优先排查成交阻力。" />
+          <MetricBar label="单均测款成本" value={costPerOrder} max={Math.max(result.profit * 1.2, 20)} prefix="¥" desc="判断获客成本是否可接受，单均成本应低于可承受利润空间。" />
+        </div>
+
+        <div className="mt-6 rounded-3xl bg-emerald-300 p-5 text-black">
+          <p className="text-sm font-bold opacity-70">复盘建议</p>
+          <h3 className="mt-2 text-2xl font-black">{suggestion}</h3>
+          <p className="mt-3 text-sm leading-7 opacity-80">
+            {suggestionDetail}
+          </p>
+        </div>
+
+        <button onClick={saveCurrentReport} className="mt-5 w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-black">
+          保存本次复盘到我的产品库
+        </button>
+        {saveMessage && <p className="mt-3 rounded-2xl bg-white/[0.06] p-3 text-sm text-emerald-100">{saveMessage}</p>}
+      </section>
+    </div>
+  );
+}
+
+function HistoryView({ records, loading, message, onDelete, onRestore, onRefresh, onLoadDemo, onExportBackup, onExportDocument, onImportBackup, search, setSearch, statusFilter, setStatusFilter, sortMode, setSortMode }) {
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredRecords = records
+    .filter((record) => {
+      const status = getRecordStatus(record);
+      const name = `${record.product_name || ""} ${record.product?.name || ""}`.toLowerCase();
+      const category = `${record.category || ""} ${record.product?.category || ""}`.toLowerCase();
+      const matchSearch = !normalizedSearch || name.includes(normalizedSearch) || category.includes(normalizedSearch);
+      const matchStatus = statusFilter === "全部" || status.includes(statusFilter);
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortMode === "score_desc") return (b.score || 0) - (a.score || 0);
+      if (sortMode === "score_asc") return (a.score || 0) - (b.score || 0);
+      if (sortMode === "saved_asc") return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-sm text-emerald-300">My Product Library</p>
+          <h2 className="text-3xl font-black text-white">我的产品库</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-400">保存进货判断、测款结论和完整报告，形成长期选品资产。</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button onClick={onRefresh} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">刷新产品库</button>
+          <button onClick={onExportBackup} className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-3 font-black text-emerald-100">导出产品库备份</button>
+          <button onClick={onExportDocument} className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-3 font-black text-amber-100">导出产品库文档</button>
+          <label className="cursor-pointer rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-center font-black text-cyan-100">
+            导入产品库备份
+            <input type="file" accept="application/json,.json" className="hidden" onChange={onImportBackup} />
+          </label>
+        </div>
+      </div>
+
+      <div className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-7 text-cyan-100">
+        游客模式下，产品库保存在当前浏览器中。建议定期导出备份；更换浏览器、设备或清理缓存后，可通过导入备份恢复记录。
+      </div>
+
+      <div className="mb-5 grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
+        <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
+          <span className="text-xs font-semibold text-slate-400">搜索产品名称 / 品类</span>
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="如：珍珠、发饰、家居生活" className="mt-2 w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-600" />
+        </label>
+        <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
+          <span className="text-xs font-semibold text-slate-400">状态筛选</span>
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold text-white outline-none">
+            {statusOptions.map((status) => <option key={status} value={status} className="bg-[#08100d]">{status}</option>)}
+          </select>
+        </label>
+        <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
+          <span className="text-xs font-semibold text-slate-400">排序</span>
+          <select value={sortMode} onChange={(event) => setSortMode(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold text-white outline-none">
+            <option value="saved_desc" className="bg-[#08100d]">保存时间：最新</option>
+            <option value="saved_asc" className="bg-[#08100d]">保存时间：最早</option>
+            <option value="score_desc" className="bg-[#08100d]">评分：高到低</option>
+            <option value="score_asc" className="bg-[#08100d]">评分：低到高</option>
+          </select>
+        </label>
+      </div>
+
+      {loading && <div className="rounded-3xl bg-black/25 p-6 text-slate-300">正在读取产品库...</div>}
+      {message && <div className="mb-4 rounded-3xl bg-amber-300/10 p-5 text-amber-100">{message}</div>}
+
+      {!loading && records.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center">
+          <h3 className="text-2xl font-black text-white">产品库还是空的</h3>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+            先生成一份进货报告，再点击“保存到我的产品库”。游客演示模式会把记录暂存在本浏览器中。
+          </p>
+          <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+            <button onClick={onRefresh} className="rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-3 font-bold text-white">重新读取</button>
+            <button onClick={onLoadDemo} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">加载示例产品</button>
+          </div>
+        </div>
+      )}
+
+      {!loading && records.length > 0 && filteredRecords.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center text-slate-400">
+          没有匹配的产品记录。可以调整搜索词或状态筛选。
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {filteredRecords.map((record) => (
+          <HistoryCard key={record.id} record={record} onDelete={onDelete} onRestore={onRestore} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function HistoryCard({ record, onDelete, onRestore }) {
   const metrics = getRecordMetrics(record);
   const displayReport = getRecordReport(record);
   return (
-    <article className="min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-4 sm:p-5">
-      <div className="flex flex-col gap-4 sm:flex-row">
-        {record.product?.imagePreview && <img src={record.product.imagePreview} alt="" className="max-h-64 w-full rounded-2xl object-cover sm:h-24 sm:w-24" />}
+    <article className="rounded-3xl border border-white/10 bg-black/30 p-5">
+      <div className="flex gap-4">
+        {record.product?.imagePreview && <img src={record.product.imagePreview} alt="" className="h-24 w-24 rounded-2xl object-cover" />}
         <div className="min-w-0 flex-1">
-          <h3 className="break-words text-lg font-black text-white sm:text-xl sm:truncate">{metrics.displayName || record.product_name || "未命名产品"}</h3>
-          <p className="mt-2 break-words text-sm text-slate-400">{metrics.productTypeLabel || record.category || "未分类"} · {new Date(record.created_at).toLocaleString()}</p>
+          <h3 className="truncate text-xl font-black text-white">{metrics.displayName || record.product_name || "未命名产品"}</h3>
+          <p className="mt-2 text-sm text-slate-400">{metrics.productTypeLabel || record.category || "未分类"} · {new Date(record.created_at).toLocaleString()}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-sm">
             <span className="rounded-full bg-emerald-300/10 px-3 py-1 font-bold text-emerald-200">评分：{record.score ?? "暂无"}</span>
             <span className="px-1 py-1 font-bold text-cyan-200">状态：{metrics.status}</span>
@@ -3674,8 +4696,8 @@ export function HistoryCard({ record, onDelete, onRestore }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button onClick={() => onRestore(record)} className="min-h-11 w-full rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black sm:w-auto">查看报告</button>
-        <button onClick={() => onDelete(record.id)} className="min-h-11 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-white sm:w-auto">删除</button>
+        <button onClick={() => onRestore(record)} className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black">查看报告</button>
+        <button onClick={() => onDelete(record.id)} className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-white">删除</button>
       </div>
 
       {displayReport && (
@@ -3688,35 +4710,155 @@ export function HistoryCard({ record, onDelete, onRestore }) {
   );
 }
 
-export function Input({ label, value, onChange, placeholder, wide }) {
+function PKView({ records, loading, message, onRefresh, onRestore, leftId, setLeftId, rightId, setRightId }) {
+  const sorted = [...records].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const left = sorted.find((record) => record.id === leftId) || sorted[0] || null;
+  const right = sorted.find((record) => record.id === rightId) || sorted.find((record) => record.id !== left?.id) || null;
+  const leftMetrics = left ? getRecordMetrics(left) : null;
+  const rightMetrics = right ? getRecordMetrics(right) : null;
+
   return (
-    <label className={`min-w-0 rounded-2xl border border-white/10 bg-black/25 p-4 ${wide ? "md:col-span-2" : ""}`}>
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-sm text-emerald-300">Candidate PK</p>
+          <h2 className="text-3xl font-black">候选产品PK</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-400">按已保存产品的评分排序，帮助你快速比较哪些款更适合优先拿样、继续测款或进入补货观察。</p>
+        </div>
+        <button onClick={onRefresh} className="rounded-2xl bg-emerald-300 px-5 py-3 font-black text-black">刷新候选池</button>
+      </div>
+
+      {loading && <div className="rounded-3xl bg-black/25 p-6 text-slate-300">正在读取候选产品...</div>}
+      {message && <div className="mb-4 rounded-3xl bg-amber-300/10 p-5 text-amber-100">{message}</div>}
+
+      {!loading && sorted.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-white/20 bg-black/25 p-8 text-center text-slate-400">
+          还没有候选产品。先保存几份进货报告，再回来比较候选款。
+        </div>
+      )}
+
+      {sorted.length === 1 && (
+        <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">
+          当前只有一个候选产品。保存至少两个产品后，就可以进行完整 PK。
+        </div>
+      )}
+
+      {sorted.length >= 2 && (
+        <div className="space-y-5">
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <span className="text-xs font-semibold text-slate-400">候选产品 A</span>
+              <select value={left?.id || ""} onChange={(event) => setLeftId(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold text-white outline-none">
+                {sorted.map((record) => <option key={record.id} value={record.id} className="bg-[#08100d]">{getRecordMetrics(record).displayName}</option>)}
+              </select>
+            </label>
+            <label className="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <span className="text-xs font-semibold text-slate-400">候选产品 B</span>
+              <select value={right?.id || ""} onChange={(event) => setRightId(event.target.value)} className="mt-2 w-full bg-transparent text-sm font-bold text-white outline-none">
+                {sorted.map((record) => <option key={record.id} value={record.id} className="bg-[#08100d]">{getRecordMetrics(record).displayName}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="rounded-3xl bg-emerald-300 p-6 text-black">
+            <p className="text-sm font-bold opacity-70">AI 推荐结论</p>
+            <h3 className="mt-2 text-2xl font-black">{getPkRecommendation(left, right)}</h3>
+          </div>
+
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/30">
+            <div className="grid grid-cols-[0.9fr_1fr_1fr] border-b border-white/10 bg-white/[0.06] text-sm font-black text-slate-200">
+              <div className="p-4">对比维度</div>
+              <div className="p-4">{leftMetrics?.displayName}</div>
+              <div className="p-4">{rightMetrics?.displayName}</div>
+            </div>
+            <PkMetricRow label="评分" left={`${leftMetrics?.score || 0}/100`} right={`${rightMetrics?.score || 0}/100`} />
+            <PkMetricRow label="状态" left={`状态：${leftMetrics?.status || "待判断"}`} right={`状态：${rightMetrics?.status || "待判断"}`} />
+            <PkMetricRow label="毛利率" left={`${Math.round((leftMetrics?.margin || 0) * 100)}%`} right={`${Math.round((rightMetrics?.margin || 0) * 100)}%`} />
+            <PkMetricRow label="首批压货" left={`¥${money(leftMetrics?.stockCost || 0)}`} right={`¥${money(rightMetrics?.stockCost || 0)}`} />
+            <PkMetricRow label="风险数量" left={`${leftMetrics?.riskCount || 0} 个`} right={`${rightMetrics?.riskCount || 0} 个`} />
+            <PkMetricRow label="内容潜力" left={`${leftMetrics?.contentPotential || 0}/100`} right={`${rightMetrics?.contentPotential || 0}/100`} />
+            <PkMetricRow label="渠道适配" left={leftMetrics?.channelFit || "待补充"} right={rightMetrics?.channelFit || "待补充"} />
+            <div className="grid grid-cols-[0.9fr_1fr_1fr] border-t border-white/10">
+              <div className="p-4 text-sm font-bold text-slate-400">操作</div>
+              <div className="p-4"><button onClick={() => left && onRestore(left)} className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black">查看</button></div>
+              <div className="p-4"><button onClick={() => right && onRestore(right)} className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-black">查看</button></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 grid gap-4">
+        {sorted.map((record, index) => (
+          <div key={record.id} className="rounded-3xl border border-white/10 bg-black/30 p-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-black text-emerald-300">#{index + 1}</p>
+                <h3 className="text-2xl font-black">{getRecordMetrics(record).displayName}</h3>
+                <p className="mt-2 text-sm text-slate-400">{record.advice}</p>
+              </div>
+              <div className="grid gap-2 text-sm md:grid-cols-3">
+                <span className="rounded-full bg-emerald-300/10 px-3 py-2 font-bold text-emerald-200">评分 {record.score ?? 0}</span>
+                <span className="px-1 py-2 font-bold text-cyan-200">状态：{getRecordStatus(record)}</span>
+                <button onClick={() => onRestore(record)} className="rounded-full bg-emerald-300 px-3 py-2 font-black text-black">查看</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DemoView({ applyDemo }) {
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-6">
+      <p className="text-sm text-emerald-300">Judge Demo</p>
+      <h2 className="text-3xl font-black">评委快速演示</h2>
+      <p className="mt-2 text-sm leading-7 text-slate-400">不用依赖实时识图接口，直接查看多个不同品类的完整判断结果，保证现场展示稳定。</p>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {demoProducts.map((demo) => (
+          <button key={demo.name} onClick={() => applyDemo(demo)} className="rounded-[2rem] border border-white/10 bg-black/30 p-6 text-left transition hover:-translate-y-1 hover:bg-white/[0.08]">
+            <p className="text-sm text-emerald-300">{demo.category}</p>
+            <h3 className="mt-2 text-2xl font-black text-white">{demo.name}</h3>
+            <p className="mt-3 text-sm leading-7 text-slate-400">{demo.note}</p>
+            <p className="mt-5 font-black text-emerald-300">查看完整案例 →</p>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Input({ label, value, onChange, placeholder, wide }) {
+  return (
+    <label className={`rounded-2xl border border-white/10 bg-black/25 p-4 ${wide ? "md:col-span-2" : ""}`}>
       <span className="text-xs font-semibold text-slate-400">{label}</span>
-      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-2 w-full min-w-0 bg-transparent text-sm text-white outline-none placeholder:text-slate-600" />
+      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-2 w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-600" />
     </label>
   );
 }
 
-export function Card({ label, value }) {
+function Card({ label, value }) {
   return (
-    <div className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.06] p-4">
+    <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-4">
       <p className="text-sm text-slate-400">{label}</p>
-      <p className="mt-2 break-words text-base font-black text-white sm:text-lg">{value}</p>
+      <p className="mt-2 text-lg font-black text-white">{value}</p>
     </div>
   );
 }
 
-export function PkMetricRow({ label, left, right }) {
+function PkMetricRow({ label, left, right }) {
   return (
-    <div className="grid grid-cols-[minmax(120px,0.9fr)_minmax(160px,1fr)_minmax(160px,1fr)] border-b border-white/10 text-sm">
-      <div className="break-words p-4 font-bold text-slate-400">{label}</div>
-      <div className="break-words p-4 font-semibold text-slate-100">{left}</div>
-      <div className="break-words p-4 font-semibold text-slate-100">{right}</div>
+    <div className="grid grid-cols-[0.9fr_1fr_1fr] border-b border-white/10 text-sm">
+      <div className="p-4 font-bold text-slate-400">{label}</div>
+      <div className="p-4 font-semibold text-slate-100">{left}</div>
+      <div className="p-4 font-semibold text-slate-100">{right}</div>
     </div>
   );
 }
 
-export function Score({ label, value }) {
+function Score({ label, value }) {
   const scoreValue = clamp(Number(value) || 0, 0, 100);
   return (
     <div>
@@ -3731,7 +4873,7 @@ export function Score({ label, value }) {
   );
 }
 
-export function MetricBar({ label, value, max, desc, suffix = "", prefix = "" }) {
+function MetricBar({ label, value, max, desc, suffix = "", prefix = "" }) {
   const safeMax = max > 0 ? max : 1;
   const width = clamp((value / safeMax) * 100, 0, 100);
   return (
