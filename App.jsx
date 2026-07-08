@@ -30,14 +30,14 @@ import StorageStatusBadge from "./src/components/StorageStatusBadge";
 import SupabaseLoginPanel from "./src/components/SupabaseLoginPanel";
 import DemoView from "./src/components/DemoView";
 import ContentPatternView from "./src/components/ContentPatternView";
-import GlobalRiskChecklistView from "./src/components/GlobalRiskChecklistView";
-import VersionSelectView from "./src/components/VersionSelectView";
-import GlobalHomeView from "./src/components/GlobalHomeView";
-import GlobalProductFormView from "./src/components/GlobalProductFormView";
-import GlobalResultView from "./src/components/GlobalResultView";
-import SidebarNavigation, { PAGE_METADATA } from "./src/components/SidebarNavigation";
-import { analyzeGlobalCrossBorder } from "./src/utils/globalCrossBorderEngine";
-import { GLOBAL_DEMO_PRODUCTS } from "./src/constants/globalDemoData";
+import GlobalRiskChecklistView from "./src/components/GlobalRiskChecklistView.jsx";
+import VersionSelectView from "./src/components/VersionSelectView.jsx";
+import GlobalHomeView from "./src/components/GlobalHomeView.jsx";
+import GlobalProductFormView from "./src/components/GlobalProductFormView.jsx";
+import GlobalResultView from "./src/components/GlobalResultView.jsx";
+import SidebarNavigation, { PAGE_METADATA } from "./src/components/SidebarNavigation.jsx";
+import { analyzeGlobalCrossBorder } from "./src/utils/globalCrossBorderEngine.js";
+import { GLOBAL_DEMO_PRODUCTS } from "./src/constants/globalDemoData.js";
 import {
   deleteProductRecord,
   getStorageMode,
