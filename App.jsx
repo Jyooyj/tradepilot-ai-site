@@ -30,7 +30,14 @@ import StorageStatusBadge from "./src/components/StorageStatusBadge";
 import SupabaseLoginPanel from "./src/components/SupabaseLoginPanel";
 import DemoView from "./src/components/DemoView";
 import ContentPatternView from "./src/components/ContentPatternView";
+import GlobalRiskChecklistView from "./src/components/GlobalRiskChecklistView";
+import VersionSelectView from "./src/components/VersionSelectView";
+import GlobalHomeView from "./src/components/GlobalHomeView";
+import GlobalProductFormView from "./src/components/GlobalProductFormView";
+import GlobalResultView from "./src/components/GlobalResultView";
 import SidebarNavigation, { PAGE_METADATA } from "./src/components/SidebarNavigation";
+import { analyzeGlobalCrossBorder } from "./src/utils/globalCrossBorderEngine";
+import { GLOBAL_DEMO_PRODUCTS } from "./src/constants/globalDemoData";
 import {
   deleteProductRecord,
   getStorageMode,
@@ -2164,6 +2171,10 @@ function hasAgentReviewData(reviewData = {}) {
 function App() {
   const [page, setPage] = useState("cover");
   const [mode, setMode] = useState("intro");
+  // 跨境版独立状态：edition 标记当前所在版本，globalReport/globalForm 缓存跨境报告与表单
+  const [edition, setEdition] = useState("domestic");
+  const [globalReport, setGlobalReport] = useState(null);
+  const [globalForm, setGlobalForm] = useState(null);
   const [product, setProduct] = useState(blankProduct);
   const [image, setImage] = useState(null);
   const [analyzed, setAnalyzed] = useState(false);
@@ -2890,6 +2901,37 @@ function App() {
     applyStorageResult(storageResult, "已加载示例产品到产品库，可直接体验筛选、PK和复盘流程。");
   }
 
+  // 跨境版相关动作
+  const handleGlobalAnalyze = (formData) => {
+    setGlobalForm(formData);
+    setGlobalReport(analyzeGlobalCrossBorder(formData));
+    setMode("global-result");
+  };
+  const handleGlobalUseDemo = (demo) => {
+    if (!demo) return;
+    setGlobalForm(demo);
+    setGlobalReport(analyzeGlobalCrossBorder(demo));
+    setMode("global-result");
+  };
+
+  if (page === "version-select") {
+    return (
+      <VersionSelectView
+        onSelect={(next) => {
+          setEdition(next);
+          if (next === "domestic") {
+            setPage("app");
+            setMode("intro");
+          } else {
+            setPage("app");
+            setMode("global-home");
+          }
+        }}
+        onBack={() => setPage("cover")}
+      />
+    );
+  }
+
   if (page === "cover") {
     return (
       <div className="min-h-screen bg-[#08100d] text-white">
@@ -2941,6 +2983,23 @@ function App() {
             <CoverCard title="开始进货判断" desc="上传图片并填写拿货价、MOQ，生成一份可复盘的进货报告。" highlight onClick={() => { setPage("app"); setMode("operate"); }} />
             <CoverCard title="游客快速体验" desc="无需注册登录，直接查看完整案例，体验报告、产品库、PK和复盘流程。" onClick={() => { setPage("app"); setMode("demo"); }} />
           </div>
+
+          <div className="mt-8 flex flex-col items-start gap-4 rounded-3xl border border-cyan-300/25 bg-gradient-to-br from-[#0a1f1c] to-[#0e1a2b] p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">双版本入口</p>
+              <h3 className="mt-2 text-xl font-black text-white sm:text-2xl">国内版 + 跨境版 二选一</h3>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
+                选择当前要分析的业务场景，系统将进入对应版本的选品与测款流程。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPage("version-select")}
+              className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-[#061311] shadow-lg shadow-cyan-300/20 transition hover:-translate-y-0.5"
+            >
+              进入版本选择
+            </button>
+          </div>
         </main>
         <FloatingFeedback
           open={feedbackOpen}
@@ -2964,6 +3023,8 @@ function App() {
         activeMode={mode}
         onNavigate={handleSidebarNavigate}
         onBrandClick={() => setPage("cover")}
+        edition={edition}
+        onSwitchEdition={() => setPage("version-select")}
       />
 
       <div className="relative min-h-screen lg:pl-60">
@@ -3092,6 +3153,30 @@ function App() {
           />
         )}
         {mode === "demo" && <DemoView applyDemo={applyDemo} records={historyRecords} />}
+        {mode === "global-risk" && <GlobalRiskChecklistView currentProduct={product} />}
+        {mode === "global-home" && (
+          <GlobalHomeView
+            onStart={() => setMode("global-form")}
+            onDemo={() => handleGlobalUseDemo(GLOBAL_DEMO_PRODUCTS[0])}
+            onBack={() => setPage("version-select")}
+          />
+        )}
+        {mode === "global-form" && (
+          <GlobalProductFormView
+            onAnalyze={handleGlobalAnalyze}
+            onDemo={handleGlobalUseDemo}
+            onBack={() => setMode("global-home")}
+            initialForm={globalForm}
+          />
+        )}
+        {mode === "global-result" && (
+          <GlobalResultView
+            report={globalReport}
+            onBack={() => setMode("global-home")}
+            onReanalyze={() => setMode("global-form")}
+            onUseDemo={handleGlobalUseDemo}
+          />
+        )}
             </div>
           </div>
         </main>
